@@ -57,6 +57,25 @@
     </tbody>
   </table>
 
+  <h2>Câmera</h2>
+  {% comment %}
+    A mensagem que chega ao operador é curta por necessidade — a tela do
+    totem não é lugar para detalhe técnico. Aqui cabe: quais câmeras o
+    aparelho tem, se a permissão foi concedida e qual erro exato ocorreu.
+  {% endcomment %}
+  <table>
+    <tr><th>Suporte do navegador</th><td id="cam-suporte">verificando…</td></tr>
+    <tr><th>Contexto seguro</th><td id="cam-seguro">verificando…</td></tr>
+    <tr><th>Permissão</th><td id="cam-permissao">verificando…</td></tr>
+    <tr><th>Câmeras encontradas</th><td id="cam-lista">verificando…</td></tr>
+    <tr><th>Abertura</th><td id="cam-abertura">toque em testar</td></tr>
+    <tr><th>Resolução obtida</th><td id="cam-resolucao">—</td></tr>
+  </table>
+  <p style="margin-top:1rem">
+    <button type="button" id="cam-testar" class="totem-botao"
+            style="width:auto;padding:.6rem 1.4rem">Testar a câmera</button>
+  </p>
+
   <h2>Instalação como aplicativo</h2>
   {% comment %}
     Por que existe esta seção: o Chrome só oferece a instalação quando o
@@ -96,6 +115,57 @@
 <script>
 (function () {
   'use strict';
+
+  // ── Câmera ────────────────────────────────────────────────
+  function dizCam(id, texto, ok) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = texto;
+    el.style.color = ok === undefined ? '' :
+      (ok ? 'var(--totem-success)' : 'var(--totem-danger)');
+  }
+
+  var temCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  dizCam('cam-suporte', temCamera ? 'sim' : 'NÃO — navegador sem suporte', temCamera);
+
+  var seguro = window.isSecureContext;
+  dizCam('cam-seguro', seguro ? 'sim (HTTPS)' : 'NÃO — a câmera exige HTTPS', seguro);
+
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({ name: 'camera' })
+      .then(function (p) {
+        dizCam('cam-permissao', p.state, p.state !== 'denied');
+      })
+      .catch(function () { dizCam('cam-permissao', 'não informada pelo navegador'); });
+  } else {
+    dizCam('cam-permissao', 'não informada pelo navegador');
+  }
+
+  if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+    navigator.mediaDevices.enumerateDevices().then(function (lista) {
+      var cams = lista.filter(function (d) { return d.kind === 'videoinput'; });
+      dizCam('cam-lista', cams.length + ' câmera(s)', cams.length > 0);
+    });
+  }
+
+  document.getElementById('cam-testar').addEventListener('click', function () {
+    dizCam('cam-abertura', 'abrindo…');
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      .then(function (stream) {
+        var faixa = stream.getVideoTracks()[0];
+        var cfg = faixa.getSettings ? faixa.getSettings() : {};
+        dizCam('cam-abertura', 'abriu com sucesso', true);
+        dizCam('cam-resolucao',
+               (cfg.width || '?') + '×' + (cfg.height || '?') + ' · ' + (faixa.label || ''));
+        stream.getTracks().forEach(function (t) { t.stop(); });
+      })
+      .catch(function (erro) {
+        // O nome do erro é o que diz por onde começar: permissão,
+        // câmera ocupada, restrição recusada.
+        dizCam('cam-abertura', (erro.name || 'erro') + ' — ' + (erro.message || ''), false);
+      });
+  });
+
   var evento = null;
   function diz(id, texto, ok) {
     var el = document.getElementById(id);

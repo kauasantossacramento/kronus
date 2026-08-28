@@ -389,3 +389,89 @@ class ApiTests(BaseOffline):
         )
         self.assertEqual(resposta.status_code, 400)
         self.assertEqual(RegistroPonto.objects.count(), 0)
+
+
+class AcessoDoColaboradorTests(TestCase):
+    """
+    O login do colaborador precisa estar **vinculado a empresa**.
+
+    Sem esse vinculo a pessoa entra e nao enxerga nada, porque todo o
+    sistema e escopado por empresa — e o sintoma que chega e "nao consigo
+    acessar", sem nada no log indicando o motivo.
+    """
+
+    def setUp(self):
+        from apps.master.models import Plano
+
+        plano = Plano.objects.create(nome="P", slug="p", max_colaboradores=50)
+        cliente = Cliente.objects.create(
+            razao_social="Alfa", cnpj="45997418000153",
+            plano=plano, email_contato="a@x.com",
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="Alfa",
+            cnpj="45997418000234", slug="alfa",
+        )
+        self.colaborador = Colaborador.objects.create(
+            empresa=self.empresa, cpf="52998224725",
+            nome_completo="Ana Souza", email="ana@alfa.com",
+            data_nascimento=date(1990, 5, 12),
+            data_admissao=date(2024, 1, 1),
+        )
+
+    def test_cria_o_login_vinculado_a_empresa(self):
+        usuario, senha = self.colaborador.garantir_usuario()
+
+        self.assertIsNotNone(senha)
+        self.assertIn(self.empresa, usuario.empresas.all())
+        self.assertEqual(usuario.cliente, self.empresa.cliente)
+        self.assertTrue(usuario.trocar_senha_no_proximo_login)
+
+    def test_o_colaborador_enxerga_o_proprio_painel(self):
+        usuario, senha = self.colaborador.garantir_usuario()
+        usuario.trocar_senha_no_proximo_login = False
+        usuario.save(update_fields=["trocar_senha_no_proximo_login"])
+
+        self.client.force_login(usuario)
+        resposta = self.client.get("/app/", follow=True)
+        self.assertEqual(resposta.status_code, 200)
+
+    def test_ao_sair_volta_para_a_pagina_da_empresa(self):
+        """
+        Sem o vínculo, o logout caía na capa comercial do Kronus — a
+        pessoa perdia o endereço de volta e via a nossa marca no lugar da
+        do empregador.
+        """
+        from django.urls import reverse
+
+        usuario, _ = self.colaborador.garantir_usuario()
+        usuario.trocar_senha_no_proximo_login = False
+        usuario.save(update_fields=["trocar_senha_no_proximo_login"])
+
+        self.client.force_login(usuario)
+        self.client.get("/app/")
+        resposta = self.client.post(reverse("accounts:logout"))
+
+        self.assertRedirects(resposta, "/alfa/", fetch_redirect_response=False)
+
+    def test_e_idempotente(self):
+        primeiro, senha = self.colaborador.garantir_usuario()
+        segundo, sem_senha = self.colaborador.garantir_usuario()
+
+        self.assertEqual(primeiro.pk, segundo.pk)
+        self.assertIsNotNone(senha)
+        self.assertIsNone(sem_senha)
+
+    def test_reaproveita_login_existente_com_o_mesmo_cpf(self):
+        """Criar um segundo esbarraria na unicidade do CPF."""
+        from apps.accounts.models import CustomUser
+        from apps.core.constants import TipoUsuario
+
+        existente = CustomUser.objects.create_user(
+            cpf="52998224725", password="x", nome_completo="Ana",
+            tipo=TipoUsuario.COLABORADOR,
+        )
+        usuario, _ = self.colaborador.garantir_usuario()
+
+        self.assertEqual(usuario.pk, existente.pk)
+        self.assertIn(self.empresa, usuario.empresas.all())

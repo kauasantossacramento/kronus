@@ -360,30 +360,28 @@ class ColaboradorCreateView(BaseRHFormView, CreateView):
         return resposta
 
     def _criar_usuario(self, colaborador):
-        """Cria as credenciais web do colaborador com senha provisoria."""
-        from django.contrib.auth import get_user_model
-        from django.utils.crypto import get_random_string
+        """
+        Cria as credenciais do colaborador.
 
-        from apps.core.constants import TipoUsuario
-
-        User = get_user_model()
-        senha = get_random_string(10)
-        user = User.objects.create_user(
-            email=colaborador.email,
-            cpf=colaborador.cpf,
-            password=senha,
-            nome_completo=colaborador.nome_completo,
-            tipo=TipoUsuario.COLABORADOR,
-            cliente=colaborador.empresa.cliente,
-            trocar_senha_no_proximo_login=True,
-        )
-        colaborador.user = user
-        colaborador.save(update_fields=["user", "updated_at"])
-        messages.info(
-            self.request,
-            f"Acesso criado para {colaborador.nome_exibicao}. "
-            f"Senha provisória: {senha} (será trocada no primeiro login).",
-        )
+        Delega a `garantir_usuario`, que **vincula a empresa** ao
+        usuario. A versao anterior criava o login sem esse vinculo: a
+        pessoa entrava e nao enxergava nada, porque todo o sistema e
+        escopado por empresa. O sintoma relatado era "não consigo acessar
+        como colaborador".
+        """
+        _, senha = colaborador.garantir_usuario()
+        if senha:
+            messages.info(
+                self.request,
+                f"Acesso criado para {colaborador.nome_exibicao}. "
+                f"Senha provisória: {senha} (será trocada no primeiro login).",
+            )
+        else:
+            messages.info(
+                self.request,
+                f"{colaborador.nome_exibicao} já tinha acesso; a empresa foi "
+                "vinculada ao login existente.",
+            )
 
     def get_success_url(self):
         return reverse("rh:colaborador_detalhe", args=[self.object.pk])

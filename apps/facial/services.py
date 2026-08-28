@@ -337,14 +337,35 @@ class FaceRecognitionService:
 
     def _mais_proximo(self, vetor, candidatos: dict) -> tuple[int, float]:
         """
-        Compara o vetor contra todos os candidatos de uma vez.
+        Compara o vetor contra **cada amostra** de cada colaborador.
 
-        A operação vetorizada com numpy mantém a busca em milissegundos
-        mesmo com milhares de colaboradores — um laço em Python não
-        sustentaria o alvo de resposta do totem.
+        Antes a comparação era contra a média das amostras da pessoa, e
+        isso quebrava justamente o caso mais comum: cadastrar pela webcam
+        do computador e reconhecer na câmera do tablet. Câmeras
+        diferentes produzem vetores em regiões diferentes do espaço, e a
+        média entre elas é um centroide que não se parece com nenhuma —
+        fica longe das duas ao mesmo tempo.
+
+        Comparando contra cada amostra e ficando com a menor distância, a
+        pessoa é reconhecida se **qualquer** das capturas dela se
+        parecer com o rosto do dia. É o que permite cadastrar num
+        aparelho e bater o ponto em outro.
+
+        A operação continua vetorizada: o custo é proporcional ao total
+        de amostras, não ao de pessoas — com o limite de cinco amostras
+        por colaborador, são cinco vezes mais linhas numa multiplicação
+        de matriz que já roda em milissegundos.
         """
-        ids = list(candidatos.keys())
-        matriz = np.vstack([candidatos[pk] for pk in ids]).astype(np.float32)
+        ids = []
+        linhas = []
+        for pk, vetores in candidatos.items():
+            # Aceita tanto uma amostra quanto uma lista, para não quebrar
+            # com cache gravado pelo formato anterior.
+            for amostra in (vetores if isinstance(vetores, list) else [vetores]):
+                ids.append(pk)
+                linhas.append(amostra)
+
+        matriz = np.vstack(linhas).astype(np.float32)
 
         vetor = np.asarray(vetor, dtype=np.float32)
         norma_vetor = np.linalg.norm(vetor)
@@ -375,29 +396,57 @@ class FaceRecognitionService:
         return resultado
 
     def _candidatos_da_empresa(self, empresa_id: int) -> dict:
-        chave = f"{CACHE_PREFIXO}:empresa:{empresa_id}"
+        """
+        Todas as amostras ativas de cada colaborador da empresa.
+
+        Devolve `{colaborador_id: [vetor, vetor, ...]}` — cada captura
+        entra como referência própria, e não diluída numa média.
+        """
+        chave = f"{CACHE_PREFIXO}:empresa:{empresa_id}:v2"
         cacheado = cache.get(chave)
         if cacheado is not None:
-            return {pk: np.frombuffer(dados, dtype=np.float32) for pk, dados in cacheado}
+            return {
+                pk: [np.frombuffer(d, dtype=np.float32) for d in dados]
+                for pk, dados in cacheado
+            }
 
+        from apps.facial.models import FaceRegistro
         from apps.rh.models import Colaborador
 
-        linhas = (
-            Colaborador.objects.filter(
-                empresa_id=empresa_id,
-                ativo=True,
-                face_registrada=True,
-                deleted_at__isnull=True,
-            )
-            .exclude(face_embedding__isnull=True)
-            .values_list("pk", "face_embedding")
+        elegiveis = Colaborador.objects.filter(
+            empresa_id=empresa_id,
+            ativo=True,
+            face_registrada=True,
+            deleted_at__isnull=True,
         )
 
-        # Guardamos bytes no cache — arrays numpy não são serializáveis
-        # de forma compacta pelo backend do Django.
-        serializado = [(pk, bytes(dados)) for pk, dados in linhas if dados]
+        por_colaborador = {}
+
+        # As amostras individuais sao a referencia principal.
+        amostras = (
+            FaceRegistro.objects.filter(colaborador__in=elegiveis, ativo=True)
+            .exclude(embedding__isnull=True)
+            .values_list("colaborador_id", "embedding")
+        )
+        for pk, dados in amostras:
+            if dados:
+                por_colaborador.setdefault(pk, []).append(bytes(dados))
+
+        # A media entra tambem: ela cobre quem foi cadastrado antes de as
+        # amostras passarem a ser guardadas, e nao atrapalha quem tem as
+        # duas — a menor distancia e que decide.
+        for pk, dados in elegiveis.exclude(
+            face_embedding__isnull=True
+        ).values_list("pk", "face_embedding"):
+            if dados:
+                por_colaborador.setdefault(pk, []).append(bytes(dados))
+
+        serializado = list(por_colaborador.items())
         cache.set(chave, serializado, CACHE_TTL_SEGUNDOS)
-        return {pk: np.frombuffer(dados, dtype=np.float32) for pk, dados in serializado}
+        return {
+            pk: [np.frombuffer(d, dtype=np.float32) for d in dados]
+            for pk, dados in serializado
+        }
 
     @staticmethod
     def invalidar_cache(empresa_id=None):
@@ -405,6 +454,7 @@ class FaceRecognitionService:
         if empresa_id is None:
             return
         cache.delete(f"{CACHE_PREFIXO}:empresa:{empresa_id}")
+        cache.delete(f"{CACHE_PREFIXO}:empresa:{empresa_id}:v2")
 
     # ══════════════════════════════════════════════════════════
     # Auditoria

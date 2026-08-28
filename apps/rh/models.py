@@ -225,6 +225,65 @@ class Colaborador(TenantBaseModel):
         self.pis_pasep = apenas_digitos(self.pis_pasep)
         super().save(*args, **kwargs)
 
+    # -- acesso ao sistema -------------------------------------
+    def garantir_usuario(self, criar_senha=True):
+        """
+        Cria (ou vincula) o login do colaborador.
+
+        Sem isto o cadastro nasce sem acesso: a pessoa existe para o
+        ponto, aparece nos relatorios, e nao consegue entrar para ver o
+        proprio saldo nem assinar o espelho. Era o caso de dezesseis dos
+        dezessete colaboradores em producao.
+
+        Devolve `(usuario, senha_provisoria)`. A senha so existe no
+        retorno — nao e guardada em lugar nenhum, e quem cadastra precisa
+        entrega-la na hora.
+
+        Vincula tambem a **empresa**: sem esse vinculo o usuario entra e
+        nao enxerga nada, porque todo o sistema e escopado por empresa.
+        """
+        from apps.accounts.models import CustomUser
+        from apps.core.constants import TipoUsuario
+        from apps.core.utils import gerar_token
+
+        senha = None
+        usuario = self.user
+
+        if usuario is None and self.cpf:
+            # Reaproveita um login existente com o mesmo CPF: criar um
+            # segundo esbarraria na unicidade e deixaria a pessoa com
+            # dois cadastros.
+            usuario = CustomUser.objects.filter(cpf=self.cpf).first()
+
+        if usuario is None:
+            senha = gerar_token(9)
+            usuario = CustomUser.objects.create_user(
+                cpf=self.cpf,
+                email=self.email or None,
+                password=senha,
+                nome_completo=self.nome_completo,
+                tipo=TipoUsuario.COLABORADOR,
+                cliente=self.empresa.cliente,
+            )
+            usuario.trocar_senha_no_proximo_login = True
+            usuario.save(update_fields=["trocar_senha_no_proximo_login"])
+        elif criar_senha and not usuario.has_usable_password():
+            senha = gerar_token(9)
+            usuario.set_password(senha)
+            usuario.trocar_senha_no_proximo_login = True
+            usuario.save(update_fields=["password", "trocar_senha_no_proximo_login"])
+
+        usuario.empresas.add(self.empresa)
+        if usuario.cliente_id is None:
+            usuario.cliente = self.empresa.cliente
+            usuario.save(update_fields=["cliente"])
+
+        if self.user_id != usuario.pk:
+            self.user = usuario
+            self.save(update_fields=["user", "updated_at"])
+
+        return usuario, senha
+
     # -- apresentacao ------------------------------------------
     @property
     def nome_exibicao(self) -> str:

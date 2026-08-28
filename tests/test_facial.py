@@ -881,3 +881,138 @@ class PersonalizacaoTotemTests(BaseFacialTestCase):
         self.totem.solicitar_recarga()
         self.totem.refresh_from_db()
         self.assertIsNotNone(self.totem.recarga_solicitada_em)
+
+
+class CamerasDiferentesTests(TestCase):
+    """
+    Cadastrar num aparelho e reconhecer em outro.
+
+    E o caso mais comum na implantacao: o RH cadastra pela webcam do
+    computador e a pessoa bate o ponto na camera do tablet. Cameras
+    diferentes produzem vetores em regioes diferentes do espaco, e a
+    media entre elas e um centroide que nao se parece com nenhuma — fica
+    longe das duas ao mesmo tempo.
+    """
+
+    def setUp(self):
+        import numpy as np
+
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+
+        plano = Plano.objects.create(nome="P", slug="p", max_colaboradores=50)
+        cliente = Cliente.objects.create(
+            razao_social="Alfa", cnpj="45997418000153",
+            plano=plano, email_contato="a@x.com",
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="Alfa", cnpj="45997418000234",
+        )
+        self.np = np
+
+    def _vetor(self, semente, dimensao=512):
+        """Vetor determinístico e normalizado."""
+        gerador = self.np.random.default_rng(semente)
+        v = gerador.normal(size=dimensao).astype(self.np.float32)
+        return v / self.np.linalg.norm(v)
+
+    def _colaborador(self, nome, cpf, amostras):
+        from datetime import date
+
+        from apps.facial.models import FaceRegistro
+        from apps.rh.models import Colaborador
+
+        colaborador = Colaborador.objects.create(
+            empresa=self.empresa, cpf=cpf, nome_completo=nome,
+            data_nascimento=date(1990, 1, 1), data_admissao=date(2024, 1, 1),
+            face_registrada=True,
+        )
+        for vetor in amostras:
+            FaceRegistro.objects.create(
+                colaborador=colaborador,
+                embedding=vetor.tobytes(),
+                ativo=True,
+            )
+        # A média, como o desenho antigo guardava.
+        media = self.np.mean(amostras, axis=0)
+        media = media / self.np.linalg.norm(media)
+        colaborador.face_embedding = media.tobytes()
+        colaborador.save(update_fields=["face_embedding"])
+        return colaborador
+
+    def test_reconhece_pela_amostra_da_camera_usada(self):
+        """
+        A pessoa é reconhecida se **qualquer** captura dela se parecer
+        com o rosto do dia — não a média de todas.
+        """
+        from apps.facial.services import FaceRecognitionService
+
+        webcam = self._vetor(1)
+        tablet = self._vetor(2)   # câmera bem diferente
+        self._colaborador("Ana", "52998224725", [webcam, tablet])
+
+        servico = FaceRecognitionService()
+        candidatos = servico.candidatos([self.empresa])
+
+        # Rosto capturado no tablet, quase idêntico à amostra do tablet.
+        do_dia = tablet + self._vetor(99) * 0.05
+        do_dia = do_dia / self.np.linalg.norm(do_dia)
+
+        _, distancia = servico._mais_proximo(do_dia, candidatos)
+        self.assertLess(
+            distancia, servico.threshold,
+            "a amostra da própria câmera deveria reconhecer",
+        )
+
+    def test_a_amostra_propria_fica_sempre_mais_perto_que_a_media(self):
+        """
+        A comparação por amostra **nunca** piora e costuma melhorar: a
+        menor distância entre as capturas é, por definição, menor ou
+        igual à distância até a média delas.
+
+        Não é uma diferença cosmética — é a margem que separa reconhecer
+        de mandar a pessoa digitar o CPF quando a câmera do dia não é a
+        do cadastro.
+        """
+        from apps.facial.services import FaceRecognitionService
+
+        servico = FaceRecognitionService()
+        for semente in range(1, 20):
+            webcam = self._vetor(semente)
+            tablet = self._vetor(semente + 100)
+            media = self.np.mean([webcam, tablet], axis=0)
+            media = media / self.np.linalg.norm(media)
+
+            do_dia = tablet + self._vetor(semente + 900) * 0.15
+            do_dia = do_dia / self.np.linalg.norm(do_dia)
+
+            por_media = servico._mais_proximo(do_dia, {1: [media]})[1]
+            por_amostra = servico._mais_proximo(do_dia, {1: [webcam, tablet]})[1]
+
+            self.assertLessEqual(
+                por_amostra, por_media,
+                f"semente {semente}: a amostra própria deveria estar mais perto",
+            )
+
+    def test_pessoa_diferente_continua_recusada(self):
+        """Afrouxar a comparação não pode aceitar quem não é."""
+        from apps.facial.services import FaceRecognitionService
+
+        self._colaborador("Ana", "52998224725", [self._vetor(1), self._vetor(2)])
+        servico = FaceRecognitionService()
+        candidatos = servico.candidatos([self.empresa])
+
+        outra_pessoa = self._vetor(500)
+        _, distancia = servico._mais_proximo(outra_pessoa, candidatos)
+        self.assertGreater(distancia, servico.threshold)
+
+    def test_cada_amostra_e_uma_referencia(self):
+        from apps.facial.services import FaceRecognitionService
+
+        colaborador = self._colaborador(
+            "Ana", "52998224725", [self._vetor(1), self._vetor(2), self._vetor(3)]
+        )
+        candidatos = FaceRecognitionService().candidatos([self.empresa])
+
+        # Três amostras mais a média guardada.
+        self.assertEqual(len(candidatos[colaborador.pk]), 4)

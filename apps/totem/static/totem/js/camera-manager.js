@@ -53,14 +53,31 @@
         return Promise.reject(new Error('Câmera não suportada neste dispositivo.'));
       }
 
-      return navigator.mediaDevices
-        .getUserMedia({
-          video: {
-            facingMode: 'user',
-            width: { ideal: self.LARGURA },
-            height: { ideal: self.ALTURA }
-          },
-          audio: false
+      // Duas tentativas, da mais especifica para a mais tolerante.
+      //
+      // Tablet de baixo custo costuma recusar `facingMode` ou a dica de
+      // resolucao com `OverconstrainedError` — e a mensagem que chegava
+      // ao operador era so "nao foi possivel acessar a camera", sem
+      // dizer o que tentar. Pedir menos na segunda tentativa resolve o
+      // caso comum sem esconder a causa quando o problema e outro.
+      var pedir = function (restricoes) {
+        return navigator.mediaDevices.getUserMedia(restricoes);
+      };
+
+      return pedir({
+        video: {
+          facingMode: 'user',
+          width: { ideal: self.LARGURA },
+          height: { ideal: self.ALTURA }
+        },
+        audio: false
+      })
+        .catch(function (erro) {
+          var recuperavel = ['OverconstrainedError', 'ConstraintNotSatisfiedError',
+                             'NotFoundError', 'DevicesNotFoundError'];
+          if (recuperavel.indexOf(erro && erro.name) === -1) throw erro;
+          console.warn('[Kronus] camera: tentando sem restricoes —', erro.name);
+          return pedir({ video: true, audio: false });
         })
         .then(function (stream) {
           self.stream = stream;
@@ -125,7 +142,17 @@
       if (nome === 'NotReadableError' || nome === 'TrackStartError') {
         return 'A câmera está em uso por outro aplicativo.';
       }
-      return 'Não foi possível acessar a câmera.';
+      if (nome === 'OverconstrainedError' || nome === 'ConstraintNotSatisfiedError') {
+        return 'A câmera não aceita a configuração pedida.';
+      }
+      if (nome === 'SecurityError') {
+        return 'O navegador bloqueou a câmera nesta página.';
+      }
+      // Guardar o nome do erro no fim da mensagem: sem ele, todo
+      // problema desconhecido vira a mesma frase e o suporte fica sem
+      // por onde começar.
+      return 'Não foi possível acessar a câmera'
+        + (nome ? ' (' + nome + ').' : '.');
     }
   };
 

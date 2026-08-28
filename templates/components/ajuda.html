@@ -17,9 +17,16 @@
 <button type="button" id="ajuda-botao"
         aria-label="Ajuda sobre esta tela"
         title="Ajuda sobre esta tela"
-        class="fixed bottom-5 right-5 z-40 grid h-12 w-12 place-items-center rounded-full text-white opacity-60 shadow-lg transition hover:opacity-100 focus-visible:opacity-100"
+        {% comment %}
+          Menor e mais discreto: o botão estava do tamanho de um botão de
+          ação e cobria a assinatura da KS TEC no rodapé. Ajuda é recurso
+          de consulta, não de uso constante — presença basta, destaque
+          atrapalha. Sobe acima do rodapé para não disputar espaço com a
+          marca.
+        {% endcomment %}
+        class="fixed bottom-16 right-4 z-40 grid h-9 w-9 place-items-center rounded-full text-white opacity-25 shadow-md transition hover:opacity-90 focus-visible:opacity-90"
         style="background: var(--kronus-primary-800)">
-  <span class="text-xl font-bold leading-none">?</span>
+  <span class="text-sm font-bold leading-none">?</span>
 </button>
 
 <div id="ajuda-modal" hidden

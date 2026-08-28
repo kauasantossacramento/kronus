@@ -212,6 +212,15 @@ ICONES: dict[str, str] = {
         '<path d="m12 4.2 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4-3.9-3.8'
         ' 5.4-.8L12 4.2Z"/>'
     ),
+    # Setas para os quatro cantos — o simbolo universal de tela cheia,
+    # o mesmo que o YouTube usa. Antes o botao reaproveitava o icone de
+    # totem, que representa o equipamento e nao a acao.
+    "tela_cheia": (
+        '<path d="M8 3H5a2 2 0 0 0-2 2v3"/>'
+        '<path d="M16 3h3a2 2 0 0 1 2 2v3"/>'
+        '<path d="M8 21H5a2 2 0 0 1-2-2v-3"/>'
+        '<path d="M16 21h3a2 2 0 0 0 2-2v-3"/>'
+    ),
     # Balao de conversa com o fone: a marca do WhatsApp e registrada, e
     # reproduzi-la num SVG proprio seria uso indevido. Este e o simbolo
     # generico de conversa telefonica, que comunica a mesma coisa.
