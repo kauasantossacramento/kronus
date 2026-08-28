@@ -269,3 +269,108 @@ class LogoNaEtiquetaTests(BaseTotem):
             brancos, 200,
             "a logo branca nao aparece na faixa superior da etiqueta",
         )
+
+
+class EscopoDoTotemTests(BaseTotem):
+    """
+    Quem pode bater ponto em cada totem — pelos dois caminhos, facial e
+    digitacao do CPF.
+
+    O grupo **amplia** o alcance do equipamento; nao o substitui. Antes,
+    um grupo montado so com as filiais fazia a matriz perder acesso ao
+    proprio totem instalado na recepcao dela.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from apps.clientes.models import Empresa
+
+        self.filial_b = Empresa.objects.create(
+            cliente=self.cliente, razao_social="Filial B", cnpj="11444777000161",
+        )
+        self.filial_c = Empresa.objects.create(
+            cliente=self.cliente, razao_social="Filial C", cnpj="34028316000103",
+        )
+
+    def _grupo(self, empresas, nome="Grupo"):
+        from apps.totem.models import GrupoTotem
+
+        grupo = GrupoTotem.objects.create(cliente=self.cliente, nome=nome)
+        grupo.empresas.set(empresas)
+        return grupo
+
+    def _atendidas(self, totem):
+        return set(totem.empresas_atendidas().values_list("pk", flat=True))
+
+    def test_sem_grupo_atende_so_a_propria_empresa(self):
+        totem = self._totem()
+        self.assertEqual(self._atendidas(totem), {self.empresa.pk})
+
+    def test_com_grupo_atende_todas_as_empresas_do_grupo(self):
+        totem = self._totem(
+            grupo=self._grupo([self.empresa, self.filial_b, self.filial_c])
+        )
+        self.assertEqual(
+            self._atendidas(totem),
+            {self.empresa.pk, self.filial_b.pk, self.filial_c.pk},
+        )
+
+    def test_a_propria_empresa_entra_mesmo_fora_do_grupo(self):
+        """
+        O totem esta instalado nela: recusar quem trabalha ali porque
+        alguem esqueceu de marcar a empresa no grupo seria negar o ponto
+        a quem esta parado na frente da maquina.
+        """
+        totem = self._totem(grupo=self._grupo([self.filial_b, self.filial_c]))
+        self.assertIn(self.empresa.pk, self._atendidas(totem))
+
+    def test_grupo_vazio_nao_amplia_nada(self):
+        totem = self._totem(grupo=self._grupo([], nome="Vazio"))
+        self.assertEqual(self._atendidas(totem), {self.empresa.pk})
+
+    def test_empresa_de_fora_do_grupo_e_recusada(self):
+        from apps.ponto.validators import RegistroInvalido, validar_totem_autorizado
+
+        totem = self._totem(grupo=self._grupo([self.empresa, self.filial_b]))
+        de_fora = self._colaborador(self.filial_c)
+
+        with self.assertRaises(RegistroInvalido) as contexto:
+            validar_totem_autorizado(totem, de_fora)
+        self.assertEqual(contexto.exception.codigo, "totem_nao_autorizado")
+
+    def test_colaborador_do_grupo_bate_ponto(self):
+        from apps.ponto.validators import validar_totem_autorizado
+
+        totem = self._totem(grupo=self._grupo([self.empresa, self.filial_b]))
+        validar_totem_autorizado(totem, self._colaborador(self.filial_b))
+
+    def test_o_fallback_por_cpf_respeita_o_mesmo_escopo(self):
+        """
+        Se a digitacao do CPF tivesse escopo maior que o facial, o limite
+        seria contornavel digitando em vez de olhar para a camera.
+        """
+        from apps.facial.services import identificar_por_cpf
+
+        totem = self._totem(grupo=self._grupo([self.empresa, self.filial_b]))
+        dentro = self._colaborador(self.filial_b)
+        fora = self._colaborador(self.filial_c)
+        empresas = totem.empresas_atendidas()
+
+        self.assertIsNotNone(
+            identificar_por_cpf(dentro.cpf, dentro.data_nascimento, empresas)
+        )
+        self.assertIsNone(
+            identificar_por_cpf(fora.cpf, fora.data_nascimento, empresas)
+        )
+
+    def _colaborador(self, empresa):
+        from datetime import date
+
+        from apps.comercial.services import gerar_cpf
+        from apps.rh.models import Colaborador
+
+        return Colaborador.objects.create(
+            empresa=empresa, cpf=gerar_cpf(),
+            nome_completo=f"Pessoa {empresa.pk}",
+            data_nascimento=date(1990, 1, 1), data_admissao=date(2024, 1, 1),
+        )

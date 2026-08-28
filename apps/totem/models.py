@@ -281,16 +281,31 @@ class Totem(BaseModel):
 
     def empresas_atendidas(self):
         """
-        Empresas cujos colaboradores podem ser reconhecidos neste totem
-        (regra 12 da Secao 14).
+        Empresas cujos colaboradores podem bater ponto neste equipamento.
+
+        Vale para os dois caminhos: reconhecimento facial e digitacao do
+        CPF. O escopo e sempre explicito — nunca "todos os colaboradores
+        do sistema".
+
+        **A empresa do proprio totem entra sempre.** O grupo *amplia* o
+        alcance, nao o substitui: o equipamento esta fisicamente instalado
+        naquela empresa, e recusar quem trabalha ali porque alguem
+        esqueceu de marcar a empresa no grupo seria negar o ponto a quem
+        esta parado na frente da maquina. Antes, um grupo montado so com
+        as filiais fazia a matriz perder acesso ao proprio totem.
+
+        Nao ha risco de vazamento entre contas: o grupo pertence a um
+        cliente e so aceita empresas dele, entao a uniao nunca atravessa
+        a fronteira do tenant.
         """
+        from django.db.models import Q
+
         from apps.clientes.models import Empresa
 
+        filtro = Q(pk=self.empresa_id)
         if self.grupo_id:
-            do_grupo = self.grupo.empresas.all()
-            if do_grupo.exists():
-                return do_grupo
-        return Empresa.objects.filter(pk=self.empresa_id)
+            filtro |= Q(grupos_totem=self.grupo_id)
+        return Empresa.objects.filter(filtro).distinct()
 
 
 class EventoTotem(BaseModel):
