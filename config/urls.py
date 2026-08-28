@@ -24,6 +24,7 @@ urlpatterns = [
         include("apps.faturamento.urls", namespace="faturamento"),
     ),
     path("", include("apps.landing.urls", namespace="landing")),
+    path("comercial/", include("apps.comercial.urls", namespace="comercial")),
     path("accounts/", include("apps.accounts.urls", namespace="accounts")),
     path("app/", include("apps.core.urls", namespace="core")),
     path("ponto/", include("apps.ponto.urls", namespace="ponto")),

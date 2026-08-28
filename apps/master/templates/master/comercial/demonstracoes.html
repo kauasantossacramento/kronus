@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load kronus_icons kronus_tags %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Demonstrações</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+      Quem pediu, o que aconteceu e quem virou cliente.
+    </p>
+  </div>
+  <a href="{% url 'master:comercial_config' %}" class="btn btn-outline text-sm">
+    {% icone "config" classe="h-4 w-4" %} Configuração
+  </a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="space-y-6">
+
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Total</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-[var(--kronus-gray-900)]">{{ resumo.total }}</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Ativas agora</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-emerald-700">{{ resumo.ativas }}</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Convertidas</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-[var(--kronus-primary-700)]">{{ resumo.convertidas }}</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Conversão</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-[var(--kronus-gold-600)]">
+        {% if resumo.conversao is not None %}{{ resumo.conversao }}%{% else %}—{% endif %}
+      </p>
+      <p class="mt-0.5 text-[11px] text-[var(--kronus-gray-400)]">sobre as já encerradas</p>
+    </div>
+  </div>
+
+  <form method="get" class="card flex flex-wrap items-end gap-3 p-4">
+    <div class="min-w-48 flex-1">
+      <label for="q" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Buscar</label>
+      <input type="search" id="q" name="q" value="{{ busca }}" placeholder="Empresa, nome ou e-mail"
+             class="mt-1 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+    </div>
+    <div>
+      <label for="status" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Situação</label>
+      <select id="status" name="status"
+              class="mt-1 block rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+        <option value="">Todas</option>
+        {% for valor, rotulo in situacoes %}
+          <option value="{{ valor }}" {% if status_escolhido == valor %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-outline text-sm">Filtrar</button>
+  </form>
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+        <thead class="bg-[var(--kronus-gray-50)]">
+          <tr class="text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+            <th class="px-4 py-3">Empresa</th>
+            <th class="px-4 py-3">Contato</th>
+            <th class="px-4 py-3">Situação</th>
+            <th class="px-4 py-3">Prazo</th>
+            <th class="px-4 py-3">Uso</th>
+            <th class="px-4 py-3 text-right">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+          {% for s in solicitacoes %}
+            <tr class="hover:bg-[var(--kronus-gray-50)]">
+              <td class="px-4 py-3">
+                <p class="font-medium text-[var(--kronus-gray-900)]">{{ s.empresa }}</p>
+                <p class="text-xs text-[var(--kronus-gray-500)]">
+                  {{ s.nome }}{% if s.porte %} · {{ s.porte }} colaboradores{% endif %}
+                </p>
+              </td>
+              <td class="px-4 py-3">
+                <a href="mailto:{{ s.email }}" class="text-[var(--kronus-primary-600)] hover:underline">{{ s.email }}</a>
+                {% if s.whatsapp %}
+                  <a href="https://wa.me/{{ s.whatsapp }}" target="_blank" rel="noopener"
+                     class="mt-0.5 flex items-center gap-1 text-xs text-emerald-700 hover:underline">
+                    {% icone "whatsapp" classe="h-3.5 w-3.5" %} {{ s.whatsapp }}
+                  </a>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3">
+                {% if s.status == "ativa" %}
+                  <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Ativa</span>
+                {% elif s.status == "convertida" %}
+                  <span class="rounded-full bg-[var(--kronus-gold-50)] px-2.5 py-1 text-xs font-medium text-[var(--kronus-gold-700)]">Cliente</span>
+                {% elif s.status == "expirada" %}
+                  <span class="rounded-full bg-[var(--kronus-gray-100)] px-2.5 py-1 text-xs font-medium text-[var(--kronus-gray-600)]">Expirada</span>
+                {% else %}
+                  <span class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">Cancelada</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 text-xs text-[var(--kronus-gray-600)]">
+                <p>{{ s.created_at|date:"d/m/Y H:i" }}</p>
+                {% if s.status == "ativa" %}
+                  <p class="text-[var(--kronus-gray-500)]">restam {{ s.horas_restantes }}h</p>
+                {% else %}
+                  <p class="text-[var(--kronus-gray-400)]">até {{ s.expira_em|date:"d/m H:i" }}</p>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 text-xs text-[var(--kronus-gray-600)]">
+                {% if s.acessos %}
+                  {{ s.acessos }} acesso{{ s.acessos|pluralize }}
+                {% else %}
+                  <span class="text-[var(--kronus-gray-400)]">nunca entrou</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex flex-wrap justify-end gap-1.5">
+                  {% if s.cliente_id %}
+                    <a href="{% url 'master:cliente_detalhe' s.cliente_id %}" class="btn btn-outline px-2 py-1 text-xs">Abrir</a>
+                  {% endif %}
+                  {% if s.status != "convertida" %}
+                    <form method="post" action="{% url 'master:demo_prorrogar' s.pk %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="horas" value="24">
+                      <button type="submit" class="btn btn-outline px-2 py-1 text-xs">+24h</button>
+                    </form>
+                    {% if s.cliente_id %}
+                      <form method="post" action="{% url 'master:demo_converter' s.pk %}"
+                            onsubmit="return confirm('Converter {{ s.empresa|escapejs }} em cliente pagante? O ambiente continua igual.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary px-2 py-1 text-xs">Converter</button>
+                      </form>
+                    {% endif %}
+                  {% endif %}
+                  {% if s.status == "ativa" %}
+                    <form method="post" action="{% url 'master:demo_encerrar' s.pk %}"
+                          onsubmit="return confirm('Encerrar esta demonstração agora?');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline px-2 py-1 text-xs text-red-600">Encerrar</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-500)]">
+                Nenhuma solicitação ainda.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -79,9 +79,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* A cor do titulo e herdada, nao imposta.
+   Impor `color` aqui criava um defeito silencioso: uma regra que casa
+   com o elemento (`h2 { color: ... }`) sempre vence a cor herdada do
+   container, entao toda secao de fundo escuro com `text-white` ficava
+   com o titulo escuro sobre escuro — invisivel. Herdando, o titulo
+   acompanha a superficie em que esta, sem cada secao precisar lembrar
+   de repetir a cor. */
 h1, h2, h3, .font-display {
   font-family: var(--font-display);
-  color: var(--kronus-gray-900);
 }
 
 .font-mono, .tabular {
@@ -138,6 +144,20 @@ h1, h2, h3, .font-display {
   color: var(--kronus-gray-700);
 }
 .btn-outline:hover { background-color: var(--kronus-gray-100); }
+
+/* Versao para fundo escuro. Usar `.btn-outline` sobre fundo escuro com
+   `text-white` produzia uma pilula branca com texto branco: o fundo
+   `#fff` do componente continuava valendo, porque a classe utilitaria
+   so trocava a cor do texto. */
+.btn-outline-claro {
+  border: 1px solid rgba(255, 255, 255, .45);
+  background-color: transparent;
+  color: #fff;
+}
+.btn-outline-claro:hover {
+  background-color: rgba(255, 255, 255, .12);
+  border-color: rgba(255, 255, 255, .7);
+}
 
 .btn-danger { background-color: var(--kronus-danger); color: #fff; }
 .btn-danger:hover { filter: brightness(.92); }

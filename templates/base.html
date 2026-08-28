@@ -7,7 +7,17 @@
   <meta name="description" content="{{ KRONUS.META_DESCRIPTION }}">
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
 
-  {# Tipografia — Seção 3.3 do plano #}
+  {% comment %}
+  Instalavel como app: o painel abre da tela inicial, com o nome e o
+     icone da empresa ativa.
+{% endcomment %}
+  <link rel="manifest" href="{% url 'core:manifesto' %}">
+  <meta name="theme-color" content="{% if empresa_atual %}{{ tema.cor_primaria }}{% else %}#1E3A5F{% endif %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="{% if empresa_atual %}{{ empresa_atual.nome_exibicao|truncatechars:12 }}{% else %}Kronus{% endif %}">
+
+  {# Tipografia #}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -60,6 +70,18 @@
     {% include "components/footer_kstec.html" %}
   </div>
 </div>
+
+{% include "components/instalar_app.html" %}
+
+<script>
+  // Service Worker do painel: mantem a casca abrindo sem rede e nunca
+  // guarda resposta de API — uma marcacao servida do cache seria uma
+  // mentira sobre o estado do ponto.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('{% url "clientes:service_worker" %}')
+      .catch(function (erro) { console.warn('[Kronus] SW:', erro); });
+  }
+</script>
 
 {% block scripts %}{% endblock %}
 </body>

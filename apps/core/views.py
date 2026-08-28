@@ -5,6 +5,7 @@ e paginas de erro.
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.views.decorators.cache import never_cache
 
 from apps.core.constants import TipoUsuario
 from apps.core.middleware import CHAVE_SESSAO_EMPRESA
@@ -79,3 +80,42 @@ def erro_404(request, exception=None):
 
 def erro_500(request):
     return render(request, "errors/500.html", status=500)
+
+
+@never_cache
+def manifesto_do_painel(request):
+    """
+    Manifesto PWA da area administrativa (`/app/manifest.json`).
+
+    O painel se instala com a identidade de quem esta usando: o RH de uma
+    empresa recebe o icone e o nome dela; o Master recebe o Kronus. Um
+    manifesto unico faria todo mundo instalar o mesmo icone generico, e
+    quem administra duas empresas nao saberia qual e qual na tela inicial.
+    """
+    from django.http import JsonResponse
+
+    empresa = getattr(request, "empresa_ativa", None)
+    if empresa is not None:
+        nome = empresa.nome_exibicao
+        icone = empresa.logo.url if empresa.logo else "/static/img/favicon.svg"
+        cor = empresa.cor_primaria
+    else:
+        nome = "Kronus"
+        icone = "/static/img/favicon.svg"
+        cor = "#1E3A5F"
+
+    return JsonResponse({
+        "name": f"{nome} — Administração",
+        "short_name": nome[:12],
+        "description": f"Painel administrativo de {nome}",
+        "start_url": "/app/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#F8FAFC",
+        "theme_color": cor,
+        "lang": "pt-BR",
+        "icons": [
+            {"src": icone, "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": icone, "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        ],
+    })

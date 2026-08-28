@@ -1,0 +1,26 @@
+Olá, {{ solicitacao.nome }}.
+
+O ambiente de demonstração do Kronus para {{ solicitacao.empresa }} está pronto.
+Ele já vem com colaboradores e batidas de exemplo, para que você veja os
+relatórios preenchidos em vez de telas vazias.
+
+ACESSO
+  Endereço: {{ url_acesso }}
+  E-mail:   {{ solicitacao.email }}
+  Senha:    {{ senha }}
+
+O acesso vale até {{ expira_em|date:"d/m/Y \à\s H:i" }}.
+
+O que vale a pena testar:
+  - Bater um ponto e conferir o comprovante
+  - Abrir o espelho de ponto de um colaborador
+  - Emitir o AFD e o AEJ em Relatórios fiscais
+  - Cadastrar um rosto e usar o reconhecimento facial
+
+Nada é cobrado e nenhum dado real seu foi usado: os documentos do ambiente
+são gerados para teste.
+
+Qualquer dúvida, é só responder este e-mail.
+
+--
+Kronus · KS TEC

@@ -36,6 +36,10 @@ qrcode>=7.4
 
 # ── API Docs ──────────────────────────────────────────────────
 drf-spectacular>=0.27
+# Serve os arquivos do Swagger UI a partir do proprio dominio.
+# Pelo CDN, a CSP bloqueava o CSS e a pagina de documentacao
+# aparecia sem estilo nenhum.
+drf-spectacular-sidecar
 
 # ── Infra / Deploy ────────────────────────────────────────────
 python-decouple>=3.8

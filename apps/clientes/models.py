@@ -62,6 +62,18 @@ class Cliente(BaseModel):
     ativo = models.BooleanField("Ativo", default=True, db_index=True)
     suspenso = models.BooleanField("Suspenso", default=False, db_index=True)
 
+    #: Ambiente de demonstracao com prazo.
+    #:
+    #: E um cliente comum, marcado — nao um "modo demo" do sistema. O
+    #: visitante ve exatamente o produto que vai contratar, e converter e
+    #: so limpar estes dois campos: nada precisa ser migrado.
+    eh_demonstracao = models.BooleanField(
+        "É demonstração", default=False, db_index=True
+    )
+    demo_expira_em = models.DateTimeField(
+        "Demonstração expira em", null=True, blank=True, db_index=True
+    )
+
     #: Libera API e webhooks para este cliente, independente do plano.
     #:
     #: `None` segue o plano — o caso normal. `True` e `False` sao

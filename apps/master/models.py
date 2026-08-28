@@ -99,6 +99,10 @@ class LogAcessoMaster(BaseModel):
         TOTEM_CADASTRADO = "totem_cadastrado", "Totem cadastrado"
         TOTEM_COMODATO = "totem_comodato", "Comodato registrado"
         TOTEM_DEVOLVIDO = "totem_devolvido", "Totem devolvido"
+        CONFIG_ALTERADA = "config_alterada", "Configuração da plataforma alterada"
+        DEMO_PRORROGADA = "demo_prorrogada", "Demonstração prorrogada"
+        DEMO_CONVERTIDA = "demo_convertida", "Demonstração convertida em cliente"
+        DEMO_ENCERRADA = "demo_encerrada", "Demonstração encerrada"
 
     usuario = models.ForeignKey(
         "accounts.CustomUser",

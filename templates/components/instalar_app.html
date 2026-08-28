@@ -1,0 +1,141 @@
+{% load kronus_icons %}
+{% comment %}
+  ═══════════════════════════════════════════════════════════════
+   Convite para instalar o app.
+
+   Aparece uma vez, some quando recusado e nunca volta a incomodar. Um
+   convite que reaparece a cada visita é motivo para a pessoa fechar sem
+   ler — e aí o recurso deixa de existir na prática.
+
+   Dois caminhos, porque os navegadores não são iguais:
+   · Chrome/Edge/Android disparam `beforeinstallprompt` e instalam com
+     um clique.
+   · iOS não dispara evento nenhum. Lá o único caminho é ensinar o
+     gesto: Compartilhar → Adicionar à Tela de Início. Sem esse ramo, o
+     usuário de iPhone simplesmente não teria como instalar.
+   ═══════════════════════════════════════════════════════════════
+{% endcomment %}
+
+<div id="kronus-instalar" hidden
+     class="fixed inset-x-0 bottom-0 z-50 p-4 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:max-w-sm">
+  <div class="card overflow-hidden p-0 shadow-2xl ring-1 ring-black/5">
+    <div class="flex items-start gap-3 p-4">
+      <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--kronus-primary-600)] text-white">
+        {% icone "ampulheta" classe="h-6 w-6" %}
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="font-display text-sm font-semibold text-[var(--kronus-gray-900)]">
+          {{ instalar_titulo|default:"Instalar o aplicativo" }}
+        </p>
+        <p class="mt-1 text-xs leading-relaxed text-[var(--kronus-gray-600)]">
+          {{ instalar_texto|default:"Abre direto da tela inicial, sem o navegador em volta, e funciona mesmo com a conexão instável." }}
+        </p>
+      </div>
+      <button type="button" id="kronus-instalar-fechar" aria-label="Agora não"
+              class="-m-1 shrink-0 rounded-lg p-1 text-[var(--kronus-gray-400)] hover:bg-[var(--kronus-gray-100)] hover:text-[var(--kronus-gray-600)]">
+        {% icone "fechar" classe="h-4 w-4" %}
+      </button>
+    </div>
+
+    {# Ramo 1: o navegador sabe instalar sozinho #}
+    <div id="kronus-instalar-automatico" hidden class="border-t border-[var(--kronus-gray-200)] p-3">
+      <button type="button" id="kronus-instalar-botao" class="btn btn-primary w-full py-2.5 text-sm">
+        {% icone "download" classe="h-4 w-4" %} Instalar
+      </button>
+    </div>
+
+    {# Ramo 2: iOS — ensinar o gesto, porque não há API #}
+    <div id="kronus-instalar-ios" hidden class="border-t border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)] p-4">
+      <p class="text-xs font-medium text-[var(--kronus-gray-700)]">No iPhone ou iPad:</p>
+      <ol class="mt-2 space-y-1.5 text-xs text-[var(--kronus-gray-600)]">
+        <li>1. Toque em <strong>Compartilhar</strong> na barra do Safari</li>
+        <li>2. Escolha <strong>Adicionar à Tela de Início</strong></li>
+        <li>3. Confirme em <strong>Adicionar</strong></li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var CHAVE = 'kronus-instalar-recusado';
+  var caixa = document.getElementById('kronus-instalar');
+  if (!caixa) return;
+
+  // Já instalado: o app roda fora do navegador. Oferecer instalação a
+  // quem já instalou é ruído.
+  var jaInstalado =
+    window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.navigator.standalone === true;
+  if (jaInstalado) return;
+
+  // `localStorage` pode lançar (janela privada, cookies bloqueados).
+  // Falhar aqui esconderia o convite para sempre, então o padrão em
+  // caso de erro é mostrar.
+  function recusado() {
+    try { return localStorage.getItem(CHAVE) === '1'; } catch (e) { return false; }
+  }
+  function guardarRecusa() {
+    try { localStorage.setItem(CHAVE, '1'); } catch (e) { /* segue sem lembrar */ }
+  }
+  if (recusado()) return;
+
+  var evento = null;
+  var automatico = document.getElementById('kronus-instalar-automatico');
+  var ios = document.getElementById('kronus-instalar-ios');
+
+  function mostrar(ramo) {
+    ramo.hidden = false;
+    caixa.hidden = false;
+  }
+
+  document.getElementById('kronus-instalar-fechar').addEventListener('click', function () {
+    caixa.hidden = true;
+    guardarRecusa();
+  });
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    // Sem o preventDefault o Chrome mostra o próprio banner, e ficariam
+    // dois convites na tela ao mesmo tempo.
+    e.preventDefault();
+    evento = e;
+    mostrar(automatico);
+  });
+
+  var botao = document.getElementById('kronus-instalar-botao');
+  if (botao) {
+    botao.addEventListener('click', function () {
+      if (!evento) return;
+      evento.prompt();
+      evento.userChoice.then(function (escolha) {
+        evento = null;
+        caixa.hidden = true;
+        // Recusou o diálogo do sistema: não insistir depois.
+        if (escolha && escolha.outcome !== 'accepted') guardarRecusa();
+      });
+    });
+  }
+
+  window.addEventListener('appinstalled', function () {
+    caixa.hidden = true;
+    guardarRecusa();
+  });
+
+  // iOS: nenhum evento é disparado, então o convite depende de detectar
+  // o navegador. Só o Safari instala — Chrome no iOS não tem o menu.
+  var ua = window.navigator.userAgent;
+  var ehIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  var ehSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  if (ehIOS && ehSafari) {
+    // Espera um pouco: um convite que aparece junto com a página é
+    // interrompido antes de a pessoa entender onde chegou.
+    setTimeout(function () {
+      if (!caixa.hidden || recusado()) return;
+      mostrar(ios);
+    }, 8000);
+  }
+})();
+</script>

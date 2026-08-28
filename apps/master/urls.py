@@ -1,6 +1,6 @@
 from django.urls import path
 
-from apps.master import views, views_saas, views_totem
+from apps.master import views, views_comercial, views_saas, views_totem
 
 app_name = "master"
 
@@ -64,6 +64,23 @@ urlpatterns = [
         name="grupo_totem_editar",
     ),
     # -- SaaS: gateway, assinaturas, usuarios, auditoria --------
+    path("comercial/", views_comercial.configuracao, name="comercial_config"),
+    path("comercial/demos/", views_comercial.demonstracoes, name="comercial_demos"),
+    path(
+        "comercial/demos/<int:pk>/prorrogar/",
+        views_comercial.demonstracao_prorrogar,
+        name="demo_prorrogar",
+    ),
+    path(
+        "comercial/demos/<int:pk>/converter/",
+        views_comercial.demonstracao_converter,
+        name="demo_converter",
+    ),
+    path(
+        "comercial/demos/<int:pk>/encerrar/",
+        views_comercial.demonstracao_encerrar,
+        name="demo_encerrar",
+    ),
     path("gateway/", views_saas.gateway, name="gateway"),
     path("assinaturas/", views_saas.assinaturas, name="assinaturas"),
     path(

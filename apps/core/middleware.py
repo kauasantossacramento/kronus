@@ -69,6 +69,23 @@ class TenantMiddleware(MiddlewareMixin):
             user_agent=(request.META.get("HTTP_USER_AGENT") or "")[:500],
         )
 
+        # Demonstracao vencida: o corte vale no acesso, nao so na
+        # varredura de hora em hora. Depender apenas da task deixaria o
+        # ambiente aberto ate 59 minutos alem do prazo prometido — e um
+        # worker parado o deixaria aberto para sempre.
+        if (
+            request.cliente
+            and request.cliente.eh_demonstracao
+            and request.cliente.demo_expira_em
+            and request.cliente.demo_expira_em <= timezone.now()
+            and user.tipo != TipoUsuario.MASTER
+            and not request.path.startswith(("/accounts/", "/comercial/"))
+            and not request.path.startswith(self.ROTAS_LIVRES)
+        ):
+            from django.shortcuts import redirect
+
+            return redirect("comercial:expirada")
+
         # Cliente suspenso: somente leitura do proprio painel e logout.
         if (
             request.cliente

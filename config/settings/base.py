@@ -55,6 +55,7 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "django_filters",
     "drf_spectacular",
+    "drf_spectacular_sidecar",
     "channels",
 ]
 
@@ -71,6 +72,7 @@ LOCAL_APPS = [
     "apps.notificacoes",
     "apps.faturamento",
     "apps.landing",
+    "apps.comercial",
 ]
 
 INSTALLED_APPS = PRIORITY_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -306,6 +308,12 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API REST do Kronus — Ponto Eletronico Digital (REP-P, Portaria 671/2021).",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Assets servidos do proprio dominio, nao de CDN. A CSP permite CDN
+    # para `script-src`, mas nao para `style-src` — o resultado era a
+    # pagina de documentacao carregando o JS e perdendo todo o CSS.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
     "CONTACT": {"name": "KS TEC", "url": "https://kstec.online"},
     "SCHEMA_PATH_PREFIX": "/api/v1",
     # Tres modelos tem um campo `tipo` com conjuntos de choices

@@ -1,5 +1,5 @@
 {% extends "base_totem.html" %}
-{% load static kronus_tags %}
+{% load static kronus_icons kronus_tags %}
 
 {% block titulo %}{{ empresa.nome_exibicao }} · Kronus{% endblock %}
 
@@ -289,5 +289,76 @@
       }
     });
   })();
+</script>
+
+{% comment %}
+  ═══════ Instalacao do totem como aplicativo ═══════
+   Diferente do painel: aqui quem instala e o tecnico montando o
+   equipamento, uma unica vez. O convite pode ser mais explicito, e a
+   recomendacao de tela cheia importa — um totem com barra de navegador
+   convida o colaborador a sair da pagina.
+{% endcomment %}
+<div id="totem-instalar" hidden
+     class="fixed inset-x-0 bottom-0 z-50 p-6">
+  <div class="mx-auto max-w-lg rounded-2xl bg-white/95 p-5 shadow-2xl backdrop-blur">
+    <div class="flex items-start gap-4">
+      <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[var(--kronus-primary-600)] text-white">
+        {% icone "totem" classe="h-7 w-7" %}
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">
+          Instalar este totem como aplicativo
+        </p>
+        <p class="mt-1 text-sm leading-relaxed text-[var(--kronus-gray-600)]">
+          Abre em tela cheia, sem barra de navegador, e volta sozinho depois
+          de uma queda de energia. Recomendado para o equipamento fixo.
+        </p>
+      </div>
+    </div>
+    <div class="mt-4 flex gap-2">
+      <button type="button" id="totem-instalar-botao" class="btn btn-primary flex-1 py-3">
+        {% icone "download" classe="h-4 w-4" %} Instalar
+      </button>
+      <button type="button" id="totem-instalar-depois" class="btn btn-outline px-4 py-3">
+        Agora não
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var CHAVE = 'kronus-totem-instalar-recusado';
+  var caixa = document.getElementById('totem-instalar');
+  if (!caixa) return;
+
+  var jaInstalado =
+    window.matchMedia('(display-mode: fullscreen)').matches
+    || window.matchMedia('(display-mode: standalone)').matches;
+  if (jaInstalado) return;
+
+  try { if (localStorage.getItem(CHAVE) === '1') return; } catch (e) {}
+
+  var evento = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    evento = e;
+    caixa.hidden = false;
+  });
+
+  document.getElementById('totem-instalar-botao').addEventListener('click', function () {
+    if (!evento) return;
+    evento.prompt();
+    evento.userChoice.then(function () { evento = null; caixa.hidden = true; });
+  });
+
+  document.getElementById('totem-instalar-depois').addEventListener('click', function () {
+    caixa.hidden = true;
+    try { localStorage.setItem(CHAVE, '1'); } catch (e) {}
+  });
+
+  window.addEventListener('appinstalled', function () { caixa.hidden = true; });
+})();
 </script>
 {% endblock %}

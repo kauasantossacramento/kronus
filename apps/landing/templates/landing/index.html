@@ -232,25 +232,115 @@
 
 {# ══════════════ CTA FINAL ══════════════ #}
 <section id="contato" class="bg-[var(--kronus-primary-700)] py-20 text-white">
-  <div class="mx-auto max-w-3xl px-4 text-center sm:px-6">
-    <h2 class="font-display text-3xl font-semibold">Pronto para colocar o tempo sob controle?</h2>
-    <p class="mt-4 text-[var(--kronus-primary-100)]">
-      Fale com a KS TEC e receba uma demonstração do Kronus na sua operação.
-    </p>
-    <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-      <a href="mailto:contato@kstec.online?subject=Demonstra%C3%A7%C3%A3o%20do%20Kronus"
-         class="btn btn-primary bg-[var(--kronus-gold-500)] text-[var(--kronus-primary-900)] hover:bg-[var(--kronus-gold-400)]">
-        Falar com a KS TEC
-      </a>
-      <a href="https://wa.me/5573988310101?text=Ol%C3%A1%2C%20quero%20conhecer%20o%20Kronus"
-         target="_blank" rel="noopener"
-         class="btn btn-outline border-white/40 text-white hover:bg-white/10">
-        WhatsApp
-      </a>
+  <div class="mx-auto max-w-5xl px-4 sm:px-6">
+    <div class="grid gap-12 lg:grid-cols-2 lg:items-start">
+
+      {# Coluna da esquerda: o que a pessoa ganha ao preencher #}
+      <div>
+        <h2 class="font-display text-3xl font-semibold leading-tight sm:text-4xl">
+          Teste o Kronus com dados dentro,<br>agora.
+        </h2>
+        <p class="mt-5 text-lg text-[var(--kronus-primary-100)]">
+          Criamos um ambiente completo para a sua empresa em poucos segundos.
+          Sem instalar nada, sem cartão de crédito, sem falar com vendedor.
+        </p>
+
+        <ul class="mt-8 space-y-3.5">
+          {% for item in itens_demo %}
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 text-[var(--kronus-gold-400)]">
+                {% icone "check" classe="h-5 w-5" %}
+              </span>
+              <span class="text-[var(--kronus-primary-100)]">{{ item }}</span>
+            </li>
+          {% empty %}
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 text-[var(--kronus-gold-400)]">{% icone "check" classe="h-5 w-5" %}</span>
+              <span class="text-[var(--kronus-primary-100)]">Colaboradores e batidas já cadastrados, para você ver os relatórios preenchidos</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 text-[var(--kronus-gold-400)]">{% icone "check" classe="h-5 w-5" %}</span>
+              <span class="text-[var(--kronus-primary-100)]">Espelho de ponto, banco de horas, AFD e AEJ reais — não capturas de tela</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 text-[var(--kronus-gold-400)]">{% icone "check" classe="h-5 w-5" %}</span>
+              <span class="text-[var(--kronus-primary-100)]">Reconhecimento facial e totem funcionando</span>
+            </li>
+          {% endfor %}
+        </ul>
+
+        {% if config_comercial.link_whatsapp %}
+          <div class="mt-9 border-t border-white/15 pt-6">
+            <p class="text-sm text-[var(--kronus-primary-200)]">Prefere conversar antes?</p>
+            <a href="{{ config_comercial.link_whatsapp }}" target="_blank" rel="noopener"
+               class="btn btn-outline-claro mt-3 inline-flex">
+              {% icone "whatsapp" classe="h-4 w-4" %}
+              Chamar no WhatsApp
+            </a>
+          </div>
+        {% endif %}
+      </div>
+
+      {# Coluna da direita: o formulario #}
+      <div id="demonstracao" class="rounded-2xl bg-white/[0.07] p-6 ring-1 ring-inset ring-white/15 sm:p-8">
+        {% if config_comercial.demo_ativa %}
+          <p class="text-sm font-semibold uppercase tracking-wide text-[var(--kronus-gold-400)]">
+            Demonstração gratuita
+          </p>
+          <h3 class="mt-1.5 font-display text-xl font-semibold">
+            Seu ambiente por {{ config_comercial.demo_horas }} horas
+          </h3>
+
+          {% if erro_demo %}
+            <div class="mt-4 rounded-lg border border-red-300/40 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+              {{ erro_demo }}
+            </div>
+          {% endif %}
+
+          <form method="post" action="{% url 'comercial:solicitar' %}" class="mt-5 space-y-3.5">
+            {% csrf_token %}
+            {{ formulario_demo.site }}
+            {% for campo in formulario_demo.visible_fields %}
+              <div>
+                {{ campo }}
+                {% if campo.errors %}
+                  <p class="mt-1 text-xs text-red-200">{{ campo.errors.0 }}</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+            <button type="submit"
+                    class="btn w-full bg-[var(--kronus-gold-500)] py-3.5 text-base font-semibold text-[var(--kronus-primary-900)] hover:bg-[var(--kronus-gold-400)]">
+              Criar meu ambiente de teste
+            </button>
+          </form>
+
+          <p class="mt-4 text-center text-xs text-[var(--kronus-primary-200)]">
+            O acesso chega no seu e-mail em segundos.
+            Nada é cobrado e o ambiente é apagado ao fim do prazo.
+          </p>
+        {% else %}
+          <h3 class="font-display text-xl font-semibold">Fale com a KS TEC</h3>
+          <p class="mt-3 text-[var(--kronus-primary-100)]">
+            Montamos uma demonstração do Kronus na sua operação.
+          </p>
+          <div class="mt-6 space-y-3">
+            {% if config_comercial.link_whatsapp %}
+              <a href="{{ config_comercial.link_whatsapp }}" target="_blank" rel="noopener"
+                 class="btn w-full bg-[var(--kronus-gold-500)] py-3 text-base font-semibold text-[var(--kronus-primary-900)] hover:bg-[var(--kronus-gold-400)]">
+                {% icone "whatsapp" classe="h-4 w-4" %} WhatsApp
+              </a>
+            {% endif %}
+            {% if config_comercial.email_contato %}
+              <a href="mailto:{{ config_comercial.email_contato }}?subject=Demonstra%C3%A7%C3%A3o%20do%20Kronus"
+                 class="btn btn-outline-claro w-full py-3">
+                {{ config_comercial.email_contato }}
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+
     </div>
-    <p class="mt-4 text-sm text-[var(--kronus-primary-200)]">
-      Resposta em até um dia útil.
-    </p>
   </div>
 </section>
 

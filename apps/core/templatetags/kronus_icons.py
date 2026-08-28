@@ -212,6 +212,16 @@ ICONES: dict[str, str] = {
         '<path d="m12 4.2 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4-3.9-3.8'
         ' 5.4-.8L12 4.2Z"/>'
     ),
+    # Balao de conversa com o fone: a marca do WhatsApp e registrada, e
+    # reproduzi-la num SVG proprio seria uso indevido. Este e o simbolo
+    # generico de conversa telefonica, que comunica a mesma coisa.
+    "whatsapp": (
+        '<path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3.5 20.5l1.6-4.8A8.5 8.5 0 1 1 21 11.5Z"/>'
+        '<path d="M9 9.3c.2-.5.5-.5.8-.5h.6c.2 0 .4 0 .6.5l.7 1.6c.1.3 0 .5-.1.7l-.4.4'
+        'c-.1.2-.2.3 0 .6a6 6 0 0 0 2.4 2.1c.3.2.4.1.6 0l.5-.6c.2-.2.4-.2.6-.1l1.6.8'
+        'c.2.1.4.2.4.4v.5c0 .6-.5 1.2-1 1.4-.5.2-1.2.2-3.4-.8a9 9 0 0 1-3.8-3.8'
+        'c-.8-1.7-.6-2.6-.5-3.2Z"/>'
+    ),
 }
 
 #: Ícone usado quando o nome pedido não existe — falha visível, não silenciosa.

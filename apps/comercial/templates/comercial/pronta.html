@@ -1,0 +1,90 @@
+{% load static kronus_icons kronus_tags %}<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sua demonstração do Kronus está pronta</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  {% include "components/_estilos.html" %}
+</head>
+<body class="min-h-full bg-[var(--kronus-primary-800)] font-sans text-white antialiased">
+
+<div class="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-4 py-12 sm:px-6">
+
+  <div class="text-center">
+    <span class="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[var(--kronus-gold-500)] text-[var(--kronus-primary-900)]">
+      {% icone "check" classe="h-8 w-8" %}
+    </span>
+    <h1 class="mt-6 font-display text-3xl font-semibold">Está pronto, {{ solicitacao.nome|truncatewords:1 }}.</h1>
+    <p class="mt-3 text-[var(--kronus-primary-100)]">
+      O ambiente de <strong class="text-white">{{ solicitacao.empresa }}</strong> foi criado
+      com colaboradores e batidas de exemplo. Enviamos estes dados também para
+      {{ solicitacao.email }}.
+    </p>
+  </div>
+
+  {% comment %}
+  As credenciais precisam estar na tela: e-mail atrasa, cai em spam, e
+     quem acabou de se cadastrar quer entrar agora.
+{% endcomment %}
+  <div class="mt-8 rounded-2xl bg-white/[0.07] p-6 ring-1 ring-inset ring-white/15">
+    <p class="text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gold-400)]">Seus dados de acesso</p>
+
+    <dl class="mt-4 space-y-4">
+      <div>
+        <dt class="text-sm text-[var(--kronus-primary-200)]">Endereço</dt>
+        <dd class="mt-1 flex items-center gap-2">
+          <code id="url" class="flex-1 overflow-x-auto rounded-lg bg-black/30 px-3 py-2.5 font-mono text-sm text-[var(--kronus-gold-300)]">{{ url_acesso }}</code>
+          <button type="button" class="btn btn-outline-claro shrink-0 text-xs"
+                  onclick="navigator.clipboard.writeText(document.getElementById('url').textContent.trim()); this.textContent='Copiado';">Copiar</button>
+        </dd>
+      </div>
+      <div>
+        <dt class="text-sm text-[var(--kronus-primary-200)]">E-mail</dt>
+        <dd class="mt-1 font-mono text-sm">{{ solicitacao.email }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm text-[var(--kronus-primary-200)]">Senha</dt>
+        <dd class="mt-1 flex items-center gap-2">
+          <code id="senha" class="flex-1 rounded-lg bg-black/30 px-3 py-2.5 font-mono text-sm text-[var(--kronus-gold-300)]">{{ senha }}</code>
+          <button type="button" class="btn btn-outline-claro shrink-0 text-xs"
+                  onclick="navigator.clipboard.writeText(document.getElementById('senha').textContent.trim()); this.textContent='Copiado';">Copiar</button>
+        </dd>
+      </div>
+    </dl>
+
+    <p class="mt-5 rounded-lg bg-black/20 px-4 py-3 text-xs text-[var(--kronus-primary-100)]">
+      {% icone "relogio" classe="mr-1 inline h-4 w-4 align-text-bottom" %}
+      O acesso vale até <strong class="text-white">{{ solicitacao.expira_em|date:"d/m/Y \à\s H:i" }}</strong>.
+      Esta senha não é exibida de novo — guarde agora.
+    </p>
+
+    <a href="{{ url_acesso }}"
+       class="btn mt-6 w-full bg-[var(--kronus-gold-500)] py-3.5 text-base font-semibold text-[var(--kronus-primary-900)] hover:bg-[var(--kronus-gold-400)]">
+      Entrar no meu ambiente
+    </a>
+  </div>
+
+  <div class="mt-8 text-center text-sm text-[var(--kronus-primary-200)]">
+    <p>Quer continuar depois do teste ou tem alguma dúvida?</p>
+    {% if config.link_whatsapp %}
+      <a href="{{ config.link_whatsapp }}" target="_blank" rel="noopener"
+         class="mt-3 inline-flex items-center gap-2 text-[var(--kronus-gold-400)] hover:underline">
+        {% icone "whatsapp" classe="h-4 w-4" %} Falar com a KS TEC
+      </a>
+    {% elif config.email_contato %}
+      <a href="mailto:{{ config.email_contato }}"
+         class="mt-3 inline-block text-[var(--kronus-gold-400)] hover:underline">{{ config.email_contato }}</a>
+    {% endif %}
+  </div>
+
+  <p class="mt-10 text-center text-xs text-[var(--kronus-primary-300)]">
+    <a href="/" class="hover:underline">Kronus · KS TEC</a>
+  </p>
+</div>
+
+</body>
+</html>

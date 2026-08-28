@@ -26,6 +26,13 @@ app.conf.worker_prefetch_multiplier = 1
 # Agenda (Celery Beat)
 # ==============================================================
 app.conf.beat_schedule = {
+    # Demonstracoes vencidas: o corte tambem e checado no acesso, mas sem
+    # esta varredura o painel do Master mostraria como "ativa" uma
+    # demonstracao que ja acabou.
+    "expirar-demonstracoes": {
+        "task": "apps.comercial.tasks.expirar_demonstracoes",
+        "schedule": crontab(minute=7),
+    },
     # Secao 8.4 — calculo automatico diario do banco de horas as 23:59
     "fechamento-diario-banco-horas": {
         "task": "apps.ponto.tasks.fechar_banco_horas_do_dia",

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Comercial</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    Contato exibido na capa do site e regras da demonstração automática.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-4xl space-y-6">
+
+  <div class="card p-5 {% if config.demo_ativa %}ring-2 ring-emerald-200{% else %}ring-2 ring-amber-200{% endif %}">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        {% if config.demo_ativa %}
+          {% icone "check" classe="h-6 w-6 text-emerald-600" %}
+          <div>
+            <p class="font-semibold text-emerald-800">Demonstração automática ativa</p>
+            <p class="text-xs text-[var(--kronus-gray-500)]">
+              O visitante cria o próprio ambiente por {{ config.demo_horas }}h, sem falar com ninguém.
+            </p>
+          </div>
+        {% else %}
+          {% icone "pausa" classe="h-6 w-6 text-amber-600" %}
+          <div>
+            <p class="font-semibold text-amber-800">Demonstração automática desligada</p>
+            <p class="text-xs text-[var(--kronus-gray-500)]">A capa oferece apenas o contato direto.</p>
+          </div>
+        {% endif %}
+      </div>
+      <a href="{% url 'master:comercial_demos' %}" class="btn btn-outline text-sm">
+        {% icone "usuarios" classe="h-4 w-4" %} Ver solicitações
+      </a>
+    </div>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <div class="card p-6">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Contato público</h2>
+      <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+        Aparece na capa. Deixe o WhatsApp em branco para esconder o botão.
+      </p>
+
+      <div class="mt-5 grid gap-5 sm:grid-cols-2">
+        <div>
+          <label for="whatsapp" class="block text-sm font-medium text-[var(--kronus-gray-700)]">WhatsApp</label>
+          <input type="text" id="whatsapp" name="whatsapp" value="{{ config.whatsapp }}"
+                 placeholder="5573988310101" inputmode="numeric"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 font-mono text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+          <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+            Somente dígitos, com DDI e DDD.
+            {% if config.whatsapp %}Atual: <strong>{{ config.whatsapp_formatado }}</strong>{% endif %}
+          </p>
+        </div>
+        <div>
+          <label for="email_contato" class="block text-sm font-medium text-[var(--kronus-gray-700)]">E-mail de contato</label>
+          <input type="email" id="email_contato" name="email_contato" value="{{ config.email_contato }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+        </div>
+        <div class="sm:col-span-2">
+          <label for="whatsapp_mensagem" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Mensagem inicial do WhatsApp</label>
+          <input type="text" id="whatsapp_mensagem" name="whatsapp_mensagem" maxlength="255"
+                 value="{{ config.whatsapp_mensagem }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+          <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">Já vem digitada quando a conversa abre.</p>
+        </div>
+        <div>
+          <label for="telefone" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Telefone fixo</label>
+          <input type="text" id="telefone" name="telefone" value="{{ config.telefone }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-6">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Demonstração automática</h2>
+      <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+        O visitante preenche o formulário e recebe na hora um ambiente próprio,
+        com colaboradores e batidas de exemplo.
+      </p>
+
+      <label class="mt-5 flex items-start gap-2">
+        <input type="checkbox" id="demo_ativa" name="demo_ativa" {% if config.demo_ativa %}checked{% endif %}
+               class="mt-0.5 h-4 w-4 rounded border-[var(--kronus-gray-300)] text-[var(--kronus-primary-600)] focus:ring-[var(--kronus-primary-500)]">
+        <span>
+          <span class="text-sm font-medium text-[var(--kronus-gray-700)]">Permitir criação automática</span>
+          <span class="block text-xs text-[var(--kronus-gray-500)]">
+            Desligado, a capa mostra apenas WhatsApp e e-mail.
+          </span>
+        </span>
+      </label>
+
+      <div class="mt-5 grid gap-5 sm:grid-cols-3">
+        <div>
+          <label for="demo_horas" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Duração (horas)</label>
+          <input type="number" id="demo_horas" name="demo_horas" min="1" max="720"
+                 value="{{ config.demo_horas }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+        </div>
+        <div>
+          <label for="demo_limite_diario" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Limite por dia</label>
+          <input type="number" id="demo_limite_diario" name="demo_limite_diario" min="0" max="500"
+                 value="{{ config.demo_limite_diario }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">Contém criação em massa.</p>
+        </div>
+        <div>
+          <label for="demo_colaboradores_exemplo" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Colaboradores de exemplo</label>
+          <input type="number" id="demo_colaboradores_exemplo" name="demo_colaboradores_exemplo" min="0" max="12"
+                 value="{{ config.demo_colaboradores_exemplo }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+        </div>
+      </div>
+
+      <p class="mt-5 rounded-lg bg-[var(--kronus-gray-50)] px-4 py-3 text-xs text-[var(--kronus-gray-600)]">
+        {% icone "info" classe="mr-1 inline h-4 w-4 align-text-bottom" %}
+        Ao expirar, o ambiente é <strong>suspenso, não apagado</strong> — quem voltar
+        para contratar encontra tudo como deixou.
+      </p>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
