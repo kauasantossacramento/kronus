@@ -79,6 +79,52 @@
     </div>
 
     <div class="card p-5">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Adicionais</h2>
+      <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+        Totens além dos {{ assinatura.plano.max_totems }} incluídos no plano
+        {{ assinatura.plano.nome }}.
+      </p>
+
+      <form method="post" class="mt-4">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="adicionais">
+        <label for="totens_contratados" class="block text-xs font-medium text-[var(--kronus-gray-700)]">
+          Totens adicionais
+        </label>
+        <div class="mt-1.5 flex gap-2">
+          <input type="number" id="totens_contratados" name="totens_contratados"
+                 min="0" max="50" value="{{ assinatura.totens_contratados }}"
+                 class="block w-24 rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          <button type="submit" class="btn btn-primary flex-1 text-xs">Atualizar</button>
+        </div>
+        <p class="mt-1.5 text-xs text-[var(--kronus-gray-500)]">
+          R$ {{ assinatura.plano.preco_por_totem }} cada, por ciclo.
+        </p>
+      </form>
+
+      <dl class="mt-4 space-y-1.5 border-t border-[var(--kronus-gray-200)] pt-4 text-xs">
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Plano</dt>
+          <dd class="font-mono">R$ {{ assinatura.valor }}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Adicionais</dt>
+          <dd class="font-mono">R$ {{ assinatura.valor_dos_adicionais }}</dd>
+        </div>
+        <div class="flex justify-between border-t border-[var(--kronus-gray-200)] pt-1.5 font-semibold">
+          <dt>Total do ciclo</dt>
+          <dd class="font-mono">R$ {{ assinatura.valor_total }}</dd>
+        </div>
+        <div class="flex justify-between pt-1.5">
+          <dt class="text-[var(--kronus-gray-500)]">Totens em uso</dt>
+          <dd class="font-mono {% if assinatura.cliente.total_totens > assinatura.totens_permitidos %}text-red-600{% endif %}">
+            {{ assinatura.cliente.total_totens }} de {{ assinatura.totens_permitidos }}
+          </dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="card p-5">
       <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Ações</h2>
       <div class="mt-3 space-y-2">
         <form method="post">{% csrf_token %}<input type="hidden" name="acao" value="sincronizar">

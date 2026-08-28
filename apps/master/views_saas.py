@@ -227,6 +227,39 @@ def assinatura_detalhe(request, pk):
             elif acao == "reavaliar":
                 novo = AssinaturaService.avaliar_inadimplencia(assinatura)
                 messages.info(request, f"Situação reavaliada: {novo}.")
+            elif acao == "adicionais":
+                totens = max(0, min(50, int(request.POST.get("totens_contratados", 0))))
+                anterior = assinatura.totens_contratados
+                assinatura.totens_contratados = totens
+                assinatura.save(update_fields=["totens_contratados", "updated_at"])
+
+                # Reduzir o adicional abaixo do que ja esta instalado
+                # deixaria totens ativos alem do contratado. Avisar em vez
+                # de desligar sozinho: derrubar o ponto de uma unidade por
+                # uma alteracao de plano seria pior do que a cobranca a
+                # menor por um ciclo.
+                em_uso = assinatura.cliente.total_totens
+                if em_uso > assinatura.cliente.limite_de_totens:
+                    messages.warning(
+                        request,
+                        f"O cliente usa {em_uso} totem(ns), acima do novo limite "
+                        f"de {assinatura.cliente.limite_de_totens}. Nenhum foi "
+                        "desligado — desative os excedentes manualmente.",
+                    )
+                # O gateway precisa saber do novo valor, senao a proxima
+                # fatura sai pelo valor antigo.
+                if assinatura.asaas_subscription_id:
+                    AssinaturaService.sincronizar_no_gateway(assinatura)
+                _log(
+                    request, LogAcessoMaster.Acao.PLANO_ALTERADO,
+                    cliente=assinatura.cliente,
+                    detalhes=f"Totens adicionais: {anterior} -> {totens}",
+                )
+                messages.success(
+                    request,
+                    f"Adicionais atualizados: {totens} totem(ns). "
+                    f"Novo valor do ciclo: R$ {assinatura.valor_total():.2f}".replace(".", ","),
+                )
             elif acao == "cancelar":
                 AssinaturaService.cancelar(
                     assinatura=assinatura,

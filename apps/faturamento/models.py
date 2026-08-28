@@ -199,6 +199,10 @@ class Assinatura(BaseModel):
         "Colaboradores contratados", default=0,
         help_text="Acima do incluso no plano, cobrados por `preco_por_colaborador`.",
     )
+    totens_contratados = models.PositiveIntegerField(
+        "Totens adicionais", default=0,
+        help_text="Acima do incluído no plano, cobrados por `preco_por_totem`.",
+    )
 
     data_inicio = models.DateField("Início", default=timezone.localdate)
     data_fim_teste = models.DateField("Fim do período de teste", null=True, blank=True)
@@ -234,11 +238,27 @@ class Assinatura(BaseModel):
         return max(0, (self.data_fim_teste - timezone.localdate()).days)
 
     def valor_total(self):
-        """Valor do ciclo somado aos colaboradores excedentes."""
-        extra = (
+        """Valor do ciclo somado aos adicionais contratados."""
+        return self.valor + self.valor_dos_adicionais()
+
+    def valor_dos_adicionais(self):
+        """
+        Quanto os adicionais somam ao ciclo.
+
+        Separado de `valor_total` para que a fatura e a tela do cliente
+        possam mostrar a composicao: "plano X + 2 totens" e uma linha que
+        o cliente confere; um total fechado, nao.
+        """
+        colaboradores = (
             self.plano.preco_por_colaborador or 0
         ) * self.colaboradores_contratados
-        return self.valor + extra
+        totens = (self.plano.preco_por_totem or 0) * self.totens_contratados
+        return colaboradores + totens
+
+    @property
+    def totens_permitidos(self) -> int:
+        """Incluidos no plano mais os contratados a parte."""
+        return (self.plano.max_totems or 0) + self.totens_contratados
 
 
 class Cobranca(BaseModel):

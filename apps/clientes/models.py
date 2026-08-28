@@ -171,8 +171,58 @@ class Cliente(BaseModel):
     def pode_adicionar_colaborador(self) -> bool:
         return self.total_colaboradores < self.plano.max_colaboradores
 
+    @property
+    def limite_de_totens(self) -> int:
+        """
+        Totens incluidos no plano mais os contratados como adicional.
+
+        O limite vive aqui, e nao em `plano.max_totems`, porque o cliente
+        pode comprar totem avulso — inclusive num plano que nao inclui
+        nenhum. Ler o plano direto barraria um totem ja pago.
+        """
+        base = self.plano.max_totems or 0
+        assinatura = getattr(self, "assinatura", None)
+        if assinatura is None:
+            return base
+        return base + (assinatura.totens_contratados or 0)
+
     def pode_adicionar_totem(self) -> bool:
-        return self.total_totens < self.plano.max_totems
+        return self.total_totens < self.limite_de_totens
+
+    # -- empresa propria ---------------------------------------
+    def garantir_empresa_propria(self):
+        """
+        Cria a `Empresa` que corresponde ao proprio cliente.
+
+        O contratante **e** uma empresa: tem CNPJ, razao social e
+        colaboradores. As demais `Empresa`s de um cliente sao filiais ou
+        outros CNPJs do grupo, vinculadas depois.
+
+        Sem isto o cadastro terminava num beco: o cliente nascia sem
+        nenhuma empresa, a lista "Empresas com acesso" vinha vazia e o
+        Master nao conseguia criar um Admin RH — que exige ao menos uma.
+
+        Idempotente: se ja existir qualquer empresa, devolve a primeira e
+        nao cria nada.
+        """
+        existente = self.empresas.order_by("created_at").first()
+        if existente is not None:
+            return existente
+
+        return Empresa.objects.create(
+            cliente=self,
+            razao_social=self.razao_social,
+            nome_fantasia=self.nome_fantasia,
+            cnpj=self.cnpj,
+            slug=Empresa.slug_disponivel(self.nome_fantasia or self.razao_social),
+            cep=self.cep,
+            logradouro=self.logradouro,
+            numero=self.numero,
+            complemento=self.complemento,
+            bairro=self.bairro,
+            cidade=self.cidade,
+            uf=self.uf,
+        )
 
     # -- API key -----------------------------------------------
     def gerar_api_key(self) -> str:
@@ -428,6 +478,26 @@ class Empresa(BaseModel):
 
     ativo = models.BooleanField("Ativa", default=True, db_index=True)
 
+    @staticmethod
+    def slug_disponivel(nome: str) -> str:
+        """
+        Slug livre a partir do nome, sem colidir com um ja existente.
+
+        O campo e `unique`; deixar a colisao estourar no banco
+        transformaria "duas empresas com nome parecido" num erro 500 no
+        meio de um cadastro.
+        """
+        import secrets
+        import unicodedata
+
+        from django.utils.text import slugify
+
+        raiz = slugify(unicodedata.normalize("NFKD", nome or ""))[:50] or "empresa"
+        candidato = raiz
+        while Empresa.objects.filter(slug=candidato).exists():
+            candidato = f"{raiz}-{secrets.token_hex(2)}"
+        return candidato
+
     class Meta:
         verbose_name = "Empresa"
         verbose_name_plural = "Empresas"
@@ -678,7 +748,10 @@ class ConfiguracaoEmpresa(BaseModel):
     apagar_foto_apos_encoding = models.BooleanField(
         "Descartar fotos após gerar o embedding",
         default=False,
-        help_text="Minimização de dados (Seção 10 do plano).",
+        help_text=(
+            "Guardar apenas o vetor matemático do rosto, e não a foto. "
+            "Reduz o dado sensível retido, conforme a LGPD."
+        ),
     )
     retencao_faces_dias = models.PositiveSmallIntegerField(
         "Retenção de dados faciais após desligamento (dias)", default=30

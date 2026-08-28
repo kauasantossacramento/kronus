@@ -64,7 +64,7 @@
         {% for u in usuarios %}
           <tr class="hover:bg-[var(--kronus-gray-50)] {% if not u.is_active %}opacity-60{% endif %}">
             <td class="px-4 py-3">
-              <p class="font-medium text-[var(--kronus-gray-900)]">{{ u.nome_completo|default:u.username }}</p>
+              <p class="font-medium text-[var(--kronus-gray-900)]">{% firstof u.nome_completo u.username %}</p>
               <p class="font-mono text-xs text-[var(--kronus-gray-500)]">{{ u.username }}</p>
             </td>
             <td class="px-4 py-3">

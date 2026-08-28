@@ -159,11 +159,12 @@ def manifesto(request, token):
     """
     from django.http import JsonResponse
 
+    from apps.core.icones_pwa import para_logo
+
     totem = get_object_or_404(
         Totem.objects.select_related("empresa"), token_acesso=token, ativo=True
     )
     empresa = totem.empresa
-    icone = empresa.logo.url if empresa.logo else "/static/img/favicon.svg"
 
     return JsonResponse({
         "name": f"Ponto — {empresa.nome_exibicao}",
@@ -181,8 +182,5 @@ def manifesto(request, token):
         "lang": "pt-BR",
         "categories": ["business", "productivity"],
         "prefer_related_applications": False,
-        "icons": [
-            {"src": icone, "sizes": "192x192", "type": "image/png", "purpose": "any"},
-            {"src": icone, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
-        ],
+        "icons": para_logo(empresa.logo.url if empresa.logo else None),
     })

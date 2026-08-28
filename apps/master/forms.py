@@ -33,6 +33,7 @@ class PlanoForm(forms.ModelForm):
             "max_totems",
             "preco_mensal",
             "preco_por_colaborador",
+            "preco_por_totem",
             "tem_api",
             "tem_geofencing",
             "tem_totem",
@@ -136,17 +137,28 @@ class TotemForm(forms.ModelForm):
             )
 
         if empresa is not None:
-            plano = getattr(empresa.cliente, "plano", None)
-            if plano is not None and plano.max_totems:
+            cliente = empresa.cliente
+            plano = getattr(cliente, "plano", None)
+            # `limite_de_totens` soma os adicionais contratados: checar
+            # `plano.max_totems` barraria um totem que o cliente ja pagou.
+            limite = cliente.limite_de_totens if plano is not None else 0
+            if limite:
                 existentes = Totem.objects.filter(
-                    empresa__cliente=empresa.cliente, ativo=True
+                    empresa__cliente=cliente, ativo=True
                 )
                 if self.instance.pk:
                     existentes = existentes.exclude(pk=self.instance.pk)
-                if existentes.count() >= plano.max_totems:
+                if existentes.count() >= limite:
+                    incluidos = plano.max_totems or 0
+                    extras = limite - incluidos
+                    detalhe = (
+                        f"{incluidos} do plano {plano.nome}"
+                        + (f" + {extras} adicional(is) contratado(s)" if extras else "")
+                    )
                     raise forms.ValidationError(
-                        f"O plano {plano.nome} permite {plano.max_totems} "
-                        f"totem(ns); o cliente já usa {existentes.count()}."
+                        f"O limite é de {limite} totem(ns) ({detalhe}); "
+                        f"o cliente já usa {existentes.count()}. "
+                        "Contrate mais um adicional ou troque o plano."
                     )
         return dados
 
@@ -264,12 +276,25 @@ class UsuarioMasterForm(forms.ModelForm):
     continua valendo.
     """
 
+    # Declarado a mao porque o campo do modelo tem `max_length=11`, e a
+    # validacao de tamanho roda **antes** do `clean_cpf`: um CPF digitado
+    # com pontos e traco (14 caracteres) seria recusado antes de a
+    # mascara ser removida.
+    cpf = forms.CharField(
+        label="CPF", max_length=14, required=False,
+        help_text="Também serve para entrar. Com ou sem pontuação.",
+        widget=forms.TextInput(attrs={
+            "inputmode": "numeric", "placeholder": "000.000.000-00",
+            "autocomplete": "off",
+        }),
+    )
+
     class Meta:
         model = CustomUser
         fields = (
-            "username",
             "nome_completo",
             "email",
+            "cpf",
             "tipo",
             "cliente",
             "empresas",
@@ -293,42 +318,69 @@ class UsuarioMasterForm(forms.ModelForm):
             "cliente"
         ).order_by("cliente__razao_social", "razao_social")
         self.fields["empresas"].required = False
-        self.fields["username"].help_text = (
-            "E-mail ou CPF — é com este valor que a pessoa entra no sistema."
-        )
+        # Nenhum dos dois e obrigatorio isoladamente — a regra "ao menos
+        # um" fica no `clean`, para que a mensagem apareca uma vez so, e
+        # nao duas vezes dizendo "campo obrigatorio".
+        self.fields["email"].required = False
+        self.fields["email"].help_text = "Serve para entrar no sistema."
+
+    def clean_cpf(self):
+        from apps.core.utils import apenas_digitos
+
+        cpf = apenas_digitos(self.cleaned_data.get("cpf") or "")
+        if not cpf:
+            return None  # `None` e nao "": o campo e unique e aceita nulo
+        if len(cpf) != 11:
+            raise forms.ValidationError("O CPF precisa ter 11 dígitos.")
+        return cpf
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        return email or None
 
     def clean(self):
         dados = super().clean()
         tipo = dados.get("tipo")
         cliente = dados.get("cliente")
         empresas = dados.get("empresas")
+        email = dados.get("email")
+        cpf = dados.get("cpf")
+
+        # `add_error` em vez de `raise`: com `raise`, a validacao para no
+        # primeiro problema e o operador descobre os erros um por vez,
+        # submetendo o formulario de novo a cada correcao.
+
+        # O login aceita e-mail **ou** CPF (ver `accounts.backends`), entao
+        # exigir os dois seria pedir um dado que o sistema nao usa. Exigir
+        # nenhum criaria uma conta por onde ninguem consegue entrar.
+        if not email and not cpf:
+            self.add_error("email", "Informe o e-mail ou o CPF — é por um "
+                                    "deles que a pessoa entra no sistema.")
 
         # Um usuário sem conta só faz sentido para o Master. Qualquer
         # outro papel sem cliente vira um acesso órfão: entra no sistema
         # e não enxerga nada, o que aparece no suporte como "meu login
         # não funciona".
         if tipo != TipoUsuario.MASTER and cliente is None:
-            raise forms.ValidationError(
-                {"cliente": "Informe o cliente ao qual este usuário pertence."}
-            )
+            self.add_error("cliente",
+                           "Informe o cliente ao qual este usuário pertence.")
         if tipo == TipoUsuario.MASTER and cliente is not None:
-            raise forms.ValidationError(
-                {"cliente": "Usuário Master não pertence a um cliente."}
-            )
+            self.add_error("cliente", "Usuário Master não pertence a um cliente.")
 
         if empresas and cliente:
             invasoras = [e for e in empresas if e.cliente_id != cliente.pk]
             if invasoras:
                 nomes = ", ".join(e.razao_social for e in invasoras[:3])
-                raise forms.ValidationError({
-                    "empresas": (
-                        f"Estas empresas são de outro cliente: {nomes}. "
-                        "Vincular atravessaria contas."
-                    )
-                })
+                self.add_error("empresas",
+                               f"Estas empresas são de outro cliente: {nomes}. "
+                               "Vincular atravessaria contas.")
 
         if tipo == TipoUsuario.RH and not empresas:
-            raise forms.ValidationError({
-                "empresas": "Um Admin RH precisa de ao menos uma empresa."
-            })
+            self.add_error("empresas",
+                           "Um Admin RH precisa de ao menos uma empresa.")
+
+        # `username` e obrigatorio e unico no modelo, mas o login nao passa
+        # por ele. Derivar aqui evita pedir ao operador um terceiro campo
+        # que so repete um dos dois anteriores.
+        self.instance.username = email or cpf
         return dados

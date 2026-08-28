@@ -40,6 +40,18 @@ class Plano(BaseModel):
         decimal_places=2,
         default=0,
     )
+    #: Totem contratado alem do que o plano inclui.
+    #:
+    #: Fica no plano, e nao numa constante, porque o valor negociado num
+    #: plano corporativo nao e o mesmo do plano de entrada — e porque
+    #: mudar preco nao pode exigir deploy.
+    preco_por_totem = models.DecimalField(
+        "Preço por totem adicional (R$)",
+        max_digits=10,
+        decimal_places=2,
+        default=60,
+        help_text="Cobrado por totem além do incluído no plano.",
+    )
 
     # -- Funcionalidades ---------------------------------------
     tem_api = models.BooleanField("API REST", default=False)

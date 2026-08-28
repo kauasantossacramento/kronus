@@ -121,6 +121,7 @@ def minha_assinatura(request):
                 empresa__cliente=cliente, ativo=True
             ).count(),
             "empresas_ativas": cliente.empresas.filter(ativo=True).count(),
+            "totens_ativos": cliente.total_totens,
         },
     )
 
@@ -280,4 +281,89 @@ def cancelar_assinatura(request):
         "Assinatura cancelada. O acesso continua até o fim do período pago, e "
         "seus registros de ponto permanecem disponíveis para download.",
     )
+    return redirect("faturamento:minha_assinatura")
+
+
+@login_required
+@require_POST
+def contratar_totens(request):
+    """
+    O cliente contrata ou devolve totens adicionais sozinho.
+
+    Contratar entra em vigor na hora — o totem e liberado imediatamente e
+    a diferenca aparece na proxima fatura. Reduzir **nao** desliga totem:
+    derrubar o ponto de uma unidade por causa de uma alteracao de plano
+    seria pior do que cobrar a maior por um ciclo. A tela avisa e pede que
+    o excedente seja desativado antes.
+    """
+    from apps.faturamento.services import AssinaturaService
+
+    cliente = _cliente_do_usuario(request)
+    if cliente is None:
+        messages.error(request, "Seu usuário não administra uma conta de cliente.")
+        return redirect("core:home")
+
+    assinatura = getattr(cliente, "assinatura", None)
+    if assinatura is None or not assinatura.em_dia:
+        messages.error(
+            request,
+            "É preciso ter uma assinatura ativa para contratar adicionais.",
+        )
+        return redirect("faturamento:minha_assinatura")
+
+    try:
+        quantidade = int(request.POST.get("totens_contratados", 0))
+    except (TypeError, ValueError):
+        quantidade = assinatura.totens_contratados
+    quantidade = max(0, min(50, quantidade))
+
+    em_uso = cliente.total_totens
+    minimo = max(0, em_uso - (assinatura.plano.max_totems or 0))
+    if quantidade < minimo:
+        messages.error(
+            request,
+            f"Você usa {em_uso} totem(ns). Desative os que não for manter "
+            f"antes de reduzir para {quantidade}.",
+        )
+        return redirect("faturamento:minha_assinatura")
+
+    anterior = assinatura.totens_contratados
+    assinatura.totens_contratados = quantidade
+    assinatura.save(update_fields=["totens_contratados", "updated_at"])
+
+    # Sem isto a proxima fatura sai pelo valor antigo.
+    if assinatura.asaas_subscription_id:
+        try:
+            AssinaturaService.sincronizar_no_gateway(assinatura)
+        except Exception:
+            logger.exception(
+                "Falha ao sincronizar adicionais da assinatura %s", assinatura.pk
+            )
+            messages.warning(
+                request,
+                "Os totens foram liberados, mas não conseguimos atualizar a "
+                "cobrança agora. Nossa equipe ajusta a próxima fatura.",
+            )
+
+    registrar_log(
+        request=request,
+        acao=LogAcesso.Acao.EDICAO,
+        descricao=f"Totens adicionais: {anterior} -> {quantidade}",
+        objeto=assinatura,
+    )
+
+    if quantidade > anterior:
+        messages.success(
+            request,
+            f"{quantidade - anterior} totem(ns) liberado(s). Você já pode "
+            "cadastrá-los; a diferença entra na próxima fatura.",
+        )
+    elif quantidade < anterior:
+        messages.success(
+            request,
+            f"Adicionais reduzidos para {quantidade}. O novo valor vale a "
+            "partir da próxima fatura.",
+        )
+    else:
+        messages.info(request, "Nada mudou.")
     return redirect("faturamento:minha_assinatura")

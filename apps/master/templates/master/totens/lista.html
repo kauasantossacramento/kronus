@@ -80,7 +80,7 @@
             </td>
             <td class="px-4 py-3">
               <p class="text-[var(--kronus-gray-800)]">{{ totem.empresa.cliente.razao_social }}</p>
-              <p class="text-xs text-[var(--kronus-gray-500)]">{{ totem.empresa.nome_fantasia|default:totem.empresa.razao_social }}</p>
+              <p class="text-xs text-[var(--kronus-gray-500)]">{% firstof totem.empresa.nome_fantasia totem.empresa.razao_social "sem empresa" %}</p>
             </td>
             <td class="px-4 py-3 text-[var(--kronus-gray-600)]">{{ totem.local_instalacao|default:"—" }}</td>
             <td class="px-4 py-3">

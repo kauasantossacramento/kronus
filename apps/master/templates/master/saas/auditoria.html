@@ -70,14 +70,14 @@
             <td class="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-[var(--kronus-gray-500)]">{{ log.created_at|date:"d/m/y H:i:s" }}</td>
             <td class="px-4 py-2.5">
               {% if log.usuario %}
-                <p class="text-[var(--kronus-gray-800)]">{{ log.usuario.nome_completo|default:log.usuario.username }}</p>
+                <p class="text-[var(--kronus-gray-800)]">{% firstof log.usuario.nome_completo log.usuario.username "—" %}</p>
                 <p class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ log.usuario.get_tipo_display }}</p>
               {% else %}
                 <span class="text-xs text-[var(--kronus-gray-400)]">sistema</span>
               {% endif %}
             </td>
             <td class="px-4 py-2.5 text-xs text-[var(--kronus-gray-600)]">
-              {{ log.empresa.razao_social|default:log.cliente.razao_social|default:"—" }}
+              {% firstof log.empresa.razao_social log.cliente.razao_social "—" %}
             </td>
             <td class="px-4 py-2.5">
               <span class="rounded px-1.5 py-0.5 font-mono text-xs

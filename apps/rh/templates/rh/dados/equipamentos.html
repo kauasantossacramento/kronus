@@ -5,7 +5,7 @@
 <div class="mb-6">
   <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Equipamentos</h1>
   <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
-    Situação dos totens instalados em {{ empresa.nome_fantasia|default:empresa.razao_social }}.
+    Situação dos totens instalados em {% firstof empresa.nome_fantasia empresa.razao_social %}.
     Cadastro, troca e devolução são feitos pela KS TEC — o equipamento é fornecido em comodato.
   </p>
 </div>
@@ -33,7 +33,7 @@
         <div class="min-w-0">
           <h2 class="flex items-center gap-2 font-display text-base font-semibold text-[var(--kronus-gray-900)]">
             {% icone "totem" classe="h-4 w-4 text-[var(--kronus-primary-600)]" %}
-            {{ ficha.totem.apelido|default:ficha.totem.identificador }}
+            {% firstof ficha.totem.apelido ficha.totem.identificador %}
           </h2>
           <p class="mt-0.5 font-mono text-xs text-[var(--kronus-gray-500)]">{{ ficha.totem.identificador }}</p>
           {% if ficha.totem.local_instalacao %}

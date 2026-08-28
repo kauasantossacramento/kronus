@@ -158,11 +158,17 @@ class ClienteCreateView(MasterRequiredMixin, SucessoMensagemMixin, CreateView):
 
     def form_valid(self, form):
         resposta = super().form_valid(form)
+
+        # O contratante e, ele mesmo, uma empresa. Sem criar aqui, o
+        # cliente nascia sem nenhuma — e o proximo passo natural (criar o
+        # Admin RH) ficava impossivel, porque o papel exige ao menos uma.
+        empresa = self.object.garantir_empresa_propria()
+
         _log_master(
             self.request,
             LogAcessoMaster.Acao.CLIENTE_CRIADO,
             self.object,
-            f"Plano: {self.object.plano}",
+            f"Plano: {self.object.plano}; empresa própria: {empresa.razao_social}",
         )
         registrar_log(
             request=self.request,

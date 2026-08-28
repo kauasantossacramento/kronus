@@ -201,10 +201,14 @@ class CustomUser(AbstractUser):
             self.username = self.email or self.cpf
 
     def save(self, *args, **kwargs):
-        if self.cpf:
-            self.cpf = apenas_digitos(self.cpf) or None
-        if self.email:
-            self.email = self.email.strip().lower() or None
+        # Vazio vira NULL, sempre — nao apenas quando ja veio preenchido.
+        # `email` e `cpf` sao `unique`, e no SQL dois `''` sao iguais
+        # enquanto dois `NULL` nao sao: guardar string vazia faria o
+        # segundo usuario sem e-mail colidir com o primeiro. Como o
+        # sistema aceita cadastro so com CPF, esse segundo usuario chega
+        # rapido.
+        self.cpf = apenas_digitos(self.cpf) or None if self.cpf else None
+        self.email = (self.email or "").strip().lower() or None
         if not self.username:
             self.username = self.email or self.cpf
         super().save(*args, **kwargs)

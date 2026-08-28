@@ -48,7 +48,7 @@
     <div id="kronus-instalar-ios" hidden class="border-t border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)] p-4">
       <p class="text-xs font-medium text-[var(--kronus-gray-700)]">No iPhone ou iPad:</p>
       <ol class="mt-2 space-y-1.5 text-xs text-[var(--kronus-gray-600)]">
-        <li>1. Toque em <strong>Compartilhar</strong> na barra do Safari</li>
+        <li>1. Toque em <strong>Compartilhar</strong> na barra do Safari <span class="text-[var(--kronus-gray-400)]">(no iPad fica no topo)</span></li>
         <li>2. Escolha <strong>Adicionar à Tela de Início</strong></li>
         <li>3. Confirme em <strong>Adicionar</strong></li>
       </ol>
@@ -126,8 +126,15 @@
 
   // iOS: nenhum evento é disparado, então o convite depende de detectar
   // o navegador. Só o Safari instala — Chrome no iOS não tem o menu.
+  //
+  // O iPad é o caso que mais escapa: desde o iPadOS 13 o Safari se
+  // identifica como "Macintosh", então testar por /iPad/ nunca casa e o
+  // convite jamais aparecia em tablet. O que separa um iPad de um Mac é
+  // a tela sensível ao toque — Mac nenhum reporta `maxTouchPoints > 1`.
   var ua = window.navigator.userAgent;
-  var ehIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  var ehIPadModerno =
+    /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  var ehIOS = (/iPad|iPhone|iPod/.test(ua) || ehIPadModerno) && !window.MSStream;
   var ehSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
   if (ehIOS && ehSafari) {
     // Espera um pouco: um convite que aparece junto com a página é

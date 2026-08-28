@@ -109,10 +109,25 @@ class Totem(BaseModel):
     ativo = models.BooleanField("Ativo", default=True, db_index=True)
 
     # -- Configuracao da interface -----------------------------
+    #: Saida de emergencia quando o rosto nao e reconhecido.
+    #:
+    #: O reconhecimento facial falha por motivos banais — barba nova,
+    #: oculos, contraluz, camera suja, gemeo. Sem alternativa, a pessoa
+    #: fica impedida de registrar o ponto, e a empresa passa a ter um
+    #: problema trabalhista, nao um problema tecnico. Com o fallback, ela
+    #: digita o CPF e a batida acontece, marcada como registro por
+    #: digitacao para que o RH saiba o que aconteceu.
+    #:
+    #: Desligar so faz sentido em operacao onde a identificacao por rosto
+    #: e obrigatoria por politica interna — e mesmo ali, alguem precisa
+    #: garantir outro caminho para quem o sistema nao reconhecer.
     permite_fallback_cpf = models.BooleanField(
-        "Permitir fallback por CPF",
+        "Permitir digitar o CPF quando o rosto não for reconhecido",
         default=True,
-        help_text="Regra 6 da Seção 14: o fallback deve estar sempre disponível.",
+        help_text=(
+            "Saída de emergência do totem. Sem ela, quem o reconhecimento "
+            "facial não identificar fica sem registrar o ponto."
+        ),
     )
     segundos_tela_sucesso = models.PositiveSmallIntegerField(
         "Segundos na tela de sucesso", default=5

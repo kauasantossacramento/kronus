@@ -58,8 +58,14 @@
             <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Plano atual</p>
             <h2 class="mt-1 font-display text-xl font-semibold text-[var(--kronus-gray-900)]">{{ assinatura.plano.nome }}</h2>
             <p class="mt-1 font-mono text-lg text-[var(--kronus-primary-600)]">
-              R$ {{ assinatura.valor|floatformat:2 }}<span class="text-sm text-[var(--kronus-gray-400)]">/{{ assinatura.get_ciclo_display|lower }}</span>
+              R$ {{ assinatura.valor_total|floatformat:2 }}<span class="text-sm text-[var(--kronus-gray-400)]">/{{ assinatura.get_ciclo_display|lower }}</span>
             </p>
+            {% if assinatura.totens_contratados %}
+              <p class="mt-0.5 text-xs text-[var(--kronus-gray-500)]">
+                R$ {{ assinatura.valor|floatformat:2 }} do plano
+                + R$ {{ assinatura.valor_dos_adicionais|floatformat:2 }} de adicionais
+              </p>
+            {% endif %}
           </div>
           <a href="{% url 'faturamento:planos' %}" class="btn btn-primary">Mudar de plano</a>
         </div>
@@ -78,10 +84,46 @@
             </dd>
           </div>
           <div>
+            <dt class="text-xs text-[var(--kronus-gray-500)]">Totens</dt>
+            <dd class="font-mono text-lg font-bold {% if totens_ativos >= assinatura.totens_permitidos %}text-amber-700{% else %}text-[var(--kronus-gray-900)]{% endif %}">
+              {{ totens_ativos }}<span class="text-sm font-normal text-[var(--kronus-gray-400)]">/{{ assinatura.totens_permitidos }}</span>
+            </dd>
+          </div>
+          <div>
             <dt class="text-xs text-[var(--kronus-gray-500)]">Próxima cobrança</dt>
             <dd class="font-mono text-sm">{{ assinatura.proxima_cobranca|date:"d/m/Y"|default:"—" }}</dd>
           </div>
         </dl>
+
+        <div class="mt-5 rounded-xl border border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)] p-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-[var(--kronus-gray-800)]">Precisa de mais totens?</p>
+              <p class="mt-0.5 text-xs text-[var(--kronus-gray-600)]">
+                Seu plano inclui {{ assinatura.plano.max_totems }}.
+                Cada totem a mais custa <strong>R$ {{ assinatura.plano.preco_por_totem|floatformat:2 }}</strong> por
+                {{ assinatura.get_ciclo_display|lower }} e é liberado na hora.
+              </p>
+            </div>
+          </div>
+
+          <form method="post" action="{% url 'faturamento:contratar_totens' %}"
+                class="mt-3 flex flex-wrap items-end gap-2">
+            {% csrf_token %}
+            <div>
+              <label for="totens_contratados" class="block text-xs font-medium text-[var(--kronus-gray-700)]">
+                Totens adicionais
+              </label>
+              <input type="number" id="totens_contratados" name="totens_contratados"
+                     min="0" max="50" value="{{ assinatura.totens_contratados }}"
+                     class="mt-1 block w-24 rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+            </div>
+            <button type="submit" class="btn btn-primary text-sm">Atualizar</button>
+            <p class="w-full text-xs text-[var(--kronus-gray-500)]">
+              Reduzir não desliga nenhum totem — desative os que não for manter antes.
+            </p>
+          </form>
+        </div>
 
         <ul class="mt-5 flex flex-wrap gap-2 border-t border-[var(--kronus-gray-200)] pt-5">
           {% for recurso in assinatura.plano.recursos_habilitados %}

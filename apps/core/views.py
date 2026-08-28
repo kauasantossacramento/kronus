@@ -94,14 +94,16 @@ def manifesto_do_painel(request):
     """
     from django.http import JsonResponse
 
+    from apps.core.icones_pwa import para_logo
+
     empresa = getattr(request, "empresa_ativa", None)
     if empresa is not None:
         nome = empresa.nome_exibicao
-        icone = empresa.logo.url if empresa.logo else "/static/img/favicon.svg"
+        icones = para_logo(empresa.logo.url if empresa.logo else None)
         cor = empresa.cor_primaria
     else:
         nome = "Kronus"
-        icone = "/static/img/favicon.svg"
+        icones = para_logo(None)
         cor = "#1E3A5F"
 
     return JsonResponse({
@@ -114,8 +116,5 @@ def manifesto_do_painel(request):
         "background_color": "#F8FAFC",
         "theme_color": cor,
         "lang": "pt-BR",
-        "icons": [
-            {"src": icone, "sizes": "192x192", "type": "image/png", "purpose": "any"},
-            {"src": icone, "sizes": "512x512", "type": "image/png", "purpose": "any"},
-        ],
+        "icons": icones,
     })

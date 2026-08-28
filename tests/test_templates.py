@@ -168,3 +168,65 @@ class PoliticaDeSegurancaTests(SimpleTestCase):
                 host, self._script_src(),
                 f"base.html carrega script de {host}, que a CSP bloqueia",
             )
+
+
+class ArgumentoDeFiltroTests(SimpleTestCase):
+    """
+    `{{ a.b|default:x.y }}` derruba a pagina quando `x` e None.
+
+    O Django engole a falha de lookup na *variavel* principal, mas nao no
+    *argumento* do filtro: ali a `VariableDoesNotExist` sobe e vira 500.
+    Foi o que quebrou a tela de auditoria — um log sem cliente vinculado
+    bastava. `{% firstof %}` faz a mesma coisa sem estourar.
+    """
+
+    PADRAO = re.compile(r"\|\s*default(?:_if_none)?\s*:\s*[\w]+\.[\w.]+")
+
+    def test_nenhum_filtro_default_recebe_variavel_com_ponto(self):
+        ofensores = []
+        for caminho in RAIZ.rglob("*.html"):
+            if "node_modules" in caminho.parts or ".venv" in caminho.parts:
+                continue
+            for numero, linha in enumerate(
+                caminho.read_text(encoding="utf-8").splitlines(), 1
+            ):
+                if self.PADRAO.search(linha):
+                    ofensores.append(f"{caminho.relative_to(RAIZ)}:{numero}")
+
+        self.assertEqual(
+            ofensores, [],
+            "argumento de filtro com lookup encadeado vira 500 quando o "
+            "objeto e None. Use {% firstof a b %}. Ocorrencias:\n  "
+            + "\n  ".join(ofensores),
+        )
+
+
+class JargaoInternoTests(SimpleTestCase):
+    """
+    `help_text` e `verbose_name` aparecem na tela do usuario. Referencias
+    ao documento de planejamento ("Regra 6 da Seção 14") nao dizem nada a
+    quem opera o sistema — e passam a impressao de rascunho.
+    """
+
+    PADRAO = re.compile(
+        r"(Seção|Secao|Regra|regra)\s+\d+[^\"']{0,40}(do plano|da Seção|da Secao)"
+    )
+
+    def test_nenhum_texto_visivel_cita_o_documento_de_planejamento(self):
+        ofensores = []
+        for caminho in (RAIZ / "apps").rglob("*.py"):
+            if "migrations" in caminho.parts:
+                continue
+            for numero, linha in enumerate(
+                caminho.read_text(encoding="utf-8").splitlines(), 1
+            ):
+                if "help_text" not in linha and "verbose_name" not in linha:
+                    continue
+                if self.PADRAO.search(linha):
+                    ofensores.append(f"{caminho.relative_to(RAIZ)}:{numero}")
+
+        self.assertEqual(
+            ofensores, [],
+            "texto visivel citando o documento de planejamento:\n  "
+            + "\n  ".join(ofensores),
+        )

@@ -81,8 +81,9 @@ def manifesto_da_empresa(request, slug):
     """
     from django.http import JsonResponse
 
+    from apps.core.icones_pwa import para_logo
+
     empresa = get_object_or_404(Empresa, slug=slug, ativo=True)
-    icone = empresa.logo.url if empresa.logo else "/static/img/favicon.svg"
 
     return JsonResponse({
         "name": f"Ponto — {empresa.nome_exibicao}",
@@ -98,10 +99,7 @@ def manifesto_da_empresa(request, slug):
         "background_color": "#FFFFFF",
         "theme_color": empresa.cor_primaria,
         "lang": "pt-BR",
-        "icons": [
-            {"src": icone, "sizes": "192x192", "type": "image/png", "purpose": "any"},
-            {"src": icone, "sizes": "512x512", "type": "image/png", "purpose": "any"},
-        ],
+        "icons": para_logo(empresa.logo.url if empresa.logo else None),
         "shortcuts": [
             {
                 "name": "Registrar ponto",

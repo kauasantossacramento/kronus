@@ -12,5 +12,6 @@ urlpatterns = [
     path("minha-assinatura/", views.minha_assinatura, name="minha_assinatura"),
     path("planos/", views.planos_disponiveis, name="planos"),
     path("checkout/<slug:slug>/", views.checkout, name="checkout"),
+    path("adicionais/totens/", views.contratar_totens, name="contratar_totens"),
     path("cancelar/", views.cancelar_assinatura, name="cancelar"),
 ]

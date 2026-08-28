@@ -25,7 +25,7 @@
 
 <div x-data="capturaFoto('{{ campo.id_for_label }}')" x-init="init()">
   <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">
-    {{ rotulo|default:campo.label }}
+    {% firstof rotulo campo.label %}
   </label>
 
   <div class="mt-2 flex flex-wrap items-start gap-4">
@@ -74,7 +74,7 @@
       </div>
 
       {% if ajuda or campo.help_text %}
-        <p class="text-xs text-[var(--kronus-gray-500)]">{{ ajuda|default:campo.help_text }}</p>
+        <p class="text-xs text-[var(--kronus-gray-500)]">{% firstof ajuda campo.help_text %}</p>
       {% endif %}
 
       <p x-show="motivoSemCamera" x-cloak

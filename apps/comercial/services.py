@@ -13,12 +13,10 @@ terceiro.
 import logging
 import random
 import secrets
-import unicodedata
 from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
-from django.utils.text import slugify
 
 logger = logging.getLogger("kronus.comercial")
 
@@ -58,16 +56,6 @@ def gerar_cnpj() -> str:
     base.append(_digito(base, pesos1))
     base.append(_digito(base, pesos2))
     return "".join(map(str, base))
-
-
-def _slug_livre(nome: str) -> str:
-    from apps.clientes.models import Empresa
-
-    raiz = slugify(unicodedata.normalize("NFKD", nome))[:30] or "demo"
-    candidato = raiz
-    while Empresa.objects.filter(slug=candidato).exists():
-        candidato = f"{raiz}-{secrets.token_hex(2)}"
-    return candidato
 
 
 def _plano_da_demonstracao(Plano):
@@ -124,7 +112,7 @@ def criar_demonstracao(solicitacao, config=None) -> tuple[object, str]:
     e-mail enviado em seguida — nao e persistida em lugar nenhum.
     """
     from apps.accounts.models import CustomUser
-    from apps.clientes.models import Cliente, Empresa
+    from apps.clientes.models import Cliente
     from apps.comercial.models import ConfiguracaoComercial
     from apps.core.constants import TipoUsuario
     from apps.master.models import Plano
@@ -151,13 +139,10 @@ def criar_demonstracao(solicitacao, config=None) -> tuple[object, str]:
         ),
     )
 
-    empresa = Empresa.objects.create(
-        cliente=cliente,
-        razao_social=solicitacao.empresa[:200],
-        nome_fantasia=solicitacao.empresa[:200],
-        cnpj=gerar_cnpj(),
-        slug=_slug_livre(solicitacao.empresa),
-    )
+    # Mesmo caminho do cadastro pelo Master: o cliente e, ele mesmo, uma
+    # empresa. Duplicar a criacao aqui faria as duas divergirem com o
+    # tempo.
+    empresa = cliente.garantir_empresa_propria()
 
     senha = secrets.token_urlsafe(9)
     usuario = CustomUser.objects.create_user(
