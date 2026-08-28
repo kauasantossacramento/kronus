@@ -40,6 +40,54 @@
     </div>
   </div>
 
+  {% comment %}
+    Criar pelo painel: a captação nem sempre começa no site. O contato
+    vem por telefone, indicação ou visita, e mandar o interessado
+    preencher o formulário da capa é um passo a mais bem no momento em
+    que ele já disse sim.
+  {% endcomment %}
+  <details class="card p-4">
+    <summary class="cursor-pointer text-sm font-medium text-[var(--kronus-gray-800)]">
+      {% icone "mais" classe="mr-1 inline h-4 w-4 align-text-bottom text-[var(--kronus-primary-600)]" %}
+      Criar demonstração para um interessado
+    </summary>
+    <form method="post" action="{% url 'master:demo_criar' %}" enctype="multipart/form-data"
+          class="mt-4 grid gap-4 border-t border-[var(--kronus-gray-200)] pt-4 sm:grid-cols-2">
+      {% csrf_token %}
+      <div>
+        <label for="nome" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Nome do contato</label>
+        <input type="text" id="nome" name="nome" required
+               class="mt-1 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      </div>
+      <div>
+        <label for="empresa" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Empresa</label>
+        <input type="text" id="empresa" name="empresa" required
+               class="mt-1 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      </div>
+      <div>
+        <label for="email_demo" class="block text-xs font-medium text-[var(--kronus-gray-700)]">E-mail</label>
+        <input type="email" id="email_demo" name="email" required
+               class="mt-1 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      </div>
+      <div>
+        <label for="whatsapp_demo" class="block text-xs font-medium text-[var(--kronus-gray-700)]">WhatsApp</label>
+        <input type="text" id="whatsapp_demo" name="whatsapp" inputmode="numeric"
+               class="mt-1 block w-full rounded-lg border-0 py-2 px-3 font-mono text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      </div>
+      <div class="sm:col-span-2">
+        <label for="logo_demo" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Logo da empresa (opcional)</label>
+        <input type="file" id="logo_demo" name="logo" accept="image/*"
+               class="mt-1 block w-full text-sm">
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+          Sem logo, o ambiente mostra "sua logo aqui" no lugar dela.
+        </p>
+      </div>
+      <div class="sm:col-span-2 flex justify-end">
+        <button type="submit" class="btn btn-primary text-sm">Criar ambiente</button>
+      </div>
+    </form>
+  </details>
+
   <form method="get" class="card flex flex-wrap items-end gap-3 p-4">
     <div class="min-w-48 flex-1">
       <label for="q" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Buscar</label>

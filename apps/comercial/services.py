@@ -20,16 +20,14 @@ from django.utils import timezone
 
 logger = logging.getLogger("kronus.comercial")
 
-NOMES = [
-    "Ana Beatriz Moreira", "Carlos Eduardo Lima", "Daniela Souza Rocha",
-    "Eduardo Nunes Prado", "Fernanda Alves Pinto", "Gabriel Martins Reis",
-    "Helena Castro Dias", "Igor Ramalho Costa", "Juliana Freitas Melo",
-    "Lucas Andrade Vieira", "Mariana Teixeira Sá", "Nelson Barbosa Cruz",
-]
-CARGOS = [
-    "Auxiliar administrativo", "Analista de suporte", "Vendedor",
-    "Supervisor de equipe", "Assistente financeiro", "Recepcionista",
-]
+#: Um unico colaborador, com nome que se explica sozinho.
+#:
+#: Doze nomes inventados enchiam a tela, mas criavam a duvida errada
+#: ("de onde saiu essa gente?") e faziam o RH hesitar em apagar antes de
+#: cadastrar a equipe de verdade. Um so, chamado pelo que e, deixa claro
+#: que e material de demonstracao e que o resto da tela e do cliente.
+NOME_DEMONSTRACAO = "Colaborador Demonstrativo"
+CARGO_DEMONSTRACAO = "Exemplo para a demonstração"
 
 
 # ==============================================================
@@ -104,7 +102,7 @@ def _plano_da_demonstracao(Plano):
 # Criacao
 # ==============================================================
 @transaction.atomic
-def criar_demonstracao(solicitacao, config=None) -> tuple[object, str]:
+def criar_demonstracao(solicitacao, config=None, logo=None) -> tuple[object, str]:
     """
     Cria Cliente, Empresa, usuario administrador e dados de exemplo.
 
@@ -143,6 +141,9 @@ def criar_demonstracao(solicitacao, config=None) -> tuple[object, str]:
     # empresa. Duplicar a criacao aqui faria as duas divergirem com o
     # tempo.
     empresa = cliente.garantir_empresa_propria()
+    if logo is not None:
+        empresa.logo = logo
+        empresa.save(update_fields=["logo", "updated_at"])
 
     senha = secrets.token_urlsafe(9)
     usuario = CustomUser.objects.create_user(
@@ -155,7 +156,7 @@ def criar_demonstracao(solicitacao, config=None) -> tuple[object, str]:
     )
     usuario.empresas.add(empresa)
 
-    _popular(empresa, config.demo_colaboradores_exemplo)
+    _popular(empresa)
 
     solicitacao.cliente = cliente
     solicitacao.expira_em = expira
@@ -168,10 +169,9 @@ def criar_demonstracao(solicitacao, config=None) -> tuple[object, str]:
     return solicitacao, senha
 
 
-def _popular(empresa, quantidade: int) -> None:
+def _popular(empresa) -> None:
     """
-    Cria colaboradores e algumas batidas, para que a demonstracao abra
-    com tela cheia.
+    Cria o colaborador de demonstracao e algumas batidas.
 
     Uma demonstracao vazia nao demonstra nada: quem entra ve tabelas sem
     linha e conclui que o sistema nao faz o que a capa prometeu.
@@ -179,21 +179,21 @@ def _popular(empresa, quantidade: int) -> None:
     from apps.rh.models import Colaborador
 
     hoje = timezone.localdate()
-    escolhidos = random.sample(NOMES, min(quantidade, len(NOMES)))
 
-    colaboradores = []
-    for i, nome in enumerate(escolhidos):
-        colaboradores.append(Colaborador.objects.create(
-            empresa=empresa,
-            cpf=gerar_cpf(),
-            nome_completo=nome,
-            cargo=random.choice(CARGOS),
-            data_nascimento=hoje.replace(year=hoje.year - random.randint(22, 55)),
-            data_admissao=hoje - timedelta(days=random.randint(60, 900)),
-            ativo=True,
-        ))
+    colaborador = Colaborador.objects.create(
+        empresa=empresa,
+        cpf=gerar_cpf(),
+        nome_completo=NOME_DEMONSTRACAO,
+        cargo=CARGO_DEMONSTRACAO,
+        data_nascimento=hoje.replace(year=hoje.year - 35),
+        data_admissao=hoje - timedelta(days=180),
+        ativo=True,
+    )
 
-    _registrar_pontos(empresa, colaboradores)
+    # Batidas ainda sao geradas: uma demonstracao sem nenhum registro nao
+    # mostra espelho, banco de horas nem AFD — que e justamente o que a
+    # pessoa entrou para ver.
+    _registrar_pontos(empresa, [colaborador])
 
 
 def _registrar_pontos(empresa, colaboradores) -> None:

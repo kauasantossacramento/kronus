@@ -57,9 +57,6 @@ class ConfiguracaoComercial(BaseModel):
         default=20,
         help_text="Protege contra criação automatizada em massa.",
     )
-    demo_colaboradores_exemplo = models.PositiveSmallIntegerField(
-        "Colaboradores de exemplo", default=8
-    )
 
     class Meta:
         verbose_name = "Configuração comercial"

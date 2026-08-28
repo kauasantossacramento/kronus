@@ -297,7 +297,8 @@
             </div>
           {% endif %}
 
-          <form method="post" action="{% url 'comercial:solicitar' %}" class="mt-5 space-y-3.5">
+          <form method="post" action="{% url 'comercial:solicitar' %}"
+                enctype="multipart/form-data" class="mt-5 space-y-3.5">
             {% csrf_token %}
             {{ formulario_demo.site }}
             {% for campo in formulario_demo.visible_fields %}

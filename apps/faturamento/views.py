@@ -226,16 +226,31 @@ def checkout(request, slug):
             )
             return redirect("faturamento:planos")
 
+        # Quem contratou deixa de ser demonstracao. Manter a marca faria
+        # a varredura de expiracao suspender, dias depois, um cliente que
+        # acabou de dizer sim.
+        era_demonstracao = cliente.eh_demonstracao
+        if era_demonstracao:
+            _converter_demonstracao(cliente, plano)
+
         registrar_log(
             request=request,
             acao=LogAcesso.Acao.CONFIG,
             descricao=f"{acao}: {plano.nome} ({ciclo})",
             cliente=cliente,
         )
-        messages.success(
-            request,
-            f"{acao} para {plano.nome}. Acompanhe as faturas em Minha assinatura.",
-        )
+        if not ConfiguracaoGateway.carregar().ativo:
+            messages.success(
+                request,
+                f"{acao} para {plano.nome}. Seu acesso continua liberado — "
+                "a KS TEC entrará em contato para cadastrar os dados de "
+                "faturamento.",
+            )
+        else:
+            messages.success(
+                request,
+                f"{acao} para {plano.nome}. Acompanhe as faturas em Minha assinatura.",
+            )
         return redirect("faturamento:minha_assinatura")
 
     return render(
@@ -367,3 +382,45 @@ def contratar_totens(request):
     else:
         messages.info(request, "Nada mudou.")
     return redirect("faturamento:minha_assinatura")
+
+
+def _converter_demonstracao(cliente, plano) -> None:
+    """
+    Tira a marca de demonstracao e avisa a KS TEC.
+
+    O ambiente ja era um `Cliente` comum — converter e limpar dois campos,
+    sem migrar nada. O aviso importa porque, com a cobranca automatica
+    desligada, ninguem cria a fatura sozinho: se o Master nao souber que
+    houve contratacao, o cliente usa de graca ate alguem reparar.
+    """
+    from django.utils import timezone
+
+    from apps.clientes.models import Cliente
+    from apps.comercial.models import SolicitacaoDemonstracao
+    from apps.notificacoes.models import Notificacao
+    from apps.notificacoes.services import criar, usuarios_master
+
+    agora = timezone.now()
+    Cliente.objects.filter(pk=cliente.pk).update(
+        eh_demonstracao=False, demo_expira_em=None,
+        suspenso=False, motivo_suspensao="", updated_at=agora,
+    )
+    SolicitacaoDemonstracao.objects.filter(
+        cliente=cliente, status=SolicitacaoDemonstracao.Status.ATIVA
+    ).update(
+        status=SolicitacaoDemonstracao.Status.CONVERTIDA,
+        convertida_em=agora, updated_at=agora,
+    )
+
+    for master in usuarios_master():
+        criar(
+            destinatario=master,
+            evento=Notificacao.Evento.SISTEMA,
+            titulo=f"{cliente.razao_social} contratou o plano {plano.nome}",
+            mensagem=(
+                "A demonstração virou contratação. Confirme os dados de "
+                "faturamento e emita a primeira cobrança."
+            ),
+            nivel=Notificacao.Nivel.SUCESSO,
+            url_acao="/master/assinaturas/",
+        )

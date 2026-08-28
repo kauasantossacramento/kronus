@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Demonstração criada</h1>
+  <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">{{ solicitacao.empresa }}</p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-2xl space-y-6">
+  <div class="card p-6">
+    <div class="flex items-center gap-3 border-b border-[var(--kronus-gray-200)] pb-4">
+      {% icone "check_circulo" classe="h-7 w-7 text-emerald-600" %}
+      <div>
+        <p class="font-semibold text-[var(--kronus-gray-900)]">Ambiente pronto</p>
+        <p class="text-xs text-[var(--kronus-gray-500)]">
+          Vale até {{ solicitacao.expira_em|date:"d/m/Y \à\s H:i" }}
+        </p>
+      </div>
+    </div>
+
+    {% comment %}
+      A senha aparece uma vez só: ela não é guardada em lugar nenhum, nem
+      aqui nem no banco. Quem cria precisa copiar agora.
+    {% endcomment %}
+    <dl class="mt-5 space-y-4">
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Endereço</dt>
+        <dd class="mt-1 flex items-center gap-2">
+          <code id="url" class="flex-1 overflow-x-auto rounded-lg bg-[var(--kronus-gray-900)] px-3 py-2.5 font-mono text-xs text-[var(--kronus-gold-300)]">{{ url_acesso }}</code>
+          <button type="button" class="btn btn-outline shrink-0 text-xs"
+                  onclick="navigator.clipboard.writeText(document.getElementById('url').textContent.trim()); this.textContent='Copiado';">Copiar</button>
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">E-mail</dt>
+        <dd class="mt-1 font-mono text-sm">{{ solicitacao.email }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Senha provisória</dt>
+        <dd class="mt-1 flex items-center gap-2">
+          <code id="senha" class="flex-1 rounded-lg bg-[var(--kronus-gray-900)] px-3 py-2.5 font-mono text-sm text-[var(--kronus-gold-300)]">{{ senha }}</code>
+          <button type="button" class="btn btn-outline shrink-0 text-xs"
+                  onclick="navigator.clipboard.writeText(document.getElementById('senha').textContent.trim()); this.textContent='Copiado';">Copiar</button>
+        </dd>
+      </div>
+    </dl>
+
+    <p class="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+      A senha não é exibida de novo e não fica guardada. Copie agora e envie ao
+      interessado — pelo WhatsApp, de preferência.
+    </p>
+
+    {% if solicitacao.whatsapp %}
+      <a href="https://wa.me/{{ solicitacao.whatsapp }}" target="_blank" rel="noopener"
+         class="btn btn-primary mt-4 w-full">
+        {% icone "whatsapp" classe="h-4 w-4" %} Abrir conversa com {{ solicitacao.nome }}
+      </a>
+    {% endif %}
+  </div>
+
+  <div class="flex gap-2">
+    <a href="{{ url_acesso }}" target="_blank" rel="noopener" class="btn btn-outline flex-1">Abrir o ambiente</a>
+    <a href="{% url 'master:comercial_demos' %}" class="btn btn-outline flex-1">Ver todas</a>
+  </div>
+</div>
+{% endblock %}

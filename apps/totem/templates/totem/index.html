@@ -340,6 +340,23 @@
       </button>
     </div>
 
+    <div id="totem-instalar-fullscreen" hidden>
+      <p class="totem-instalar__texto" style="margin-top:.75rem">
+        Neste aparelho o navegador não oferece a instalação. A tela cheia
+        resolve do mesmo jeito: esconde a barra de endereço enquanto o totem
+        estiver aberto.
+      </p>
+      <div class="totem-instalar__acoes">
+        <button type="button" id="totem-fullscreen-botao" class="totem-instalar__btn">
+          Ativar tela cheia
+        </button>
+        <button type="button" id="totem-fullscreen-depois"
+                class="totem-instalar__btn totem-instalar__btn--secundario">
+          Agora não
+        </button>
+      </div>
+    </div>
+
     <div id="totem-instalar-android" hidden>
       <ul class="totem-instalar__passos">
         <li>1. Toque no menu <strong>⋮</strong> no canto do navegador</li>
@@ -427,6 +444,66 @@
 
   window.addEventListener('appinstalled', function () { fechar(true); });
 
+  // -- Tela cheia pela API do navegador --------------------------
+  //
+  // Saida para o aparelho que nao instala PWA — o caso do tablet de
+  // baixo custo com Chrome antigo. E o mesmo mecanismo que o YouTube
+  // usa: esconde a barra de endereco sem instalar nada.
+  //
+  // Exige gesto do usuario: `requestFullscreen()` chamado no load e
+  // recusado pelo navegador, entao o botao existe por necessidade, nao
+  // por escolha de interface.
+  var CHAVE_FS = 'kronus-totem-fullscreen';
+
+  function pedirTelaCheia() {
+    var alvo = document.documentElement;
+    var pedir = alvo.requestFullscreen
+      || alvo.webkitRequestFullscreen
+      || alvo.mozRequestFullScreen
+      || alvo.msRequestFullscreen;
+    if (!pedir) return Promise.reject(new Error('sem suporte'));
+    try {
+      var r = pedir.call(alvo, { navigationUI: 'hide' });
+      return r && r.then ? r : Promise.resolve();
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+
+  function emTelaCheia() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement
+      || document.mozFullScreenElement || document.msFullscreenElement);
+  }
+
+  var botaoFS = document.getElementById('totem-fullscreen-botao');
+  if (botaoFS) {
+    botaoFS.addEventListener('click', function () {
+      pedirTelaCheia().then(function () {
+        try { localStorage.setItem(CHAVE_FS, '1'); } catch (e) {}
+        fechar(false);
+      }).catch(function () {
+        botaoFS.textContent = 'Este navegador não permite tela cheia';
+        botaoFS.disabled = true;
+      });
+    });
+  }
+
+  var depoisFS = document.getElementById('totem-fullscreen-depois');
+  if (depoisFS) depoisFS.addEventListener('click', function () { fechar(true); });
+
+  // Sair da tela cheia acontece por engano — botao voltar, gesto do
+  // sistema, notificacao. Num totem de portaria ninguem vai reativar
+  // manualmente, entao o proximo toque na tela religa.
+  var querTelaCheia = false;
+  try { querTelaCheia = localStorage.getItem(CHAVE_FS) === '1'; } catch (e) {}
+
+  if (querTelaCheia) {
+    document.addEventListener('click', function religar() {
+      if (emTelaCheia()) return;
+      pedirTelaCheia().catch(function () {});
+    }, { passive: true });
+  }
+
   // -- iPad e iPhone ---------------------------------------------
   // Nenhum evento e disparado: o convite depende de reconhecer o
   // aparelho. Desde o iPadOS 13 o Safari do iPad se identifica como
@@ -451,7 +528,10 @@
     if (ehIOS && ehSafari) {
       abrir('totem-instalar-ios');
     } else if (toque) {
+      // Duas saidas juntas: o caminho manual de instalacao, para quem
+      // tem o item no menu, e a tela cheia, para quem nao tem.
       abrir('totem-instalar-android');
+      abrir('totem-instalar-fullscreen');
     }
   }, 6000);
 })();

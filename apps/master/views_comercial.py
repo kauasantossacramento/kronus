@@ -51,7 +51,6 @@ def configuracao(request):
         for campo, minimo, maximo, padrao in (
             ("demo_horas", 1, 720, 24),
             ("demo_limite_diario", 0, 500, 20),
-            ("demo_colaboradores_exemplo", 0, 12, 8),
         ):
             try:
                 valor = int(request.POST.get(campo, padrao))
@@ -201,3 +200,72 @@ def demonstracao_encerrar(request, pk):
          "Demonstração encerrada")
     messages.success(request, "Demonstração encerrada.")
     return redirect("master:comercial_demos")
+
+
+@master_required
+@require_POST
+def demonstracao_criar(request):
+    """
+    Gera uma demonstracao pelo proprio painel.
+
+    Existe porque a captacao nem sempre comeca no site: o contato vem por
+    telefone, indicacao ou visita, e obrigar o interessado a preencher o
+    formulario da capa para receber um ambiente e um passo a mais no
+    momento em que ele ja disse sim.
+
+    Passa pelo mesmo servico da capa, e nao por um caminho proprio:
+    caminhos paralelos divergem, e o ambiente gerado aqui precisa ser
+    identico ao que o cliente veria.
+    """
+    from apps.comercial.services import criar_demonstracao
+
+    nome = (request.POST.get("nome") or "").strip()
+    empresa = (request.POST.get("empresa") or "").strip()
+    email = (request.POST.get("email") or "").strip().lower()
+    whatsapp = "".join(c for c in request.POST.get("whatsapp", "") if c.isdigit())
+
+    if not (nome and empresa and email):
+        messages.error(request, "Informe nome, empresa e e-mail.")
+        return redirect("master:comercial_demos")
+
+    from apps.accounts.models import CustomUser
+
+    if CustomUser.objects.filter(email__iexact=email).exists():
+        messages.error(
+            request,
+            f"Já existe uma conta com {email}. Use outro endereço ou "
+            "converta o cliente existente.",
+        )
+        return redirect("master:comercial_demos")
+
+    solicitacao = SolicitacaoDemonstracao(
+        nome=nome, empresa=empresa, email=email, whatsapp=whatsapp,
+        porte=(request.POST.get("porte") or "")[:30],
+        token=SolicitacaoDemonstracao.novo_token(),
+        expira_em=timezone.now(),   # ajustado pelo servico
+        observacoes="Criada pelo Master.",
+    )
+    solicitacao.save()
+
+    try:
+        solicitacao, senha = criar_demonstracao(
+            solicitacao, logo=request.FILES.get("logo")
+        )
+    except Exception:
+        logger.exception("Falha ao criar demonstracao pelo Master")
+        solicitacao.status = SolicitacaoDemonstracao.Status.CANCELADA
+        solicitacao.save(update_fields=["status", "updated_at"])
+        messages.error(request, "Não foi possível criar o ambiente.")
+        return redirect("master:comercial_demos")
+
+    _log(request, LogAcessoMaster.Acao.CLIENTE_CRIADO, solicitacao.cliente,
+         f"Demonstração criada pelo Master para {empresa}")
+
+    empresa_criada = solicitacao.cliente.empresas.first()
+    return render(request, "master/comercial/demo_criada.html", {
+        "titulo": "Demonstração criada",
+        "menu_ativo": "comercial",
+        "solicitacao": solicitacao,
+        "senha": senha,
+        "url_acesso": request.build_absolute_uri(f"/{empresa_criada.slug}/"),
+    })

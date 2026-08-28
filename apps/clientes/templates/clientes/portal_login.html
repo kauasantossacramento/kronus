@@ -50,6 +50,18 @@
         {% if empresa_portal.logo %}
           <img src="{{ empresa_portal.logo.url }}" alt="{{ empresa_portal.nome_exibicao }}"
                class="mx-auto max-h-20 w-auto">
+        {% elif empresa_portal.cliente.eh_demonstracao %}
+          {% comment %}
+            Espaço reservado, não um ícone genérico. Ver o próprio lugar
+            da marca vazio comunica que a personalização existe — um
+            ícone do Kronus ali diria o contrário.
+          {% endcomment %}
+          <div class="mx-auto grid h-20 w-44 place-items-center rounded-xl border-2 border-dashed"
+               style="border-color: {{ empresa_portal.cor_primaria }}55">
+            <span class="text-xs font-medium" style="color: {{ empresa_portal.cor_primaria }}">
+              sua logo aqui
+            </span>
+          </div>
         {% else %}
           <div class="mx-auto grid h-16 w-16 place-items-center rounded-2xl"
                style="background: {{ empresa_portal.cor_primaria }}">

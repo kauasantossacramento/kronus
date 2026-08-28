@@ -76,8 +76,13 @@
         <p class="mt-4 flex items-start gap-2 border-t border-[var(--kronus-gray-200)] pt-4 text-sm text-amber-800">
           {% icone "alerta" classe="mt-0.5 h-4 w-4 shrink-0" %}
           <span>
-            A cobrança automática está desativada nesta instalação. O plano é liberado
-            imediatamente e a fatura será combinada com a KS TEC.
+            {% comment %}
+              O cliente não precisa saber da nossa configuração interna —
+              "cobrança automática desativada" é informação nossa, não dele.
+              O que muda para ele é só como a fatura chega.
+            {% endcomment %}
+            Seu acesso é liberado agora. A <strong>KS TEC entrará em contato</strong>
+            para cadastrar os dados de faturamento e combinar a forma de pagamento.
           </span>
         </p>
       {% endif %}

@@ -53,7 +53,7 @@ def solicitar(request):
                       "A demonstração automática está temporariamente "
                       "indisponível. Fale com a gente pelo WhatsApp.")
 
-    formulario = FormularioDemonstracao(request.POST)
+    formulario = FormularioDemonstracao(request.POST, request.FILES)
     if not formulario.is_valid():
         return _falha(request, config, formulario=formulario)
 
@@ -76,7 +76,9 @@ def solicitar(request):
     solicitacao.save()
 
     try:
-        solicitacao, senha = criar_demonstracao(solicitacao, config)
+        solicitacao, senha = criar_demonstracao(
+            solicitacao, config, logo=formulario.cleaned_data.get("logo")
+        )
     except Exception:
         logger.exception("Falha ao criar ambiente de demonstracao")
         solicitacao.status = SolicitacaoDemonstracao.Status.CANCELADA
@@ -102,7 +104,9 @@ def _falha(request, config, mensagem="", formulario=None):
     from apps.landing.views import contexto_da_capa
 
     contexto = contexto_da_capa()
-    contexto["formulario_demo"] = formulario or FormularioDemonstracao(request.POST)
+    contexto["formulario_demo"] = formulario or FormularioDemonstracao(
+        request.POST, request.FILES
+    )
     contexto["erro_demo"] = mensagem
     contexto["config_comercial"] = config
     resposta = render(request, "landing/index.html", contexto)

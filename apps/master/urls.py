@@ -71,6 +71,8 @@ urlpatterns = [
     # -- SaaS: gateway, assinaturas, usuarios, auditoria --------
     path("comercial/", views_comercial.configuracao, name="comercial_config"),
     path("comercial/demos/", views_comercial.demonstracoes, name="comercial_demos"),
+    path("comercial/demos/nova/", views_comercial.demonstracao_criar,
+         name="demo_criar"),
     path(
         "comercial/demos/<int:pk>/prorrogar/",
         views_comercial.demonstracao_prorrogar,

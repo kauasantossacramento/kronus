@@ -211,3 +211,95 @@ class ConfiguracaoComercialTests(TestCase):
         config = ConfiguracaoComercial.carregar()
         config.whatsapp = "+55 (73) 98831-0101"
         self.assertIn("wa.me/5573988310101", config.link_whatsapp)
+
+
+class DemonstracaoContrataTests(TestCase):
+    """
+    Contratar durante a demonstracao.
+
+    Com a cobranca automatica desligada, ninguem cria a fatura sozinho —
+    se o Master nao souber que houve contratacao, o cliente usa de graca
+    ate alguem reparar. E manter a marca de demonstracao faria a
+    varredura suspender, dias depois, quem acabou de dizer sim.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.client.post(reverse("comercial:solicitar"), dados())
+        self.solicitacao = SolicitacaoDemonstracao.objects.get()
+        self.cliente = self.solicitacao.cliente
+        self.usuario = CustomUser.objects.get(email="joana@aurora.test")
+
+        from apps.master.models import Plano
+
+        self.plano = Plano.objects.create(
+            nome="Profissional", slug="profissional",
+            preco_mensal=199, max_empresas=3, max_colaboradores=50, ativo=True,
+        )
+        self.client.force_login(self.usuario)
+
+    def _contratar(self):
+        return self.client.post(
+            reverse("faturamento:checkout", args=[self.plano.slug]),
+            {"acao": "confirmar", "ciclo": "mensal"},
+            follow=True,
+        )
+
+    def test_contratar_tira_a_marca_de_demonstracao(self):
+        self._contratar()
+
+        self.cliente.refresh_from_db()
+        self.assertFalse(self.cliente.eh_demonstracao)
+        self.assertIsNone(self.cliente.demo_expira_em)
+
+    def test_a_solicitacao_fica_como_convertida(self):
+        self._contratar()
+
+        self.solicitacao.refresh_from_db()
+        self.assertEqual(
+            self.solicitacao.status, SolicitacaoDemonstracao.Status.CONVERTIDA
+        )
+        self.assertIsNotNone(self.solicitacao.convertida_em)
+
+    def test_a_varredura_nao_suspende_quem_contratou(self):
+        from datetime import timedelta
+
+        self._contratar()
+        Cliente.objects.filter(pk=self.cliente.pk).update(
+            demo_expira_em=timezone.now() - timedelta(hours=1)
+        )
+
+        expirar_demonstracoes()
+
+        self.cliente.refresh_from_db()
+        self.assertFalse(self.cliente.suspenso)
+
+    def test_o_master_e_avisado(self):
+        from apps.core.constants import TipoUsuario
+        from apps.notificacoes.models import Notificacao
+
+        master = CustomUser.objects.create_user(
+            email="master@kstec.online", password="x", nome_completo="Master",
+            tipo=TipoUsuario.MASTER, is_staff=True, is_superuser=True,
+        )
+        self._contratar()
+
+        self.assertTrue(
+            Notificacao.objects.filter(
+                destinatario=master, titulo__contains="contratou"
+            ).exists(),
+            "sem aviso, ninguem emite a fatura e o cliente usa de graca",
+        )
+
+    def test_nao_conta_a_configuracao_interna_ao_cliente(self):
+        """
+        "Cobrança automática desativada" e informacao nossa. O que muda
+        para o cliente e so como a fatura chega.
+        """
+        resposta = self.client.get(
+            reverse("faturamento:checkout", args=[self.plano.slug])
+        )
+        corpo = resposta.content.decode()
+
+        self.assertNotIn("desativada nesta instalação", corpo)
+        self.assertIn("KS TEC", corpo)
