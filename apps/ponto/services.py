@@ -28,6 +28,25 @@ from apps.ponto.models import AjustePonto, BancoHoras, RegistroPonto
 
 logger = logging.getLogger("kronus.ponto")
 
+# ══════════════════════════════════════════════════════════════
+# Hora Legal Brasileira
+# ══════════════════════════════════════════════════════════════
+# O Anexo IX da Portaria 671/2021, requisito 2, exige que o REP-P
+# "possua ou acesse relogio que mantenha sincronismo com a Hora Legal
+# Brasileira (HLB) disseminada pelo Observatorio Nacional (ON), com uma
+# variacao de no maximo 30 segundos".
+#
+# Quem carimba a marcacao e o relogio do **servidor**, nunca o do
+# tablet: o horario do aparelho e adulteravel e nao tem procedencia.
+# O servidor sincroniza via systemd-timesyncd com os servidores
+# estrato 1 do NTP.br (a.st1.ntp.br e seguintes), que sao ligados
+# diretamente aos relogios atomicos do ON.
+#
+# A configuracao vive em /etc/systemd/timesyncd.conf.d/hlb.conf no
+# servidor. Trocar a fonte para um NTP generico ainda daria precisao,
+# mas responder "sincronizado com a Ubuntu" a uma fiscalizacao e pior
+# do que responder "sincronizado com o Observatorio Nacional".
+
 
 class RegistroPontoService:
     """Criação de batidas de ponto."""
