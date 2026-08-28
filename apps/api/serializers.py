@@ -69,6 +69,15 @@ class HeartbeatSerializer(serializers.Serializer):
     bateria = serializers.IntegerField(required=False, min_value=0, max_value=100)
     registros_pendentes = serializers.IntegerField(required=False, min_value=0)
 
+    # Por que o equipamento avisa que esta degradado em vez de so o
+    # console do navegador saber: um totem sem detector de rosto continua
+    # de pe, bonito e aceitando CPF — e ninguem descobre que o
+    # reconhecimento morreu ate o RH reclamar. O suporte precisa ver isso
+    # do painel, sem ir ate o tablet.
+    degradado = serializers.CharField(
+        required=False, allow_blank=True, max_length=200
+    )
+
 
 # ══════════════════════════════════════════════════════════════
 # Totem — saída

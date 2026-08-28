@@ -146,14 +146,24 @@ class PoliticaDeSegurancaTests(SimpleTestCase):
         `ImproperlyConfigured` na maquina de quem roda os testes.
         """
         fonte = (RAIZ / "config" / "settings" / "production.py").read_text(encoding="utf-8")
-        trecho = fonte.split("CSP_SCRIPT_SRC", 1)[1].split(")", 1)[0]
-        return trecho
+        # Ate a proxima diretiva. A anterior cortava no primeiro `)`,
+        # o que funcionava enquanto CSP_SCRIPT_SRC era um `(...)` de
+        # varias linhas; virou uma linha so, e o corte passaria a varrer
+        # o arquivo inteiro.
+        depois = fonte.split("CSP_SCRIPT_SRC", 1)[1]
+        return depois.split("CSP_STYLE_SRC", 1)[0]
 
     def test_csp_de_producao_permite_o_que_o_alpine_exige(self):
-        base = RAIZ / "templates" / "base.html"
-        usa_alpine = "alpinejs" in base.read_text(encoding="utf-8")
-        if not usa_alpine:
-            self.skipTest("base.html nao carrega mais o Alpine")
+        # O Alpine passou a ser servido por nos: procurar por "alpinejs"
+        # (o nome no caminho do CDN) fazia o teste se declarar irrelevante
+        # justamente quando continuava valendo — a CSP nao para de exigir
+        # 'unsafe-eval' so porque o arquivo mudou de endereco.
+        base = (RAIZ / "templates" / "base.html").read_text(encoding="utf-8")
+        self.assertRegex(
+            base, r"alpine(js)?(\.min)?\.js",
+            "base.html deixou de carregar o Alpine — se foi de proposito, "
+            "esta verificacao pode sair junto",
+        )
 
         self.assertIn(
             "'unsafe-eval'", self._script_src(),
@@ -162,6 +172,9 @@ class PoliticaDeSegurancaTests(SimpleTestCase):
         )
 
     def test_cdns_carregados_estao_liberados_na_csp(self):
+        # Hoje a lista e vazia de proposito (ver tests/test_sem_cdn.py).
+        # A verificacao fica de pe para o dia em que alguem acrescentar
+        # um host: ou ele entra na CSP, ou o script morre calado.
         base = (RAIZ / "templates" / "base.html").read_text(encoding="utf-8")
         for host in re.findall(r'src="https://([^/"]+)', base):
             self.assertIn(

@@ -16,8 +16,20 @@
     </style>
   {% endif %}
 {% endwith %}
-  {# face-api.js — o Service Worker cacheia para funcionar offline #}
-  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
+  {% comment %}
+    face-api.js servido por nos.
+
+    Vinha de CDN publico, e essa era a causa de o totem nao
+    reconhecer ninguem: se o arquivo nao chegava, o detector caia
+    num modo degradado que nunca declara um rosto pronto — ou seja,
+    nunca envia imagem ao servidor. Nada falhava de forma visivel;
+    a tela seguia normal e o servidor nao registrava tentativa
+    alguma.
+
+    Um totem que promete funcionar sem internet nao pode buscar
+    fora o arquivo de que depende para funcionar.
+  {% endcomment %}
+  <script defer src="{% estatico 'totem/js/vendor/face-api.min.js' %}"></script>
 {% endblock %}
 
 {% block cabecalho_extra %}
@@ -382,6 +394,20 @@
 {% endcomment %}
 <div id="totem-fila" class="totem-fila" hidden>
   <span id="totem-fila-quantas">0</span> marcação(ões) aguardando conexão
+</div>
+
+{% comment %}
+  Aviso de reconhecimento indisponivel.
+
+  Sem detector de rosto o totem nao para: continua registrando por CPF.
+  Mas quem opera precisa saber, ou passa o dia mandando as pessoas
+  repetirem o rosto para uma camera que nunca vai enviar nada — que foi
+  exatamente o que aconteceu.
+{% endcomment %}
+<div id="totem-degradado" class="totem-degradado" hidden>
+  <strong>Reconhecimento facial indisponivel.</strong>
+  Use o CPF para registrar o ponto.
+  <span data-motivo class="totem-degradado__motivo"></span>
 </div>
 
 <button type="button" id="totem-fs-atalho" class="totem-fs-atalho" hidden>

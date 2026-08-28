@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static kronus_tags %}<!DOCTYPE html>
 <html lang="pt-BR" class="h-full">
 <head>
   <meta charset="UTF-8">
@@ -11,7 +11,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 
   {% include "components/_estilos.html" %}
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  {% comment %}
+    Alpine servido por nos, e nao por CDN.
+
+    Sem Alpine a interface nao degrada: ela para. Menu, modal e
+    formulario em passos deixam de responder — foi exatamente o que
+    aconteceu quando a CSP bloqueou o Alpine, e a tela ficou de pe
+    parecendo saudavel. Depender de um servidor de terceiros para
+    isso e apostar a interface inteira num host que nao e nosso.
+  {% endcomment %}
+  <script src="{% estatico 'vendor/alpine.min.js' %}" defer></script>
 </head>
 
 <body class="flex min-h-full flex-col bg-gradient-to-b from-[var(--kronus-primary-50)] to-white">

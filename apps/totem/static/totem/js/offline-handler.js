@@ -28,6 +28,7 @@
       this.aoFicarOffline = opcoes.aoFicarOffline || function () {};
       this.aoVoltarOnline = opcoes.aoVoltarOnline || function () {};
       this.aoSincronizar = opcoes.aoSincronizar || function () {};
+      this.motivoDegradado = opcoes.motivoDegradado || function () { return ''; };
       return this;
     },
 
@@ -58,6 +59,11 @@
     enviarHeartbeat: function () {
       var self = this;
       var carga = { versao: this.versao };
+
+      // Se o reconhecimento facial caiu, o heartbeat leva o motivo: e o
+      // unico canal que ja existe e que o suporte le do painel.
+      var motivo = this.motivoDegradado && this.motivoDegradado();
+      if (motivo) carga.degradado = String(motivo).slice(0, 200);
 
       if (navigator.getBattery) {
         // A bateria alimenta o painel do Master; falha aqui é irrelevante.

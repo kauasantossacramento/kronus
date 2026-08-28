@@ -24,8 +24,9 @@
 
   {% include "components/_estilos.html" %}
 
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  {# Servidos por nos, e nao por CDN: ver o comentario em base_auth.html #}
+  <script src="{% estatico 'vendor/alpine.min.js' %}" defer></script>
+  <script src="{% estatico 'vendor/htmx.min.js' %}" defer></script>
   {% block head_extra %}{% endblock %}
 </head>
 

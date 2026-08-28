@@ -196,7 +196,7 @@
 {% block scripts %}
 {{ grafico_registros|json_script:"dados-registros" }}
 {{ grafico_status|json_script:"dados-status" }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% estatico 'vendor/chart.umd.min.js' %}"></script>
 <script>
   (function () {
     if (typeof Chart === 'undefined') return;

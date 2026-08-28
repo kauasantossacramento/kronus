@@ -74,10 +74,10 @@ CSP_IMG_SRC = "'self' data: blob: https://kstec.online"
 # o caminho correto e migrar para o build CSP do Alpine
 # (`@alpinejs/csp`), que troca expressao em atributo por componente
 # registrado em `Alpine.data()` e dispensa as duas permissoes.
-CSP_SCRIPT_SRC = (
-    "'self' 'unsafe-inline' 'unsafe-eval' "
-    "https://cdn.jsdelivr.net https://unpkg.com"
-)
+# Sem CDN: todo script vem de casa. O totem depende do face-api.js para
+# reconhecer alguem, e depender de um host de terceiros para isso ja
+# custou o reconhecimento inteiro em producao.
+CSP_SCRIPT_SRC = "'self' 'unsafe-inline' 'unsafe-eval'"
 CSP_STYLE_SRC = "'self' 'unsafe-inline' https://fonts.googleapis.com"
 CSP_FONT_SRC = "'self' https://fonts.gstatic.com data:"
 CSP_CONNECT_SRC = "'self' wss://kronus.online"

@@ -37,6 +37,7 @@
     // Inicialização
     // ══════════════════════════════════════════════════════════
     iniciar: function (config) {
+      var self0 = this;
       this.config = config;
       this.ui = global.KronusUI.inicializar(config.elementos);
       this.personalizacao = global.KronusPersonalizacao;
@@ -62,6 +63,7 @@
           aoFicarOffline: this.aoFicarOffline.bind(this),
           aoVoltarOnline: this.aoVoltarOnline.bind(this),
           aoSincronizar: this.ui.sincronizarRelogio.bind(this.ui),
+          motivoDegradado: function () { return self0.degradado; },
           aoPedirRecarga: this.recarregarQuandoOcioso.bind(this)
         })
         .iniciar();
@@ -69,6 +71,11 @@
       var self = this;
       this.detector.carregar(config.urls.modelos).then(function (modo) {
         console.info('[Kronus] Detector em modo:', modo);
+        // Degradar em silencio foi o pior do defeito anterior: o totem
+        // parecia inteiro, ninguem era reconhecido e nao havia sinal
+        // algum de que o reconhecimento tinha morrido. Agora avisa na
+        // tela e conta ao servidor, para o suporte ver sem estar la.
+        if (modo !== 'faceapi') self._avisarDegradado();
         self.irParaIdle();
       });
 
@@ -77,6 +84,34 @@
         self.camera.fechar();
         self.offline.parar();
       });
+    },
+
+    /**
+     * Diz, na tela e ao servidor, que o reconhecimento facial caiu.
+     *
+     * Sem detector de rosto o totem continua registrando ponto por CPF —
+     * entao ele nao para. Mas o operador precisa saber, ou vai passar o
+     * dia mandando as pessoas repetirem o rosto para uma camera que
+     * nunca vai enviar nada.
+     */
+    _avisarDegradado: function () {
+      var motivo = this.detector.motivoDegradado || 'detector indisponivel';
+
+      var faixa = document.getElementById('totem-degradado');
+      if (faixa) {
+        faixa.hidden = false;
+        var onde = faixa.querySelector('[data-motivo]');
+        if (onde) onde.textContent = motivo;
+      }
+
+      // Vai junto do heartbeat: o servidor anota uma vez e so volta a
+      // anotar depois de uma hora. Um heartbeat imediato porque esperar
+      // ate 30s para contar que o reconhecimento morreu e tempo em que
+      // o suporte olha o painel e ve um totem saudavel.
+      this.degradado = motivo;
+      if (this.offline && this.offline.enviarHeartbeat) {
+        this.offline.enviarHeartbeat();
+      }
     },
 
     _ligarEventos: function () {

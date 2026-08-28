@@ -378,8 +378,11 @@ KRONUS = {
     "VERSAO": config("KRONUS_VERSAO", default="1.0"),
     "EMAIL_SUPORTE": config("EMAIL_SUPORTE", default="suporte@kstec.online"),
     "DESENVOLVEDORA_SITE": config("KSTEC_SITE_URL", default="https://kstec.online"),
+    # Servida por nos. Vinha de kstec.online, o que deixava a assinatura
+    # quebrada justamente no totem sem internet — o equipamento que o
+    # plano promete funcionar offline.
     "DESENVOLVEDORA_LOGO": config(
-        "KSTEC_LOGO_URL", default="https://kstec.online/assets/ks-tec-logo.png"
+        "KSTEC_LOGO_URL", default=f"{STATIC_URL}img/ks-tec-logo.png"
     ),
 }
 

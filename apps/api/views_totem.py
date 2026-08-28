@@ -16,6 +16,7 @@ colaborador ler).
 """
 import logging
 import random
+from datetime import timedelta
 
 from django.conf import settings
 from django.utils import timezone
@@ -81,6 +82,31 @@ def _registrar_evento(totem, tipo, detalhes="", metadados=None):
         )
     except Exception:
         logger.exception("Falha ao registrar evento do totem %s", totem.pk)
+
+
+def _registrar_degradacao(totem, motivo: str) -> None:
+    """
+    Anota que o totem esta sem reconhecimento facial.
+
+    O heartbeat chega a cada 30 segundos; anotar todos encheria o
+    historico de linhas iguais e esconderia os eventos que importam.
+    Registra a primeira vez e depois so uma vez por hora, o suficiente
+    para mostrar que o problema persiste.
+    """
+    limite = timezone.now() - timedelta(hours=1)
+    ja_avisado = EventoTotem.objects.filter(
+        totem=totem,
+        tipo=EventoTotem.Tipo.ERRO,
+        detalhes__startswith="Reconhecimento facial indisponivel",
+        created_at__gte=limite,
+    ).exists()
+    if ja_avisado:
+        return
+    _registrar_evento(
+        totem,
+        EventoTotem.Tipo.ERRO,
+        f"Reconhecimento facial indisponivel: {motivo}",
+    )
 
 
 def _bater_ponto(colaborador, totem, request, *, metodo, confianca=None):
@@ -355,6 +381,10 @@ def heartbeat(request):
         _registrar_evento(
             totem, EventoTotem.Tipo.ONLINE, "Heartbeat restabelecido"
         )
+
+    degradado = (serializer.validated_data.get("degradado") or "").strip()
+    if degradado:
+        _registrar_degradacao(totem, degradado)
 
     agora = timezone.localtime()
     return Response(

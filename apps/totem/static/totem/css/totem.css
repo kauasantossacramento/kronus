@@ -756,3 +756,27 @@ html, body {
   font-size: .75rem;
 }
 .totem-fila[hidden] { display: none !important; }
+
+/* Aviso de modo degradado: visivel sem cobrir a area de uso. */
+.totem-degradado {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(.75rem + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  max-width: min(90vw, 34rem);
+  padding: .625rem 1rem;
+  border: 1px solid rgba(245, 158, 11, .45);
+  border-radius: .625rem;
+  background: rgba(69, 44, 8, .92);
+  color: #fde68a;
+  font-size: .85rem;
+  text-align: center;
+}
+.totem-degradado__motivo {
+  display: block;
+  margin-top: .15rem;
+  opacity: .65;
+  font-size: .72rem;
+}
+.totem-degradado[hidden] { display: none !important; }

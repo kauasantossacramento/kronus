@@ -71,16 +71,52 @@
      * Carrega os modelos. Nunca rejeita: um totem que não inicia é pior
      * do que um totem em modo degradado.
      */
+    /**
+     * Espera o face-api.js aparecer.
+     *
+     * O script e `defer`: pode nao ter terminado de executar quando o
+     * app inicia. A versao anterior conferia `typeof faceapi` uma unica
+     * vez e, se ainda nao estivesse la, desistia **em definitivo** —
+     * escolhendo o modo degradado por causa de alguns milissegundos de
+     * diferenca. Como o modo degradado nunca declara um rosto pronto, o
+     * totem parava de enviar imagem ao servidor e nao reconhecia mais
+     * ninguem, sem nada na tela dizendo por que.
+     *
+     * Uma corrida assim quase nunca aparece em rede local, onde o
+     * arquivo vem em milissegundos: ela espera a rede real.
+     */
+    _esperarFaceApi: function (limiteMs) {
+      if (typeof faceapi !== 'undefined') return Promise.resolve(true);
+
+      return new Promise(function (resolver) {
+        var prazo = Date.now() + (limiteMs || 15000);
+        var conferir = function () {
+          if (typeof faceapi !== 'undefined') return resolver(true);
+          if (Date.now() > prazo) return resolver(false);
+          setTimeout(conferir, 100);
+        };
+        conferir();
+      });
+    },
+
     carregar: function (caminhoModelos) {
       var self = this;
 
-      if (typeof faceapi === 'undefined') {
-        console.warn('[Kronus] face-api.js ausente — deteccao heuristica ativada.');
-        self.modo = 'heuristico';
-        self.pronto = true;
-        return Promise.resolve(self.modo);
-      }
+      return this._esperarFaceApi(15000).then(function (chegou) {
+        if (!chegou) {
+          console.error('[Kronus] face-api.js nao carregou — o totem NAO vai '
+            + 'reconhecer rostos. Verifique /diagnostico/.');
+          self.modo = 'heuristico';
+          self.pronto = true;
+          self.motivoDegradado = 'face-api.js nao carregou';
+          return self.modo;
+        }
+        return self._carregarModelos(caminhoModelos);
+      });
+    },
 
+    _carregarModelos: function (caminhoModelos) {
+      var self = this;
       return faceapi.nets.tinyFaceDetector
         .loadFromUri(caminhoModelos)
         .then(function () {
@@ -94,9 +130,10 @@
           return self.modo;
         })
         .catch(function (erro) {
-          console.warn('[Kronus] Falha ao carregar os modelos:', erro);
+          console.error('[Kronus] Falha ao carregar os modelos:', erro);
           self.modo = 'heuristico';
           self.pronto = true;
+          self.motivoDegradado = 'modelos nao carregaram: ' + (erro && erro.message);
           return self.modo;
         });
     },
