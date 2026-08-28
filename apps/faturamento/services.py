@@ -445,6 +445,44 @@ class WebhookService:
         return registro
 
     @staticmethod
+    def _emitir_nota(assinatura, pagamento):
+        """Emite a NFS-e da cobranca paga, se a plataforma ativou."""
+        from apps.faturamento.models import Cobranca, ConfiguracaoGateway
+
+        config = ConfiguracaoGateway.carregar()
+        if not (config.ativo and config.emitir_nota_fiscal):
+            return
+
+        cobranca = Cobranca.objects.filter(
+            identificador_externo=pagamento.get("id")
+        ).first()
+        if cobranca is None or cobranca.url_nota:
+            return
+
+        try:
+            from apps.faturamento.asaas import ClienteAsaas
+
+            resultado = ClienteAsaas.a_partir_da_configuracao().emitir_nota_fiscal(
+                payment_id=cobranca.identificador_externo,
+                descricao=(
+                    config.nota_fiscal_descricao
+                    or f"Kronus — plano {assinatura.plano.nome}"
+                ),
+                valor=cobranca.valor,
+            )
+            if resultado.get("id"):
+                cobranca.url_nota = resultado.get("pdfUrl") or ""
+                cobranca.save(update_fields=["url_nota", "updated_at"])
+        except Exception:
+            # A nota depende do convenio da prefeitura e pode falhar por
+            # motivos fora do nosso alcance. Falhar aqui nao pode
+            # desfazer um pagamento confirmado.
+            logger.exception(
+                "Falha ao emitir nota fiscal da cobranca %s.",
+                pagamento.get("id"),
+            )
+
+    @staticmethod
     def processar(registro):
         from apps.faturamento.models import Assinatura, Cobranca
 
@@ -489,6 +527,12 @@ class WebhookService:
             if cliente.suspenso:
                 cliente.suspenso = False
                 cliente.save(update_fields=["suspenso", "updated_at"])
+
+        # Nota fiscal, quando o Master ativou. Depois da reativacao do
+        # cliente, e nunca antes: se a emissao falhar, o acesso ja foi
+        # liberado — o dinheiro entrou, e a nota e passo administrativo.
+        if STATUS_ASAAS.get(pagamento.get("status")) in Cobranca.STATUS_PAGOS:
+            WebhookService._emitir_nota(assinatura, pagamento)
 
         registro.processado = True
         registro.processado_em = timezone.now()

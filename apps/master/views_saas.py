@@ -87,6 +87,12 @@ def gateway(request):
                 messages.error(request, "Os prazos devem ser números inteiros.")
                 return redirect("master:gateway")
 
+            config.emitir_nota_fiscal = request.POST.get("emitir_nota_fiscal") == "on"
+            config.nota_fiscal_descricao = (
+                request.POST.get("nota_fiscal_descricao")
+                or config.nota_fiscal_descricao
+            )[:255]
+
             if config.ativo and not config.configurado:
                 messages.error(
                     request,

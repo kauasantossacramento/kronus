@@ -167,6 +167,31 @@ class ClienteAsaas:
     def qrcode_pix(self, payment_id: str) -> dict:
         return self._chamar("GET", f"/payments/{payment_id}/pixQrCode")
 
+    # -- nota fiscal -------------------------------------------
+    def emitir_nota_fiscal(self, *, payment_id, descricao, valor,
+                           deducoes=0, observacoes="") -> dict:
+        """
+        Agenda a NFS-e de uma cobranca paga.
+
+        O ASAAS cobra R$ 0,49 por documento e exige inscricao municipal
+        configurada no painel dele — a emissao depende do convenio com a
+        prefeitura, que varia de municipio para municipio. Por isso a
+        falha aqui **nunca** pode invalidar a cobranca: o dinheiro ja
+        entrou, e a nota e um passo administrativo posterior.
+        """
+        return self._chamar("POST", "/invoices", {
+            "payment": payment_id,
+            "serviceDescription": descricao,
+            "observations": observacoes,
+            "value": float(valor),
+            "deductions": float(deducoes),
+            # `effectiveDate` ausente = emitir na data de hoje.
+            "taxes": {"retainIss": False},
+        })
+
+    def buscar_nota_fiscal(self, invoice_id: str) -> dict:
+        return self._chamar("GET", f"/invoices/{invoice_id}")
+
     # -- diagnóstico -------------------------------------------
     def testar(self) -> dict:
         """

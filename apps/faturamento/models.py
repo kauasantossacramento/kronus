@@ -61,6 +61,22 @@ class ConfiguracaoGateway(BaseModel):
     dias_ate_vencimento = models.PositiveSmallIntegerField(
         "Dias até o primeiro vencimento", default=7
     )
+    emitir_nota_fiscal = models.BooleanField(
+        "Emitir nota fiscal automaticamente",
+        default=False,
+        help_text=(
+            "Emite NFS-e pelo ASAAS quando a fatura é paga. Custa R$ 0,49 por "
+            "documento, além da taxa da cobrança. Exige a inscrição municipal "
+            "configurada no painel do ASAAS."
+        ),
+    )
+    nota_fiscal_descricao = models.CharField(
+        "Descrição do serviço na nota",
+        max_length=255,
+        blank=True,
+        default="Licença de uso de software de ponto eletrônico",
+    )
+
     dias_tolerancia_suspensao = models.PositiveSmallIntegerField(
         "Dias de tolerância após o vencimento", default=5,
         help_text=(
