@@ -1,44 +1,46 @@
 # Modelos do face-api.js
 
-Esta pasta hospeda os pesos do **TinyFaceDetector**, usados pelo totem
-para detectar a presença de um rosto no próprio tablet (Seção 2.3 do
-plano). O reconhecimento — dizer *quem* é a pessoa — acontece no
-servidor, com ArcFace.
+Pesos do **TinyFaceDetector**, usados pelo totem para detectar a
+presença de um rosto no próprio tablet. O reconhecimento — dizer *quem*
+é a pessoa — acontece no servidor, com ArcFace.
 
-## Arquivos esperados
+## Arquivos presentes
 
-| Arquivo | Tamanho aprox. |
-|---|---|
-| `tiny_face_detector_model-weights_manifest.json` | 1 KB |
-| `tiny_face_detector_model-shard1` | 190 KB |
-| `face_landmark_68_tiny_model-weights_manifest.json` | 1 KB |
-| `face_landmark_68_tiny_model-shard1` | 80 KB |
+| Arquivo | Tamanho | Uso |
+|---|---|---|
+| `tiny_face_detector_model-weights_manifest.json` | 3 KB | obrigatório |
+| `tiny_face_detector_model-shard1` | 189 KB | obrigatório |
+| `face_landmark_68_tiny_model-weights_manifest.json` | 4 KB | alinhamento |
+| `face_landmark_68_tiny_model-shard1` | 75 KB | alinhamento |
 
-Os dois primeiros são obrigatórios; os de landmark são opcionais e só
-entram se for adicionada checagem de alinhamento no client-side.
+Origem: <https://github.com/justadudewhohacks/face-api.js/tree/master/weights>
 
-## Como obter
+## Por que agora são versionados
 
-Baixe de um dos repositórios do face-api.js:
+A primeira versão deste arquivo argumentava o contrário — que 270 KB de
+binário não valiam o espaço no histórico. Estava errado, e o custo
+apareceu em produção: **sem os pesos, o totem cai no detector
+heurístico**, que decide se há alguém na frente da câmera pela variação
+de luminância. Uma mão passando, uma sombra ou alguém andando atrás
+disparavam o reconhecimento; como não havia rosto, a tela pedia CPF.
 
-- https://github.com/justadudewhohacks/face-api.js/tree/master/weights
-- https://github.com/vladmandic/face-api/tree/master/model (fork mantido)
+270 KB versionados uma vez valem menos do que um totem que dispara
+sozinho. Os arquivos mudam raramente e a alternativa — baixar no
+deploy — acrescenta uma dependência de rede a cada implantação.
 
-Copie os arquivos para esta pasta e rode `python manage.py collectstatic`.
+## Os de landmark
 
-## Por que não versionamos os pesos
+`face_landmark_68_tiny` é usado para conferir **alinhamento**: rosto
+muito girado ou inclinado produz um recorte ruim, e um recorte ruim
+gera embedding ruim. Rejeitar antes de enviar economiza uma viagem ao
+servidor e evita um "não reconheci" que na verdade era enquadramento.
 
-São binários de algumas centenas de KB que mudam a cada release do
-face-api.js. Mantê-los no repositório inflaria o histórico do Git sem
-ganho — o `LEIA-ME` e o fallback abaixo resolvem melhor.
+## Se os arquivos sumirem
 
-## Sem os modelos, o totem ainda funciona
+`face-detector.js` continua caindo no detector heurístico e registra no
+console:
 
-`face-detector.js` cai automaticamente para um **detector heurístico**
-(variação de luminância na região central) e registra no console:
+    [Kronus] Falha ao carregar os modelos — deteccao heuristica ativada.
 
-    [Kronus] Falha ao carregar os modelos — detecção heurística ativada.
-
-Nesse modo o disparo da captura é menos preciso, mas a identificação
-continua correta: quem decide é o servidor. O totem nunca deixa de
-funcionar por ausência dos pesos.
+O totem funciona, mas em modo degradado. O diagnóstico
+(`/totem/<token>/diagnostico/`) mostra qual detector está ativo.

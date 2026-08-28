@@ -40,15 +40,6 @@
   </a>
 
   {# ── Menu do usuário ──────────────────────────────────── #}
-  {#
-    O `@click.outside` vive na raiz, nao no painel.
-
-    No painel, o botao ficava *fora* do elemento observado: com o menu
-    aberto, clicar no botao disparava os dois manipuladores — o outside
-    fechava e o @click reabria no mesmo clique. O menu nunca fechava.
-    Na raiz, o botao esta dentro do escopo, entao so cliques realmente
-    externos fecham.
-  #}
   <div x-data="{ aberto: false }" class="relative"
        @click.outside="aberto = false"
        @keydown.escape.window="aberto = false">

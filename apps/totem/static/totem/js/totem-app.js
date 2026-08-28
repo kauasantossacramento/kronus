@@ -161,18 +161,30 @@
         if (!canvas) return;
 
         self.detector.detectar(canvas).then(function (resultado) {
-          if (!resultado.detectado) {
-            if (self.estado === 'camera') {
-              self.ui.definirInstrucao('Posicione o rosto no centro', false);
-            }
+          // `presenca` acorda a tela; `pronto` autoriza o envio. Sao
+          // decisoes diferentes de proposito: no ocioso basta alguem
+          // se aproximar, mas gastar uma chamada de reconhecimento
+          // exige rosto enquadrado e estavel.
+          if (self.estado === 'idle') {
+            if (resultado.presenca) self.irParaCamera();
             return;
           }
-          if (self.estado === 'idle') {
-            self.irParaCamera();
-          } else if (self.estado === 'camera') {
-            self.ui.definirInstrucao('Identificando...', true);
-            self.enviarFrame();
+
+          if (self.estado !== 'camera') return;
+
+          if (!resultado.pronto) {
+            self.ui.definirInstrucao(
+              self.detector.instrucaoPara(resultado.motivo), false
+            );
+            return;
           }
+
+          self.ui.definirInstrucao('Identificando…', true);
+          // Zera a contagem: sem isso o proximo frame do mesmo rosto
+          // ja estaria "estavel" e dispararia um segundo envio antes
+          // da resposta do primeiro.
+          self.detector.reiniciar();
+          self.enviarFrame();
         });
       };
 
