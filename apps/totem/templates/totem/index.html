@@ -317,6 +317,20 @@
     este ramo o convite simplesmente nunca aparecia em tablet da Apple —
     que e justamente um aparelho comum de totem.
 {% endcomment %}
+{% comment %}
+  Atalho permanente de tela cheia.
+
+  O convite grande aparece uma vez e, recusado, não volta — o que é
+  certo para um convite. Mas a tela cheia sai por engano (botão voltar,
+  gesto do sistema, notificação), e sem caminho de volta a única saída
+  seria limpar os dados do navegador. Este botão fica de canto, só
+  aparece quando não se está em tela cheia, e nunca é dispensado em
+  definitivo.
+{% endcomment %}
+<button type="button" id="totem-fs-atalho" class="totem-fs-atalho" hidden>
+  {% icone "totem" classe="h-4 w-4" %} Tela cheia
+</button>
+
 <div id="totem-instalar" class="totem-instalar" hidden>
   <div class="totem-instalar__caixa">
     <div class="totem-instalar__topo">
@@ -502,6 +516,36 @@
       if (emTelaCheia()) return;
       pedirTelaCheia().catch(function () {});
     }, { passive: true });
+  }
+
+  // -- Atalho permanente ------------------------------------------
+  var atalho = document.getElementById('totem-fs-atalho');
+
+  function ajustarAtalho() {
+    if (!atalho) return;
+    // Só faz sentido oferecer o que ainda não está ativo. E só aparece
+    // onde o navegador sabe fazer: mostrar um botão que não funciona é
+    // pior do que não mostrar.
+    var suporta = !!(document.documentElement.requestFullscreen
+      || document.documentElement.webkitRequestFullscreen);
+    atalho.hidden = !suporta || emTelaCheia();
+  }
+
+  if (atalho) {
+    atalho.addEventListener('click', function () {
+      pedirTelaCheia().then(function () {
+        try { localStorage.setItem(CHAVE_FS, '1'); } catch (e) {}
+        ajustarAtalho();
+      }).catch(function () {
+        atalho.textContent = 'Tela cheia indisponível';
+        setTimeout(function () { atalho.hidden = true; }, 2500);
+      });
+    });
+
+    ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (evento) {
+      document.addEventListener(evento, ajustarAtalho);
+    });
+    ajustarAtalho();
   }
 
   // -- iPad e iPhone ---------------------------------------------

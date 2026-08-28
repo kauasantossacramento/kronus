@@ -698,3 +698,34 @@ html, body {
    o do iPad: um botao "Instalar" visivel no iPhone que nao faz nada,
    porque la o evento de instalacao nao existe. */
 .totem-instalar [hidden] { display: none !important; }
+
+/* Botao discreto de tela cheia.
+
+   O convite grande aparece uma vez e, recusado, nao volta — o que e
+   certo para um convite. Mas num totem a tela cheia sai por engano
+   (botao voltar, gesto do sistema, notificacao), e sem um caminho de
+   volta a unica saida seria limpar os dados do navegador. Este botao
+   existe justamente para isso: fica de canto, so aparece quando **nao**
+   se esta em tela cheia, e nunca e dispensado em definitivo. */
+.totem-fs-atalho {
+  position: fixed;
+  top: calc(.75rem + env(safe-area-inset-top, 0px));
+  right: .75rem;
+  z-index: 55;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .5rem .75rem;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: .625rem;
+  background: rgba(15, 32, 53, .75);
+  color: var(--totem-text-muted);
+  font-size: .8rem;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.totem-fs-atalho:hover {
+  color: var(--totem-text);
+  border-color: rgba(255, 255, 255, .35);
+}
+.totem-fs-atalho[hidden] { display: none !important; }

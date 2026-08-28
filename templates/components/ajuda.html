@@ -223,7 +223,10 @@
   // ── Primeiro acesso ────────────────────────────────────────
   // Abre sozinho uma vez por tela. Depois disso, só por clique — uma
   // ajuda que reaparece vira coisa a fechar, não a ler.
-  if (!jaViu(CHAVE_VISTO)) {
+  // `kronus-ajuda-vista-todas` desliga a abertura automatica sem mexer
+  // no botao: usado pela ferramenta que fotografa as telas do manual, e
+  // util para quem ja conhece o sistema e nao quer o tour em tela nova.
+  if (!jaViu(CHAVE_VISTO) && !jaViu('kronus-ajuda-vista-todas')) {
     setTimeout(function () {
       if (passos.length) iniciarTour();
       else abrir();

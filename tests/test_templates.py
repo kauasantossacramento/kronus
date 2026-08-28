@@ -299,3 +299,33 @@ class TabelaResponsivaTests(SimpleTestCase):
         )
         self.assertIn(".tabela-responsiva", css)
         self.assertIn("data-rotulo", css)
+
+
+class ManualTests(SimpleTestCase):
+    """
+    O manual referencia capturas do sistema real. Um link quebrado num
+    manual e pior do que a ausencia da imagem: quem le supoe que perdeu
+    alguma coisa.
+    """
+
+    def test_toda_imagem_citada_existe(self):
+        manual = (RAIZ / "docs" / "manual.md").read_text(encoding="utf-8")
+        citadas = re.findall(r"\]\((prints/[^)]+)\)", manual)
+
+        self.assertTrue(citadas, "o manual deveria referenciar capturas")
+        faltando = [
+            c for c in citadas if not (RAIZ / "docs" / c).exists()
+        ]
+        self.assertEqual(faltando, [], f"imagens ausentes: {faltando}")
+
+    def test_ha_versao_de_celular_e_de_computador(self):
+        pasta = RAIZ / "docs" / "prints"
+        pc = {p.name[:-7] for p in pasta.glob("*_pc.png")}
+        cel = {p.name[:-8] for p in pasta.glob("*_cel.png")}
+
+        self.assertEqual(
+            pc - cel, set(), "telas sem a versão de celular"
+        )
+        self.assertEqual(
+            cel - pc, set(), "telas sem a versão de computador"
+        )
