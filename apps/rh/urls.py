@@ -123,6 +123,12 @@ urlpatterns = [
     path("dados/folha/", views_dados.exportar_folha, name="exportar_folha"),
     path("dados/folha/baixar/", views_dados.baixar_folha, name="baixar_folha"),
     path("equipamentos/", views_dados.equipamentos, name="equipamentos"),
+    path("configuracoes/slides/", views_config.slides_totem, name="slides_totem"),
+    path(
+        "equipamentos/recarregar/",
+        views_config.recarregar_totens,
+        name="recarregar_totens",
+    ),
     # -- Webhooks (Fase 5) -------------------------------------
     path("configuracoes/webhooks/", views_webhooks.webhooks, name="webhooks"),
     path(

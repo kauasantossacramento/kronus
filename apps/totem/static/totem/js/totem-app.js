@@ -39,6 +39,10 @@
     iniciar: function (config) {
       this.config = config;
       this.ui = global.KronusUI.inicializar(config.elementos);
+      this.personalizacao = global.KronusPersonalizacao;
+      // Identidade visual da empresa aplicada antes de tudo: cor, logo e
+      // slides sao a primeira coisa que o colaborador ve.
+      this.personalizacao.aplicar(config.empresa, config.elementos);
       this.camera = global.KronusCamera;
       this.detector = global.KronusFaceDetector;
       this.offline = global.KronusOffline;
@@ -57,7 +61,8 @@
           versao: config.versao,
           aoFicarOffline: this.aoFicarOffline.bind(this),
           aoVoltarOnline: this.aoVoltarOnline.bind(this),
-          aoSincronizar: this.ui.sincronizarRelogio.bind(this.ui)
+          aoSincronizar: this.ui.sincronizarRelogio.bind(this.ui),
+          aoPedirRecarga: this.recarregarQuandoOcioso.bind(this)
         })
         .iniciar();
 
@@ -190,6 +195,28 @@
 
       this.loopDeteccao = setInterval(executar, intervalo);
       executar();
+    },
+
+    /**
+     * Recarrega o quiosque, mas so com a tela ociosa.
+     *
+     * Recarregar durante um reconhecimento perderia a batida de quem
+     * esta na frente da camera. A batida e a obrigacao legal; a logo
+     * nova pode esperar o proximo intervalo entre pessoas.
+     */
+    recarregarQuandoOcioso: function () {
+      var self = this;
+      this._recargaPendente = true;
+
+      var tentar = function () {
+        if (!self._recargaPendente) return;
+        if (self.estado === 'idle' || self.estado === 'offline') {
+          window.location.reload();
+          return;
+        }
+        setTimeout(tentar, 3000);
+      };
+      tentar();
     },
 
     _pararLoop: function () {

@@ -15,6 +15,7 @@ import logging
 
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from apps.api.models import APIKey
@@ -169,11 +170,30 @@ def personalizacao(request):
 
 
 def _avisar_totens(empresa):
-    """Publica 'config alterada' no canal WebSocket de cada totem."""
-    from apps.totem.consumers import comandar_totem
+    """
+    Faz os totens da empresa recarregarem a configuracao.
 
-    for totem in empresa.totens.filter(ativo=True):
-        comandar_totem(totem, "totem.config_alterada")
+    Dois caminhos, de proposito:
+
+    * **Versao da configuracao** — o totem compara no heartbeat (a cada
+      30 s) e se recarrega. Funciona sempre, inclusive num totem que
+      estava offline na hora da mudanca.
+    * **WebSocket** — chega na hora, quando o canal esta de pe.
+
+    O WebSocket sozinho perderia a mudanca de um tablet desconectado; a
+    versao sozinha demoraria ate meio minuto. Juntos, e imediato quando
+    da e confiavel quando nao da.
+    """
+    empresa.marcar_configuracao_alterada()
+
+    try:
+        from apps.totem.consumers import comandar_totem
+
+        for totem in empresa.totens.filter(ativo=True):
+            comandar_totem(totem, "totem.config_alterada")
+    except Exception:
+        # Canal fora do ar nao invalida a mudanca: o heartbeat resolve.
+        logger.warning("Nao foi possivel avisar os totens pelo WebSocket.")
 
 
 @rh_required
@@ -296,3 +316,126 @@ def integracao(request):
             "plano_tem_api": empresa.cliente.plano.tem_api,
         },
     )
+
+
+@rh_required
+@empresa_ativa_required
+def slides_totem(request):
+    """
+    Tela de ociosidade do totem: várias imagens, em sequência.
+
+    Uma tela ligada o dia inteiro na portaria é um canal que a empresa
+    já tem e não usava — comunicado interno, campanha de segurança,
+    aniversariantes. Antes havia uma imagem só.
+    """
+    from apps.clientes.models import SlideTotem
+
+    empresa = request.empresa_ativa
+
+    if request.method == "POST":
+        acao = request.POST.get("acao")
+
+        if acao == "adicionar":
+            imagem = request.FILES.get("imagem")
+            if imagem is None:
+                messages.error(request, "Selecione uma imagem.")
+                return redirect("rh:slides_totem")
+            if imagem.size > 8 * 1024 * 1024:
+                messages.error(
+                    request,
+                    "Imagem acima de 8 MB. O totem carrega isso a cada troca de "
+                    "slide — comprima antes de enviar.",
+                )
+                return redirect("rh:slides_totem")
+
+            ultima = empresa.slides.order_by("-ordem").first()
+            SlideTotem.objects.create(
+                empresa=empresa,
+                imagem=imagem,
+                legenda=(request.POST.get("legenda") or "")[:120],
+                ordem=(ultima.ordem + 1) if ultima else 0,
+                inicio_exibicao=request.POST.get("inicio") or None,
+                fim_exibicao=request.POST.get("fim") or None,
+            )
+            _avisar_totens(empresa)
+            messages.success(request, "Slide adicionado.")
+            return redirect("rh:slides_totem")
+
+        if acao == "remover":
+            slide = get_object_or_404(
+                SlideTotem, pk=request.POST.get("slide"), empresa=empresa
+            )
+            slide.delete()
+            _avisar_totens(empresa)
+            messages.warning(request, "Slide removido.")
+            return redirect("rh:slides_totem")
+
+        if acao == "reordenar":
+            for indice, identificador in enumerate(request.POST.getlist("ordem")):
+                SlideTotem.objects.filter(pk=identificador, empresa=empresa).update(
+                    ordem=indice
+                )
+            _avisar_totens(empresa)
+            messages.success(request, "Ordem atualizada.")
+            return redirect("rh:slides_totem")
+
+        if acao == "exibicao":
+            empresa.slides_transicao = request.POST.get(
+                "transicao", empresa.slides_transicao
+            )
+            try:
+                empresa.slides_segundos = max(
+                    3, min(120, int(request.POST.get("segundos", 8)))
+                )
+            except ValueError:
+                pass
+            empresa.save(update_fields=["slides_transicao", "slides_segundos", "updated_at"])
+            _avisar_totens(empresa)
+            messages.success(request, "Exibição atualizada.")
+            return redirect("rh:slides_totem")
+
+    from apps.clientes.models import Empresa
+
+    return render(
+        request,
+        "rh/configuracoes/slides.html",
+        {
+            "titulo": "Tela de ociosidade",
+            "menu_ativo": "configuracoes",
+            "empresa": empresa,
+            "slides": empresa.slides.order_by("ordem", "created_at"),
+            "transicoes": Empresa.TransicaoSlide.choices,
+        },
+    )
+
+
+@rh_required
+@empresa_ativa_required
+@require_POST
+def recarregar_totens(request):
+    """
+    Manda os totens recarregarem agora.
+
+    Existe porque nem toda mudança que afeta o quiosque passa pela tela
+    de personalização — trocar a escala de um colaborador, por exemplo.
+    E porque, no suporte, "mandar recarregar" resolve metade dos casos
+    sem alguém ir até o equipamento.
+    """
+    empresa = request.empresa_ativa
+    totens = empresa.totens.filter(ativo=True)
+    for totem in totens:
+        totem.solicitar_recarga()
+    _avisar_totens(empresa)
+
+    registrar_log(
+        request=request,
+        acao=LogAcesso.Acao.CONFIG,
+        descricao=f"Recarga solicitada para {totens.count()} totem(ns)",
+        empresa=empresa,
+    )
+    messages.success(
+        request,
+        f"{totens.count()} totem(ns) vão recarregar assim que ficarem ociosos — "
+        "uma recarga no meio de um reconhecimento perderia a batida.",
+    )
+    return redirect(request.META.get("HTTP_REFERER") or "rh:equipamentos")

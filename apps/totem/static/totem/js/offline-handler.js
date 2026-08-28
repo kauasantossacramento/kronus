@@ -90,6 +90,7 @@
           if (dados && dados.servidor) {
             self.aoSincronizar(dados.servidor);
           }
+          self._verificarConfiguracao(dados);
           return dados;
         })
         .catch(function (erro) {
@@ -99,6 +100,39 @@
           }
           return null;
         });
+    },
+
+    /**
+     * Recarrega o quiosque quando a configuracao muda no painel.
+     *
+     * A alternativa seria alguem ir ate cada tablet depois de trocar a
+     * logo ou a cor. Comparamos um inteiro em vez de diferenciar a
+     * configuracao inteira: e barato e funciona mesmo depois de o totem
+     * passar horas offline.
+     *
+     * A recarga so acontece com a tela **ociosa**. Recarregar no meio de
+     * um reconhecimento perderia a batida de quem esta na frente da
+     * camera — e a batida vale mais do que a logo nova aparecer agora.
+     */
+    _verificarConfiguracao: function (dados) {
+      var config = dados && dados.config;
+      if (!config) return;
+
+      var assinatura = String(config.versao) + '|' + String(config.recarregar_em || '');
+      if (this._assinaturaConfig === undefined) {
+        this._assinaturaConfig = assinatura;
+        return;
+      }
+      if (assinatura === this._assinaturaConfig) return;
+
+      this._assinaturaConfig = assinatura;
+      console.info('[Kronus] Configuracao alterada — recarregando quando ocioso.');
+      this.aoPedirRecarga();
+    },
+
+    /** Substituido pelo app: so ele sabe se a tela esta ociosa. */
+    aoPedirRecarga: function () {
+      window.location.reload();
     },
 
     _marcarOffline: function (motivo) {

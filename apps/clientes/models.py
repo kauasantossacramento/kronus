@@ -240,6 +240,82 @@ class Empresa(BaseModel):
     msg_boas_vindas = models.CharField(
         "Mensagem de boas-vindas do totem", max_length=120, default="Registre seu ponto"
     )
+    msg_sucesso_ponto = models.CharField(
+        "Mensagem após registrar o ponto",
+        max_length=120,
+        default="Ponto registrado!",
+        help_text="Use {nome} para o primeiro nome e {hora} para o horário.",
+    )
+    som_confirmacao = models.BooleanField(
+        "Som ao registrar o ponto",
+        default=True,
+        help_text=(
+            "Confirmação sonora além da visual. Numa portaria movimentada "
+            "quem está de costas não vê a tela."
+        ),
+    )
+
+    # -- Identidade visual do totem ----------------------------
+    logo_altura_px = models.PositiveSmallIntegerField(
+        "Altura da logo no totem (px)",
+        default=64,
+        validators=[MinValueValidator(24), MaxValueValidator(240)],
+    )
+    logo_deslocamento_px = models.SmallIntegerField(
+        "Deslocamento vertical da logo (px)",
+        default=0,
+        validators=[MinValueValidator(-200), MaxValueValidator(200)],
+        help_text="Negativo sobe, positivo desce. Ajusta a logo sobre a câmera.",
+    )
+    logo_css = models.TextField(
+        "CSS da logo",
+        blank=True,
+        help_text=(
+            "Regras aplicadas à logo em todo o sistema — totem, painel e "
+            "e-mails. Ex.: filter: brightness(0) invert(1); deixa a logo "
+            "toda branca."
+        ),
+    )
+
+    # -- Tela de ociosidade ------------------------------------
+    class TransicaoSlide(models.TextChoices):
+        FADE = "fade", "Dissolver"
+        DESLIZAR = "deslizar", "Deslizar"
+        ZOOM = "zoom", "Zoom suave"
+        NENHUMA = "nenhuma", "Troca seca"
+
+    slides_transicao = models.CharField(
+        "Transição entre as imagens",
+        max_length=10,
+        choices=TransicaoSlide.choices,
+        default=TransicaoSlide.FADE,
+    )
+    slides_segundos = models.PositiveSmallIntegerField(
+        "Segundos por imagem",
+        default=8,
+        validators=[MinValueValidator(3), MaxValueValidator(120)],
+    )
+
+    #: Sobe a cada mudanca de personalizacao. O totem le no heartbeat e,
+    #: vendo um numero maior do que o que carregou, recarrega sozinho.
+    #:
+    #: Comparar um inteiro e mais barato e mais confiavel do que
+    #: diferenciar a configuracao inteira, e funciona mesmo quando o
+    #: totem passou horas offline.
+    config_versao = models.PositiveIntegerField("Versão da configuração", default=1)
+
+    def marcar_configuracao_alterada(self):
+        """
+        Sinaliza aos totens que a identidade visual mudou.
+
+        Chamado ao salvar a personalizacao. Sem isso, trocar a logo ou a
+        cor exigiria alguem ir ate cada tablet e recarregar a pagina.
+        """
+        type(self).objects.filter(pk=self.pk).update(
+            config_versao=models.F("config_versao") + 1
+        )
+        self.refresh_from_db(fields=["config_versao"])
+        return self.config_versao
 
     # -- Operacao ----------------------------------------------
     fuso_horario = models.CharField(
@@ -515,9 +591,6 @@ class ConfiguracaoEmpresa(BaseModel):
     exige_foto_registro_web = models.BooleanField(
         "Exigir selfie no registro web", default=False
     )
-    liveness_no_totem = models.BooleanField(
-        "Exigir prova de vida no totem", default=False
-    )
 
     # -- LGPD --------------------------------------------------
     apagar_foto_apos_encoding = models.BooleanField(
@@ -535,3 +608,55 @@ class ConfiguracaoEmpresa(BaseModel):
 
     def __str__(self):
         return f"Configuração — {self.empresa.nome_exibicao}"
+
+
+class SlideTotem(BaseModel):
+    """
+    Uma imagem da tela de ociosidade do totem.
+
+    Antes havia um único `idle_screen_img` por empresa. Uma imagem só
+    numa tela que fica ligada o dia inteiro é desperdício de um canal
+    que a empresa já tem: comunicado interno, campanha de segurança,
+    aniversariantes do mês. Vários slides transformam o totem parado em
+    mural.
+
+    A ordem é explícita (`ordem`) em vez de derivada da data de envio:
+    quem monta a sequência quer controlá-la sem reenviar arquivos.
+    """
+
+    empresa = models.ForeignKey(
+        "clientes.Empresa",
+        on_delete=models.CASCADE,
+        related_name="slides",
+        verbose_name="Empresa",
+    )
+    imagem = models.ImageField("Imagem", upload_to="idle_screens/")
+    legenda = models.CharField("Legenda", max_length=120, blank=True)
+    ordem = models.PositiveSmallIntegerField("Ordem", default=0)
+    ativo = models.BooleanField("Ativo", default=True)
+
+    #: Janela de exibição. Um comunicado de campanha tem prazo; sem
+    #: isso, alguém precisa lembrar de removê-lo.
+    inicio_exibicao = models.DateField("Exibir a partir de", null=True, blank=True)
+    fim_exibicao = models.DateField("Exibir até", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Slide do totem"
+        verbose_name_plural = "Slides do totem"
+        ordering = ("ordem", "created_at")
+
+    def __str__(self):
+        return self.legenda or f"Slide {self.ordem}"
+
+    @property
+    def vigente(self) -> bool:
+        from django.utils import timezone
+
+        if not self.ativo:
+            return False
+        hoje = timezone.localdate()
+        if self.inicio_exibicao and hoje < self.inicio_exibicao:
+            return False
+        if self.fim_exibicao and hoje > self.fim_exibicao:
+            return False
+        return True

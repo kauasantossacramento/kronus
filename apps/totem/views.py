@@ -57,6 +57,13 @@ def kiosk(request, token):
         {
             "totem": totem,
             "empresa": totem.empresa,
+            # So os slides vigentes hoje: um comunicado com prazo sai da
+            # rotacao sozinho, sem alguem precisar lembrar de remove-lo.
+            "slides": [
+                slide
+                for slide in totem.empresa.slides.order_by("ordem", "created_at")
+                if slide.vigente
+            ],
             "versao_app": VERSAO_APP,
         },
     )

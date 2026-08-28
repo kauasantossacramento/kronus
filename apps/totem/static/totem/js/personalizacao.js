@@ -1,0 +1,224 @@
+/**
+ * Kronus — identidade visual do totem, vinda do servidor.
+ *
+ * A API já enviava `cor_primaria` e `cor_secundaria` desde o começo —
+ * **e o totem nunca as lia**. O quiosque ficava azul-Kronus em todas as
+ * empresas, e a personalização que o RH configurava não aparecia onde
+ * ela mais importa: a tela que o colaborador vê todo dia.
+ *
+ * Cuida de quatro coisas:
+ *   cores      variáveis CSS aplicadas na raiz
+ *   logo       tamanho, deslocamento e regra CSS livre
+ *   slides     tela de ociosidade com várias imagens e transição
+ *   som        confirmação sonora ao registrar o ponto
+ */
+(function (global) {
+  'use strict';
+
+  var Personalizacao = {
+    config: null,
+    _slides: [],
+    _indice: 0,
+    _timerSlides: null,
+    _audio: null,
+
+    aplicar: function (empresa, elementos) {
+      if (!empresa) return;
+      this.config = empresa;
+      this._cores(empresa);
+      this._logo(empresa, elementos);
+      this._slides_iniciar(empresa, elementos);
+      this._som_preparar(empresa);
+    },
+
+    // ── Cores ────────────────────────────────────────────────
+    _cores: function (empresa) {
+      var raiz = document.documentElement;
+      if (empresa.cor_primaria) {
+        raiz.style.setProperty('--kronus-primary-500', empresa.cor_primaria);
+        raiz.style.setProperty('--kronus-primary-600', empresa.cor_primaria);
+        // O fundo do totem deriva da cor primária escurecida. Sem isto,
+        // uma empresa de identidade clara ficava com texto branco sobre
+        // fundo claro.
+        raiz.style.setProperty('--kronus-primary-900', this._escurecer(empresa.cor_primaria, 0.45));
+        raiz.style.setProperty('--kronus-primary-800', this._escurecer(empresa.cor_primaria, 0.30));
+      }
+      if (empresa.cor_secundaria) {
+        raiz.style.setProperty('--kronus-gold-500', empresa.cor_secundaria);
+        raiz.style.setProperty('--kronus-gold-400', this._clarear(empresa.cor_secundaria, 0.20));
+      }
+    },
+
+    _componentes: function (hex) {
+      var limpo = (hex || '').replace('#', '');
+      if (limpo.length === 3) {
+        limpo = limpo[0] + limpo[0] + limpo[1] + limpo[1] + limpo[2] + limpo[2];
+      }
+      if (limpo.length !== 6) return null;
+      return [
+        parseInt(limpo.slice(0, 2), 16),
+        parseInt(limpo.slice(2, 4), 16),
+        parseInt(limpo.slice(4, 6), 16)
+      ];
+    },
+
+    _para_hex: function (partes) {
+      return '#' + partes.map(function (v) {
+        var n = Math.max(0, Math.min(255, Math.round(v)));
+        return (n < 16 ? '0' : '') + n.toString(16);
+      }).join('');
+    },
+
+    _escurecer: function (hex, fator) {
+      var rgb = this._componentes(hex);
+      if (!rgb) return hex;
+      return this._para_hex(rgb.map(function (v) { return v * (1 - fator); }));
+    },
+
+    _clarear: function (hex, fator) {
+      var rgb = this._componentes(hex);
+      if (!rgb) return hex;
+      return this._para_hex(rgb.map(function (v) { return v + (255 - v) * fator; }));
+    },
+
+    // ── Logo ─────────────────────────────────────────────────
+    _logo: function (empresa, elementos) {
+      var alvo = (elementos && elementos.logo) || document.querySelector('[data-kronus-logo]');
+      if (!alvo) return;
+
+      if (empresa.logo) {
+        alvo.innerHTML = '';
+        var img = document.createElement('img');
+        img.src = empresa.logo;
+        img.alt = empresa.nome || '';
+        img.className = 'totem-logo-img';
+        alvo.appendChild(img);
+      }
+
+      var altura = empresa.logo_altura_px || 64;
+      var deslocamento = empresa.logo_deslocamento_px || 0;
+      alvo.style.setProperty('--totem-logo-altura', altura + 'px');
+      alvo.style.transform = 'translateY(' + deslocamento + 'px)';
+
+      // Regra livre do administrador. Aplicada por uma folha de estilo
+      // propria, e nao inline, para que valha tambem para o SVG da
+      // marca do Kronus quando a empresa nao tem logo — o pedido era
+      // que a cor valesse para toda a estrutura.
+      if (empresa.logo_css) {
+        var estilo = document.getElementById('kronus-logo-css')
+          || document.createElement('style');
+        estilo.id = 'kronus-logo-css';
+        estilo.textContent =
+          '[data-kronus-logo], [data-kronus-logo] img, [data-kronus-logo] svg {'
+          + empresa.logo_css + '}';
+        if (!estilo.parentNode) document.head.appendChild(estilo);
+      }
+    },
+
+    // ── Slides da tela de ociosidade ─────────────────────────
+    _slides_iniciar: function (empresa, elementos) {
+      var alvo = (elementos && elementos.idle) || document.querySelector('[data-kronus-slides]');
+      if (!alvo) return;
+
+      this._slides = empresa.slides || [];
+      if (!this._slides.length) return;
+
+      var transicao = empresa.slides_transicao || 'fade';
+      var segundos = empresa.slides_segundos || 8;
+
+      alvo.innerHTML = '';
+      alvo.setAttribute('data-transicao', transicao);
+
+      this._slides.forEach(function (slide, indice) {
+        var figura = document.createElement('figure');
+        figura.className = 'totem-slide' + (indice === 0 ? ' ativo' : '');
+        figura.style.backgroundImage = 'url("' + slide.url + '")';
+        if (slide.legenda) {
+          var legenda = document.createElement('figcaption');
+          legenda.textContent = slide.legenda;
+          figura.appendChild(legenda);
+        }
+        alvo.appendChild(figura);
+      });
+
+      // Uma imagem só não precisa de rotação — e o timer ficaria
+      // rodando à toa numa tela que fica ligada o dia inteiro.
+      if (this._slides.length < 2) return;
+
+      var self = this;
+      this._parar_slides();
+      this._timerSlides = setInterval(function () {
+        var figuras = alvo.querySelectorAll('.totem-slide');
+        figuras[self._indice].classList.remove('ativo');
+        self._indice = (self._indice + 1) % figuras.length;
+        figuras[self._indice].classList.add('ativo');
+      }, segundos * 1000);
+    },
+
+    _parar_slides: function () {
+      if (this._timerSlides) {
+        clearInterval(this._timerSlides);
+        this._timerSlides = null;
+      }
+    },
+
+    // ── Som de confirmação ───────────────────────────────────
+    _som_preparar: function (empresa) {
+      if (!empresa.som_confirmacao) return;
+      try {
+        var Contexto = global.AudioContext || global.webkitAudioContext;
+        if (Contexto) this._audio = new Contexto();
+      } catch (erro) {
+        console.warn('[Kronus] Audio indisponivel:', erro);
+      }
+    },
+
+    /**
+     * Toca a confirmação.
+     *
+     * Sintetizado em vez de tocar um arquivo: são dois tons curtos, e
+     * gerá-los evita mais um asset para o Service Worker cachear e mais
+     * uma requisição que pode falhar num totem offline.
+     */
+    tocarConfirmacao: function (sucesso) {
+      if (!this._audio) return;
+      try {
+        if (this._audio.state === 'suspended') this._audio.resume();
+
+        var notas = sucesso ? [880, 1320] : [440, 330];
+        var self = this;
+        notas.forEach(function (frequencia, indice) {
+          var oscilador = self._audio.createOscillator();
+          var ganho = self._audio.createGain();
+          oscilador.type = 'sine';
+          oscilador.frequency.value = frequencia;
+          var inicio = self._audio.currentTime + indice * 0.12;
+          ganho.gain.setValueAtTime(0.0001, inicio);
+          ganho.gain.exponentialRampToValueAtTime(0.25, inicio + 0.02);
+          ganho.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.18);
+          oscilador.connect(ganho).connect(self._audio.destination);
+          oscilador.start(inicio);
+          oscilador.stop(inicio + 0.2);
+        });
+      } catch (erro) {
+        console.warn('[Kronus] Falha ao tocar confirmacao:', erro);
+      }
+    },
+
+    /**
+     * Mensagem de sucesso personalizada.
+     *
+     * `{nome}` e `{hora}` são substituídos. O RH escreve "Bom trabalho,
+     * {nome}!" e a tela mostra o nome de quem acabou de bater.
+     */
+    mensagemSucesso: function (nome, hora) {
+      var modelo = (this.config && this.config.mensagem_sucesso) || 'Ponto registrado!';
+      return modelo
+        .replace(/\{nome\}/g, nome || '')
+        .replace(/\{hora\}/g, hora || '')
+        .trim();
+    }
+  };
+
+  global.KronusPersonalizacao = Personalizacao;
+})(window);

@@ -122,6 +122,13 @@ class Totem(BaseModel):
     )
     observacoes = models.TextField("Observações", blank=True)
 
+    #: Pedido pontual de recarga, atendido no proximo heartbeat.
+    #: Diferente da versao de configuracao da empresa: serve para o
+    #: suporte destravar **um** equipamento sem mexer nos outros.
+    recarga_solicitada_em = models.DateTimeField(
+        "Recarga solicitada em", null=True, blank=True
+    )
+
     class Meta:
         verbose_name = "Totem"
         verbose_name_plural = "Totens"
@@ -176,6 +183,11 @@ class Totem(BaseModel):
             self.bateria_percentual = max(0, min(100, int(bateria)))
             campos.append("bateria_percentual")
         self.save(update_fields=campos)
+
+    def solicitar_recarga(self):
+        """Faz o totem recarregar a pagina no proximo heartbeat."""
+        self.recarga_solicitada_em = timezone.now()
+        self.save(update_fields=["recarga_solicitada_em", "updated_at"])
 
     def regenerar_token(self) -> str:
         self.token_acesso = gerar_token(32)

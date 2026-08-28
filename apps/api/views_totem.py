@@ -373,6 +373,18 @@ def heartbeat(request):
                 "ativo": totem.ativo,
                 "permite_fallback_cpf": totem.permite_fallback_cpf,
             },
+            # O totem compara com o que carregou. Numero maior, ou uma
+            # recarga pedida pelo suporte, e ele se recarrega sozinho —
+            # e por isso que trocar a logo no painel aparece no quiosque
+            # sem ninguem ir ate o tablet.
+            "config": {
+                "versao": totem.empresa.config_versao,
+                "recarregar_em": (
+                    totem.recarga_solicitada_em.isoformat()
+                    if totem.recarga_solicitada_em
+                    else None
+                ),
+            },
         }
     )
 

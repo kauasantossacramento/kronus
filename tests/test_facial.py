@@ -783,3 +783,101 @@ class RecadastroTests(BaseFacialTestCase):
             )
         usadas = self.servico.consolidar_cadastro(self.joao)
         self.assertEqual(usadas, settings.FACE_AMOSTRAS_MAXIMAS)
+
+
+# ══════════════════════════════════════════════════════════════
+# Personalização do totem
+# ══════════════════════════════════════════════════════════════
+class PersonalizacaoTotemTests(BaseFacialTestCase):
+    """
+    A API já enviava as cores desde o começo, e o totem nunca as lia —
+    o quiosque ficava azul-Kronus em toda empresa. Estes testes travam o
+    contrato que a tela consome.
+    """
+
+    def setUp(self):
+        from apps.totem.models import Totem
+
+        self.totem = Totem.objects.create(
+            identificador="PERSO-01", empresa=self.empresa
+        )
+
+    def config(self):
+        from apps.api.serializers import ConfigTotemSerializer
+
+        return ConfigTotemSerializer(self.totem).data
+
+    def test_cores_da_empresa_vao_para_o_totem(self):
+        self.empresa.cor_primaria = "#7C3AED"
+        self.empresa.cor_secundaria = "#F59E0B"
+        self.empresa.save(update_fields=["cor_primaria", "cor_secundaria"])
+
+        empresa = self.config()["empresa"]
+        self.assertEqual(empresa["cor_primaria"], "#7C3AED")
+        self.assertEqual(empresa["cor_secundaria"], "#F59E0B")
+
+    def test_ajustes_da_logo_vao_para_o_totem(self):
+        self.empresa.logo_altura_px = 120
+        self.empresa.logo_deslocamento_px = -30
+        self.empresa.logo_css = "filter: brightness(0) invert(1);"
+        self.empresa.save(update_fields=[
+            "logo_altura_px", "logo_deslocamento_px", "logo_css"
+        ])
+
+        empresa = self.config()["empresa"]
+        self.assertEqual(empresa["logo_altura_px"], 120)
+        self.assertEqual(empresa["logo_deslocamento_px"], -30)
+        self.assertIn("invert", empresa["logo_css"])
+
+    def test_slides_vigentes_entram_na_ordem(self):
+        from apps.clientes.models import SlideTotem
+
+        SlideTotem.objects.create(
+            empresa=self.empresa, imagem="idle_screens/b.jpg", ordem=1, legenda="B"
+        )
+        SlideTotem.objects.create(
+            empresa=self.empresa, imagem="idle_screens/a.jpg", ordem=0, legenda="A"
+        )
+        legendas = [s["legenda"] for s in self.config()["empresa"]["slides"]]
+        self.assertEqual(legendas, ["A", "B"])
+
+    def test_slide_fora_do_periodo_nao_e_enviado(self):
+        """Uma campanha com prazo sai da rotação sozinha."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.clientes.models import SlideTotem
+
+        ontem = timezone.localdate() - timedelta(days=1)
+        SlideTotem.objects.create(
+            empresa=self.empresa, imagem="idle_screens/velho.jpg",
+            legenda="Campanha encerrada", fim_exibicao=ontem,
+        )
+        self.assertEqual(self.config()["empresa"]["slides"], [])
+
+    def test_mensagem_de_sucesso_personalizada(self):
+        self.empresa.msg_sucesso_ponto = "Bom trabalho, {nome}!"
+        self.empresa.save(update_fields=["msg_sucesso_ponto"])
+        self.assertIn("{nome}", self.config()["empresa"]["mensagem_sucesso"])
+
+    def test_liveness_reflete_a_configuracao_da_empresa(self):
+        config = self.empresa.configuracao
+        config.exigir_liveness = True
+        config.save(update_fields=["exigir_liveness"])
+
+        interface = self.config()["interface"]
+        self.assertTrue(interface["liveness"])
+        self.assertGreater(interface["liveness_quadros"], 0)
+
+    def test_versao_da_configuracao_sobe_ao_personalizar(self):
+        """É o que faz o totem se recarregar sem alguém ir até o tablet."""
+        antes = self.empresa.config_versao
+        self.empresa.marcar_configuracao_alterada()
+        self.assertEqual(self.empresa.config_versao, antes + 1)
+
+    def test_recarga_pontual_de_um_totem(self):
+        self.assertIsNone(self.totem.recarga_solicitada_em)
+        self.totem.solicitar_recarga()
+        self.totem.refresh_from_db()
+        self.assertIsNotNone(self.totem.recarga_solicitada_em)

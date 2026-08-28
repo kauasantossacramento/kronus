@@ -109,10 +109,14 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
         model = Empresa
         fields = (
             "logo",
+            "logo_altura_px",
+            "logo_deslocamento_px",
+            "logo_css",
             "cor_primaria",
             "cor_secundaria",
-            "idle_screen_img",
             "msg_boas_vindas",
+            "msg_sucesso_ponto",
+            "som_confirmacao",
         )
         widgets = {
             "cor_primaria": forms.TextInput(
@@ -120,6 +124,13 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             ),
             "cor_secundaria": forms.TextInput(
                 attrs={"type": "color", "class": "h-10 w-20 rounded border-slate-300"}
+            ),
+            "logo_css": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                    "placeholder": "filter: brightness(0) invert(1);",
+                    "style": "font-family: ui-monospace, monospace; font-size: .8rem",
+                }
             ),
         }
 

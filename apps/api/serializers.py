@@ -131,22 +131,48 @@ class ConfigTotemSerializer(serializers.Serializer):
 
     def get_empresa(self, totem):
         empresa = totem.empresa
+
+        # Slides vigentes hoje. O `idle_screen_img` antigo entra como
+        # primeiro slide quando ainda existe, para que quem ja usava a
+        # imagem unica nao perca a configuracao.
+        slides = [
+            {"url": slide.imagem.url, "legenda": slide.legenda}
+            for slide in empresa.slides.order_by("ordem", "created_at")
+            if slide.vigente
+        ]
+        if not slides and empresa.idle_screen_img:
+            slides = [{"url": empresa.idle_screen_img.url, "legenda": ""}]
+
         return {
             "nome": empresa.nome_exibicao,
             "logo": empresa.logo.url if empresa.logo else None,
-            "idle_screen": (
-                empresa.idle_screen_img.url if empresa.idle_screen_img else None
-            ),
+            "logo_altura_px": empresa.logo_altura_px,
+            "logo_deslocamento_px": empresa.logo_deslocamento_px,
+            "logo_css": empresa.logo_css,
+            # Mantido por compatibilidade com totens que ainda nao
+            # atualizaram o app.
+            "idle_screen": slides[0]["url"] if slides else None,
+            "slides": slides,
+            "slides_transicao": empresa.slides_transicao,
+            "slides_segundos": empresa.slides_segundos,
             "mensagem_boas_vindas": empresa.msg_boas_vindas,
+            "mensagem_sucesso": empresa.msg_sucesso_ponto,
+            "som_confirmacao": empresa.som_confirmacao,
             "cor_primaria": empresa.cor_primaria,
             "cor_secundaria": empresa.cor_secundaria,
             "fuso_horario": empresa.fuso_horario,
         }
 
     def get_interface(self, totem):
+        config = totem.empresa.configuracao
         return {
             "permite_fallback_cpf": totem.permite_fallback_cpf,
             "segundos_tela_sucesso": totem.segundos_tela_sucesso,
             "segundos_countdown_offline": totem.segundos_countdown_offline,
-            "liveness": totem.empresa.configuracao.liveness_no_totem,
+            "liveness": config.exigir_liveness,
+            # Quantos quadros o totem deve enviar quando a prova de vida
+            # esta ligada. Vem do servidor para que ajustar a exigencia
+            # nao dependa de republicar o app do quiosque.
+            "liveness_quadros": 4 if config.exigir_liveness else 0,
+            "minutos_entre_marcacoes": config.minutos_entre_marcacoes,
         }
