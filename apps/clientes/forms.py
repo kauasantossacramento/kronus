@@ -62,7 +62,8 @@ class ClienteForm(EstiloTailwindMixin, forms.ModelForm):
             "dpo_email",
             "ativo",
             "observacoes",
-        )
+        
+            "integracoes_liberadas",)
         widgets = {
             "data_inicio_contrato": forms.DateInput(
                 attrs={"type": "date"}, format="%Y-%m-%d"

@@ -13,12 +13,19 @@
      class="btn text-xs {% if ativa == 'notificacoes' %}btn-primary{% else %}btn-outline{% endif %}">
     {% icone "sino" classe="h-4 w-4" %} Notificações
   </a>
-  <a href="{% url 'rh:integracao' %}"
-     class="btn text-xs {% if ativa == 'integracao' %}btn-primary{% else %}btn-outline{% endif %}">
-    {% icone "link" classe="h-4 w-4" %} Integrações
+  <a href="{% url 'rh:slides_totem' %}"
+     class="btn text-xs {% if ativa == 'slides' %}btn-primary{% else %}btn-outline{% endif %}">
+    {% icone "totem" classe="h-4 w-4" %} Tela do totem
   </a>
-  <a href="{% url 'rh:webhooks' %}"
-     class="btn text-xs {% if ativa == 'webhooks' %}btn-primary{% else %}btn-outline{% endif %}">
-    {% icone "webhook" classe="h-4 w-4" %} Webhooks
-  </a>
+  {# API e webhooks so aparecem para quem tem: uma aba que existe e depois recusa e pior do que uma aba que nao existe. #}
+  {% if empresa_atual.cliente.pode_integrar %}
+    <a href="{% url 'rh:integracao' %}"
+       class="btn text-xs {% if ativa == 'integracao' %}btn-primary{% else %}btn-outline{% endif %}">
+      {% icone "link" classe="h-4 w-4" %} Integrações
+    </a>
+    <a href="{% url 'rh:webhooks' %}"
+       class="btn text-xs {% if ativa == 'webhooks' %}btn-primary{% else %}btn-outline{% endif %}">
+      {% icone "webhook" classe="h-4 w-4" %} Webhooks
+    </a>
+  {% endif %}
 </nav>

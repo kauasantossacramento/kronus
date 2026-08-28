@@ -61,6 +61,23 @@ class Cliente(BaseModel):
     # -- Assinatura --------------------------------------------
     ativo = models.BooleanField("Ativo", default=True, db_index=True)
     suspenso = models.BooleanField("Suspenso", default=False, db_index=True)
+
+    #: Libera API e webhooks para este cliente, independente do plano.
+    #:
+    #: `None` segue o plano — o caso normal. `True` e `False` sao
+    #: excecoes que so o Master define: liberar para um cliente que esta
+    #: em piloto, ou fechar para um que abusou da cota sem trocar de
+    #: plano. Sem esta valvula, a unica saida seria criar um plano
+    #: sob medida para cada excecao.
+    integracoes_liberadas = models.BooleanField(
+        "Integrações liberadas",
+        null=True,
+        blank=True,
+        help_text=(
+            "Vazio segue o plano. Marcado libera API e webhooks mesmo em "
+            "plano que não inclui; desmarcado bloqueia mesmo em plano que inclui."
+        ),
+    )
     motivo_suspensao = models.CharField("Motivo da suspensão", max_length=255, blank=True)
     data_cadastro = models.DateField("Data de cadastro", default=timezone.localdate)
     data_inicio_contrato = models.DateField("Início do contrato", null=True, blank=True)
@@ -180,6 +197,22 @@ class Cliente(BaseModel):
         self.suspenso = False
         self.motivo_suspensao = ""
         self.save(update_fields=["suspenso", "motivo_suspensao", "updated_at"])
+
+
+    @property
+    def pode_integrar(self) -> bool:
+        """
+        Se este cliente ve API e webhooks.
+
+        A decisao mora aqui, e nao espalhada nas telas: liberar por
+        excecao e uma decisao comercial, e ter dois lugares avaliando a
+        mesma regra e como se descobre depois que uma tela liberava o
+        que a outra bloqueava.
+        """
+        if self.integracoes_liberadas is not None:
+            return self.integracoes_liberadas
+        plano = self.plano
+        return bool(plano and (plano.tem_api or plano.tem_webhook))
 
 
 class Empresa(BaseModel):

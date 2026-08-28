@@ -32,6 +32,14 @@ logger = logging.getLogger("kronus.webhooks")
 def webhooks(request):
     """Lista e cadastro. O segredo é gerado aqui, nunca digitado."""
     empresa = request.empresa_ativa
+
+    if not empresa.cliente.pode_integrar:
+        messages.error(
+            request,
+            "Os webhooks não estão habilitados para esta conta. Fale com a KS TEC.",
+        )
+        return redirect("rh:configuracoes")
+
     plano = empresa.cliente.plano
     lista = Webhook.objects.filter(empresa=empresa).order_by("nome")
 

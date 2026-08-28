@@ -251,6 +251,17 @@ def integracao(request):
     outra; não há como recuperar.
     """
     empresa = request.empresa_ativa
+
+    # A aba some quando o cliente nao pode integrar; a view barra
+    # tambem, porque esconder um link nao impede quem digita a URL.
+    if not empresa.cliente.pode_integrar:
+        messages.error(
+            request,
+            "As integrações não estão habilitadas para esta conta. "
+            "Fale com a KS TEC.",
+        )
+        return redirect("rh:configuracoes")
+
     chaves = APIKey.objects.filter(empresa=empresa).order_by("-created_at")
     chave_nova = None
 

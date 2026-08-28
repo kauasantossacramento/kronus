@@ -125,17 +125,38 @@
   </div>
 </div>
 
-{# Ressalva honesta sobre conformidade de layout #}
-<div class="card mt-6 border-amber-200 bg-amber-50 p-5">
-  <p class="flex items-start gap-3 text-sm text-amber-900">
-    {% icone "alerta" classe="mt-0.5 h-5 w-5 shrink-0" %}
-    <span>
-      <strong>Antes do uso em fiscalização:</strong> a estrutura e a sequência de campos seguem a
-      Portaria 671/2021, mas as <strong>larguras de cada campo</strong> devem ser conferidas contra
-      o Anexo oficial. O layout está declarado em <code class="rounded bg-amber-100 px-1 font-mono text-xs">apps/relatorios/afd.py</code>
-      para que o ajuste seja pontual. Gere um arquivo de teste e valide com o seu contador
-      ou com o validador oficial antes da primeira inspeção.
-    </span>
+{# Situacao real da conformidade, para o cliente decidir com informacao. #}
+<div class="card mt-6 border-[var(--kronus-gray-200)] p-5">
+  <h2 class="flex items-center gap-2 font-display text-sm font-semibold text-[var(--kronus-gray-900)]">
+    {% icone "escudo" classe="h-4 w-4 text-emerald-600" %} Conformidade
+  </h2>
+  <ul class="mt-3 space-y-2 text-sm text-[var(--kronus-gray-600)]">
+    <li class="flex items-start gap-2">
+      {% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}
+      <span>
+        Layout do AFD e do AEJ conferido campo a campo contra os Anexos V e VI da
+        Portaria 671/2021.
+      </span>
+    </li>
+    <li class="flex items-start gap-2">
+      {% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}
+      <span>
+        Cada marcação leva NSR sequencial e hash SHA-256 encadeado ao registro anterior,
+        reproduzível a partir do próprio arquivo.
+      </span>
+    </li>
+    <li class="flex items-start gap-2">
+      {% icone "alerta" classe="mt-0.5 h-4 w-4 shrink-0 text-amber-600" %}
+      <span>
+        <strong>Registro do programa no INPI em andamento.</strong> Enquanto não sai, o
+        campo correspondente do cabeçalho fica em branco — declarando a pendência em vez
+        de simulá-la.
+      </span>
+    </li>
+  </ul>
+  <p class="mt-4 border-t border-[var(--kronus-gray-200)] pt-3 text-xs text-[var(--kronus-gray-500)]">
+    Recomendação: gere um arquivo do mês anterior e valide com o seu contador antes da
+    primeira inspeção. Vale para qualquer sistema de ponto, não só para este.
   </p>
 </div>
 {% endblock %}

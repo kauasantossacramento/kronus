@@ -590,3 +590,69 @@ class MasterSaaSTests(BaseFaturamentoTestCase):
         for rota in ("usuarios", "auditoria", "gateway", "assinaturas"):
             resposta = self.client.get(reverse(f"master:{rota}"))
             self.assertNotEqual(resposta.status_code, 200, rota)
+
+
+# ══════════════════════════════════════════════════════════════
+# Autorização de integrações
+# ══════════════════════════════════════════════════════════════
+class AutorizacaoIntegracoesTests(BaseFaturamentoTestCase):
+    """
+    API e webhooks só aparecem para quem tem. Uma aba que existe e
+    depois recusa é pior do que uma aba que não existe.
+    """
+
+    def setUp(self):
+        from apps.accounts.models import CustomUser
+
+        self.rh = CustomUser.objects.create_user(
+            username="rh@alfa.com", password=SENHA, nome_completo="Analista RH",
+            tipo=TipoUsuario.RH, cliente=self.cliente,
+        )
+        self.rh.empresas.add(self.empresa)
+        self.client.force_login(self.rh)
+        sessao = self.client.session
+        sessao["empresa_ativa_id"] = self.empresa.pk
+        sessao.save()
+
+    def test_plano_sem_integracoes_bloqueia(self):
+        self.cliente.plano = self.starter   # tem_api e tem_webhook falsos
+        self.cliente.save(update_fields=["plano"])
+        self.assertFalse(self.cliente.pode_integrar)
+
+        for rota in ("rh:integracao", "rh:webhooks"):
+            resposta = self.client.get(reverse(rota))
+            self.assertEqual(resposta.status_code, 302, rota)
+
+    def test_plano_com_api_libera(self):
+        self.cliente.plano = self.pro       # tem_api verdadeiro
+        self.cliente.save(update_fields=["plano"])
+        self.assertTrue(self.cliente.pode_integrar)
+        self.assertEqual(self.client.get(reverse("rh:integracao")).status_code, 200)
+
+    def test_master_pode_liberar_por_excecao(self):
+        """Cliente em piloto, num plano que não inclui."""
+        self.cliente.plano = self.starter
+        self.cliente.integracoes_liberadas = True
+        self.cliente.save(update_fields=["plano", "integracoes_liberadas"])
+
+        self.assertTrue(self.cliente.pode_integrar)
+        self.assertEqual(self.client.get(reverse("rh:integracao")).status_code, 200)
+
+    def test_master_pode_bloquear_por_excecao(self):
+        """Quem abusou da cota, sem precisar rebaixar o plano."""
+        self.cliente.plano = self.pro
+        self.cliente.integracoes_liberadas = False
+        self.cliente.save(update_fields=["plano", "integracoes_liberadas"])
+
+        self.assertFalse(self.cliente.pode_integrar)
+        self.assertEqual(self.client.get(reverse("rh:webhooks")).status_code, 302)
+
+    def test_vazio_segue_o_plano(self):
+        self.cliente.integracoes_liberadas = None
+        self.cliente.plano = self.pro
+        self.cliente.save(update_fields=["integracoes_liberadas", "plano"])
+        self.assertTrue(self.cliente.pode_integrar)
+
+        self.cliente.plano = self.starter
+        self.cliente.save(update_fields=["plano"])
+        self.assertFalse(self.cliente.pode_integrar)
