@@ -63,9 +63,18 @@ class Totem(BaseModel):
     #: (Secao 8.7 — alerta de "totem offline > 10min").
     MINUTOS_PARA_OFFLINE = 10
 
+    #: Prefixo do patrimonio. O equipamento e da KS TEC, inclusive
+    #: quando esta em comodato na empresa cliente — e a etiqueta colada
+    #: nele precisa dizer isso a quem o encontrar.
+    PREFIXO_PATRIMONIO = "KST"
+
     identificador = models.CharField(
         "Identificador", max_length=40, unique=True, db_index=True,
-        help_text="Código legível, ex.: TOTEM-RECEPCAO-01."
+        blank=True,
+        help_text=(
+            "Gerado pelo sistema no formato KST-AAAA-NNNN. "
+            "Deixe em branco para gerar."
+        ),
     )
     apelido = models.CharField("Apelido", max_length=100, blank=True)
     empresa = models.ForeignKey(
@@ -100,7 +109,16 @@ class Totem(BaseModel):
     token_acesso = models.CharField(
         "Token de acesso", max_length=64, unique=True, db_index=True
     )
-    versao_firmware = models.CharField("Versão do app", max_length=20, blank=True)
+    #: Preenchido pelo proprio totem no heartbeat, nunca digitado.
+    #:
+    #: Versao digitada envelhece em silencio: alguem cadastra "1.0" e o
+    #: campo continua dizendo "1.0" tres atualizacoes depois. Vindo do
+    #: aparelho, o valor responde a pergunta que importa no suporte —
+    #: "este totem esta rodando a versao atual?".
+    versao_firmware = models.CharField(
+        "Versão do app", max_length=20, blank=True,
+        help_text="Informada pelo próprio totem a cada sinal de vida.",
+    )
     ultimo_heartbeat = models.DateTimeField("Último heartbeat", null=True, blank=True)
     ultimo_ip = models.GenericIPAddressField("Último IP", null=True, blank=True)
     bateria_percentual = models.PositiveSmallIntegerField(
@@ -159,7 +177,25 @@ class Totem(BaseModel):
     def save(self, *args, **kwargs):
         if not self.token_acesso:
             self.token_acesso = gerar_token(32)
+
+        # O patrimonio sai do `pk`, que o banco nunca reaproveita. Contar
+        # os totens existentes devolveria um numero ja emitido assim que
+        # o ultimo fosse excluido — e duas etiquetas iguais em clientes
+        # diferentes e o tipo de erro que so aparece quando ja e caro.
+        # Como o `pk` so existe depois do INSERT, a criacao grava um
+        # marcador unico e o troca em seguida.
+        provisorio = False
+        if not self.identificador:
+            self.identificador = f"novo-{gerar_token(16)}"
+            provisorio = True
+
         super().save(*args, **kwargs)
+
+        if provisorio:
+            self.identificador = self.montar_identificador()
+            # `update_fields` restrito: um `save()` completo aqui
+            # dispararia de novo toda a logica acima.
+            super().save(update_fields=["identificador"])
 
     # -- estado ------------------------------------------------
     @property
@@ -184,6 +220,40 @@ class Totem(BaseModel):
     @property
     def url_kiosk(self) -> str:
         return f"/totem/{self.token_acesso}/"
+
+    # -- identidade do equipamento -----------------------------
+    def montar_identificador(self) -> str:
+        """
+        Patrimonio no formato `KST-AAAA-NNNNN`.
+
+        O ano diz quando o equipamento entrou na frota; o numero vem do
+        `pk`, que e unico para sempre. A sequencia nao e continua dentro
+        do ano — e nem precisa ser: numero de patrimonio serve para
+        identificar um aparelho, nao para contar quantos existem.
+        """
+        ano = (self.created_at or timezone.now()).year
+        return f"{self.PREFIXO_PATRIMONIO}-{ano}-{self.pk:05d}"
+
+    @property
+    def codigo_autenticidade(self) -> str:
+        """
+        Codigo publico de conferencia, impresso na etiqueta.
+
+        Derivado do token de acesso, **nunca o proprio token**: a
+        etiqueta fica visivel em recepcao, e quem a fotografa nao pode
+        sair com a credencial que abre o totem. Um digest truncado
+        confirma a autenticidade sem conceder acesso.
+        """
+        import hashlib
+
+        from django.conf import settings
+
+        semente = f"{self.pk}|{self.token_acesso}|{settings.SECRET_KEY}"
+        return hashlib.sha256(semente.encode()).hexdigest()[:12].upper()
+
+    @property
+    def url_autenticidade(self) -> str:
+        return f"/totem/autenticidade/{self.codigo_autenticidade}/"
 
     def registrar_heartbeat(self, ip=None, versao=None, bateria=None):
         self.ultimo_heartbeat = timezone.now()

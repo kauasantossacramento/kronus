@@ -1096,7 +1096,6 @@ class MasterTotemTests(BaseAPITestCase):
         resposta = self.client.post(
             reverse("master:totem_criar"),
             {
-                "identificador": "totem recepcao 01",
                 "empresa": self.empresa.pk,
                 "modelo_tablet": "Positivo Tab 7 Vision",
                 "permite_fallback_cpf": "on",
@@ -1110,7 +1109,9 @@ class MasterTotemTests(BaseAPITestCase):
         from apps.totem.models import Totem
 
         totem = Totem.objects.get()
-        self.assertEqual(totem.identificador, "TOTEM-RECEPCAO-01")
+        # O patrimonio tambem nasce do sistema: ninguem digita numero de
+        # etiqueta, nem token.
+        self.assertRegex(totem.identificador, r"^KST-\d{4}-\d{5}$")
         # `gerar_token(32)` = 32 bytes em base64 urlsafe. O que importa
         # e ser longo o bastante para nao ser adivinhavel; o numero
         # exato de caracteres e detalhe da codificacao.

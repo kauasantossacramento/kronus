@@ -77,15 +77,18 @@ class TotemForm(forms.ModelForm):
 
     class Meta:
         model = Totem
+        # `identificador` e `versao_firmware` nao aparecem: o primeiro e
+        # numero de patrimonio gerado pelo sistema, o segundo e informado
+        # pelo proprio totem no sinal de vida. Digitados, os dois
+        # envelhecem em silencio — alguem cadastra "1.0" e o campo segue
+        # dizendo "1.0" tres atualizacoes depois.
         fields = (
-            "identificador",
             "apelido",
             "empresa",
             "grupo",
             "local_instalacao",
             "modelo_tablet",
             "serial_tablet",
-            "versao_firmware",
             "permite_fallback_cpf",
             "segundos_tela_sucesso",
             "segundos_countdown_offline",
@@ -113,15 +116,6 @@ class TotemForm(forms.ModelForm):
             ativo=True
         ).select_related("cliente").order_by("cliente__razao_social", "nome")
         self.fields["grupo"].required = False
-        self.fields["identificador"].help_text = (
-            "Código legível colado no equipamento, ex.: TOTEM-RECEPCAO-01."
-        )
-
-    def clean_identificador(self):
-        # Maiusculas e sem espaco: o identificador vai impresso na
-        # etiqueta do tablet e é lido em voz alta no suporte.
-        valor = (self.cleaned_data.get("identificador") or "").strip().upper()
-        return valor.replace(" ", "-")
 
     def clean(self):
         dados = super().clean()

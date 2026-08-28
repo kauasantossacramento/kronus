@@ -125,6 +125,44 @@
       </dl>
     </section>
 
+    <div class="card p-5">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Identidade do equipamento</h2>
+      <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+        Gerada pelo sistema. A etiqueta vai colada no aparelho e permite
+        conferir a procedência pela câmera do celular.
+      </p>
+
+      <dl class="mt-4 space-y-2 text-sm">
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Patrimônio</dt>
+          <dd class="font-mono font-semibold">{{ totem.identificador }}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Código de verificação</dt>
+          <dd class="font-mono">{{ totem.codigo_autenticidade }}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Versão do app</dt>
+          <dd class="font-mono">{% firstof totem.versao_firmware "ainda não reportada" %}</dd>
+        </div>
+      </dl>
+
+      <div class="mt-4 flex flex-wrap gap-2">
+        <a href="{% url 'totem:etiqueta' totem.pk %}" target="_blank" rel="noopener"
+           class="btn btn-primary flex-1 text-xs">
+          {% icone "download" classe="h-4 w-4" %} Etiqueta para impressão
+        </a>
+        <a href="{% url 'totem:autenticidade' totem.codigo_autenticidade %}"
+           target="_blank" rel="noopener" class="btn btn-outline text-xs">
+          Ver página pública
+        </a>
+      </div>
+      <p class="mt-2 text-xs text-[var(--kronus-gray-500)]">
+        Imprimir em 90 × 50 mm. O QR aponta para a página de verificação —
+        nunca para o totem em si, que exige credencial.
+      </p>
+    </div>
+
     {# Regra 12 da Seção 14: quem este totem reconhece. #}
     <section class="card p-6">
       <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Empresas atendidas</h2>

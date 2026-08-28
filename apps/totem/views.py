@@ -11,6 +11,10 @@ pelo rosto ou pelo CPF, a cada batida.
 """
 import logging
 
+from django.conf import settings
+
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
@@ -22,7 +26,13 @@ from apps.totem.models import EventoTotem, Totem
 logger = logging.getLogger("kronus.totem")
 
 #: Versão do app do totem, enviada no heartbeat e usada para diagnóstico.
-VERSAO_APP = "1.0.0"
+#: Versao do app do totem.
+#:
+#: Vem de `settings.KRONUS["VERSAO"]`, a mesma que o AEJ declara no
+#: registro 08. Duas constantes separadas divergiriam no primeiro
+#: lancamento, e o suporte passaria a ver uma versao no relatorio fiscal
+#: e outra na tela do equipamento.
+VERSAO_APP = settings.KRONUS["VERSAO"]
 
 
 @never_cache
@@ -184,3 +194,59 @@ def manifesto(request, token):
         "prefer_related_applications": False,
         "icons": para_logo(empresa.logo.url if empresa.logo else None),
     })
+
+
+def autenticidade(request, codigo):
+    """
+    Pagina publica de conferencia do equipamento (`/totem/autenticidade/<codigo>/`).
+
+    Quem aponta a camera para a etiqueta quer saber uma coisa: este
+    aparelho e legitimo? A pagina responde isso e **nada mais** — nao
+    expoe token, nem colaborador, nem batida. Um QR impresso e visivel
+    para qualquer visitante da recepcao.
+
+    Sem login por construcao: exigir conta aqui tornaria a verificacao
+    inutil justamente para quem precisa dela — o fiscal, o cliente novo,
+    o segurança que encontrou o tablet fora do lugar.
+    """
+    from django.shortcuts import render
+
+    encontrado = None
+    # O codigo e um digest; nao da para consultar por ele no banco sem
+    # recalcular. Sao dezenas de totens, entao a varredura e barata — e
+    # guardar o digest numa coluna criaria um segundo lugar para
+    # dessincronizar quando o token for rotacionado.
+    for totem in Totem.objects.select_related("empresa", "empresa__cliente"):
+        if totem.codigo_autenticidade == codigo:
+            encontrado = totem
+            break
+
+    return render(request, "totem/autenticidade.html", {
+        "totem": encontrado,
+        "codigo": codigo,
+    })
+
+
+@login_required
+def etiqueta_png(request, pk):
+    """
+    Etiqueta de patrimonio em PNG, pronta para imprimir e colar.
+
+    Restrita a quem administra a plataforma: a etiqueta carrega o codigo
+    de verificacao, e emiti-la para qualquer um permitiria fabricar
+    etiquetas de equipamentos que nao existem.
+    """
+    from apps.core.constants import TipoUsuario
+    from apps.totem.etiqueta import gerar
+
+    if request.user.tipo != TipoUsuario.MASTER:
+        raise PermissionDenied("Somente a KS TEC emite etiquetas de patrimônio.")
+
+    totem = get_object_or_404(Totem, pk=pk)
+    base = f"{request.scheme}://{request.get_host()}"
+
+    resposta = HttpResponse(gerar(totem, base), content_type="image/png")
+    resposta["Content-Disposition"] = (
+        f'inline; filename="etiqueta-{totem.identificador}.png"'
+    )
+    return resposta
