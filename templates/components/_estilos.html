@@ -1,0 +1,52 @@
+{% load static %}
+{% comment %}
+  Carregamento do CSS.
+
+  Em desenvolvimento usamos o Tailwind Play CDN (sem etapa de build);
+  em produção o arquivo compilado por `npm run build:css` é servido
+  pelo WhiteNoise/Nginx. O design system (Seção 3.2) é sempre o mesmo
+  arquivo, e as cores do cliente (white-label) entram por último.
+{% endcomment %}
+
+{% if KRONUS.DEBUG %}
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Outfit', 'system-ui', 'sans-serif'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            kronus: {
+              50:'#EFF6FF',100:'#DBEAFE',200:'#BFDBFE',300:'#93C5FD',400:'#60A5FA',
+              500:'#1E3A5F',600:'#172E4A',700:'#0F2035',800:'#0A1628',900:'#060E1A',
+            },
+            gold: {
+              50:'#FFFBEB',100:'#FEF3C7',200:'#FDE68A',300:'#FCD34D',
+              400:'#FBBF24',500:'#D4A017',600:'#B8860B',700:'#92690A',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="{% static 'css/kronus-design-system.css' %}">
+{% else %}
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+{% endif %}
+
+{% if empresa_atual %}
+  <style>
+    /* White-label parcial — Seção 3.6 do plano */
+    :root {
+      --kronus-primary-500: {{ tema.cor_primaria }};
+      --kronus-primary-600: {{ tema.cor_primaria }};
+      --kronus-gold-500: {{ tema.cor_secundaria }};
+    }
+  </style>
+{% endif %}
+
+<style>[x-cloak]{display:none !important}</style>

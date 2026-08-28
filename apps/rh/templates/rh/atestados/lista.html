@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Atestados</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+      A aprovação abona os dias cobertos e reprocessa o banco de horas.
+    </p>
+  </div>
+  <a href="{% url 'rh:atestado_criar' %}" class="btn btn-primary">
+    {% icone "mais" classe="h-4 w-4" %} Novo atestado
+  </a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="card">
+  <div class="flex flex-wrap gap-2 border-b border-[var(--kronus-gray-200)] p-4">
+    {% for valor, rotulo in status_opcoes %}
+      <a href="?status={{ valor }}"
+         class="rounded-lg px-3 py-1.5 text-sm font-medium transition
+         {% if status_selecionado == valor %}bg-[var(--kronus-primary-600)] text-white{% else %}bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-600)] hover:bg-[var(--kronus-gray-200)]{% endif %}">
+        {{ rotulo }}
+        <span class="ml-1 font-mono text-xs opacity-70">{{ contagem|get_item:valor|default:0 }}</span>
+      </a>
+    {% endfor %}
+    <a href="?status=todos" class="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--kronus-gray-600)] hover:bg-[var(--kronus-gray-100)]">Todos</a>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+        <tr>
+          <th class="px-4 py-3 font-medium">Colaborador</th>
+          <th class="px-4 py-3 font-medium">Período</th>
+          <th class="px-4 py-3 text-center font-medium">Dias</th>
+          <th class="px-4 py-3 font-medium">CID</th>
+          <th class="px-4 py-3 font-medium">Status</th>
+          <th class="px-4 py-3 font-medium">Avaliado por</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for atestado in atestados %}
+          <tr class="hover:bg-[var(--kronus-gray-50)]">
+            <td class="px-4 py-3">
+              <a href="{% url 'rh:colaborador_detalhe' atestado.colaborador_id %}" class="font-medium text-[var(--kronus-primary-600)] hover:underline">{{ atestado.colaborador.nome_exibicao }}</a>
+            </td>
+            <td class="px-4 py-3 font-mono text-xs">{{ atestado.data_inicio|date:"d/m/Y" }} – {{ atestado.data_fim|date:"d/m/Y" }}</td>
+            <td class="px-4 py-3 text-center font-mono">{{ atestado.dias }}</td>
+            <td class="px-4 py-3 font-mono text-xs">{{ atestado.cid|default:"—" }}</td>
+            <td class="px-4 py-3">
+              <span class="rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset
+                {% if atestado.status == 'aprovado' %}bg-emerald-50 text-emerald-700 ring-emerald-600/20
+                {% elif atestado.status == 'rejeitado' %}bg-red-50 text-red-700 ring-red-600/20
+                {% else %}bg-amber-50 text-amber-700 ring-amber-600/20{% endif %}">{{ atestado.get_status_display }}</span>
+            </td>
+            <td class="px-4 py-3 text-xs text-[var(--kronus-gray-500)]">
+              {{ atestado.aprovado_por|default:"—" }}
+              {% if atestado.avaliado_em %}<br>{{ atestado.avaliado_em|date:"d/m/Y H:i" }}{% endif %}
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="flex justify-end gap-2">
+                {% if atestado.arquivo %}
+                  <a href="{{ atestado.arquivo.url }}" target="_blank" title="Ver arquivo"
+                     class="text-[var(--kronus-gray-400)] transition hover:text-[var(--kronus-primary-600)]">
+                    {% icone "documento" classe="h-4 w-4" %}
+                  </a>
+                {% endif %}
+                <a href="{% url 'rh:atestado_avaliar' atestado.pk %}"
+                   class="text-xs font-medium text-[var(--kronus-primary-600)] hover:underline">
+                  {% if atestado.status == 'pendente' %}Avaliar{% else %}Rever{% endif %}
+                </a>
+              </span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum atestado neste filtro.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="px-5 pb-4">{% include "components/pagination.html" %}</div>
+</div>
+{% endblock %}

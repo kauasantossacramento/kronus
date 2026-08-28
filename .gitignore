@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Django
+*.sqlite3
+/media/
+/staticfiles/
+.env
+*.log
+
+# Node / Tailwind
+node_modules/
+/static/css/main.css
+
+# IDE / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Modelos DeepFace baixados
+.deepface/
+
+# Certificados de desenvolvimento (gerados por manage.py intranet)
+.certs/
+
+# Certificados autoassinados da intranet de testes (contem chave privada)
+.certs/
+*.key
+*.pem
+*.crt
+
+# Banco de desenvolvimento e arquivos fiscais gerados
+*.sqlite3
+/media_test/
+/afd_*.txt
+/aej_*.txt

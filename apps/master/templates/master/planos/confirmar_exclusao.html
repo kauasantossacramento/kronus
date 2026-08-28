@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="card max-w-lg p-6">
+  <h2 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">Excluir plano</h2>
+  <p class="mt-2 text-sm text-[var(--kronus-gray-600)]">Confirma a exclusão do plano <strong>{{ object.nome }}</strong>? Esta ação não pode ser desfeita.</p>
+  <form method="post" class="mt-6 flex justify-end gap-2">
+    {% csrf_token %}
+    <a href="{% url 'master:plano_lista' %}" class="btn btn-outline">Cancelar</a>
+    <button type="submit" class="btn btn-danger">Excluir</button>
+  </form>
+</div>
+{% endblock %}

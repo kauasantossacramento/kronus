@@ -1,0 +1,37 @@
+{% load kronus_tags %}
+{% comment %}
+  Agrupa os campos de um formulário em seções temáticas.
+
+  O `ConfiguracaoEmpresaForm` tem mais de 25 campos; jogá-los numa lista
+  única seria ilegível para quem precisa achar "tolerância de atraso".
+  A filtragem por prefixo de nome mantém o agrupamento no template, sem
+  duplicar a definição dos campos no Python.
+
+  Parâmetros:
+    titulo, descricao, campos (form), prefixos (string separada por vírgula)
+{% endcomment %}
+<div class="card p-6">
+  <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">{{ titulo }}</h2>
+  {% if descricao %}<p class="mt-1 text-sm text-[var(--kronus-gray-500)]">{{ descricao }}</p>{% endif %}
+
+  <div class="mt-5 grid gap-5 sm:grid-cols-2">
+    {% for campo in campos %}
+      {% if campo.name|tem_prefixo:prefixos %}
+        <div class="{% if campo.field.widget.input_type == 'checkbox' %}sm:col-span-2 flex items-start gap-2{% endif %}">
+          {% if campo.field.widget.input_type == 'checkbox' %}
+            {{ campo }}
+            <div>
+              <label for="{{ campo.id_for_label }}" class="text-sm text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+              {% if campo.help_text %}<p class="text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+            </div>
+          {% else %}
+            <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+            <div class="mt-1.5">{{ campo }}</div>
+            {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+          {% endif %}
+          {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>

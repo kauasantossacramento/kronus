@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Configurações</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">{{ empresa.nome_exibicao }}</p>
+  </div>
+  {% include "rh/configuracoes/_abas.html" with ativa="empresa" %}
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="mb-6 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+  {% icone "alerta" classe="mt-0.5 h-5 w-5 shrink-0" %}
+  <span>
+    Alterar tolerância, adicional noturno ou percentuais muda o <strong>cálculo da jornada</strong>.
+    Dias já apurados mantêm o cálculo antigo até serem reprocessados — dias já fechados
+    nunca são alterados.
+  </span>
+</div>
+
+<form method="post" class="space-y-6">
+  {% csrf_token %}
+
+  {% if form_config.non_field_errors or form_operacao.non_field_errors %}
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {% for erro in form_config.non_field_errors %}<p>{{ erro }}</p>{% endfor %}
+      {% for erro in form_operacao.non_field_errors %}<p>{{ erro }}</p>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% include "rh/configuracoes/_secao.html" with titulo="Jornada" descricao="Art. 58 §1º e Art. 71 da CLT" campos=form_config prefixos="tolerancia,intervalo,jornada" %}
+  {% include "rh/configuracoes/_secao.html" with titulo="Horas extras e adicional noturno" descricao="Art. 59 e Art. 73 da CLT" campos=form_config prefixos="hora_extra,adicional,hora_ini,hora_fim,limite_hora" %}
+  {% include "rh/configuracoes/_secao.html" with titulo="Banco de horas" descricao="Compensação e fechamento" campos=form_config prefixos="modo_compensacao,fecha_banco,prazo_compensacao" %}
+  {% include "rh/configuracoes/_secao.html" with titulo="Antifraude e LGPD" descricao="Detecção de GPS fictício e retenção de biometria" campos=form_config prefixos="anti_fake,exige_foto,liveness,apagar_foto,retencao" %}
+  {% include "rh/configuracoes/_secao.html" with titulo="Exportação" descricao="Formato padrão e layout de folha" campos=form_config prefixos="exporta,layout" %}
+
+  <div class="card p-6">
+    <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Operação</h2>
+    <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">Fuso horário, geofencing e visibilidade para o colaborador.</p>
+    <div class="mt-5 grid gap-5 sm:grid-cols-2">
+      {% for campo in form_operacao %}
+        <div class="{% if campo.field.widget.input_type == 'checkbox' %}sm:col-span-2 flex items-start gap-2{% endif %}">
+          {% if campo.field.widget.input_type == 'checkbox' %}
+            {{ campo }}
+            <div>
+              <label for="{{ campo.id_for_label }}" class="text-sm text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+              {% if campo.help_text %}<p class="text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+            </div>
+          {% else %}
+            <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+            <div class="mt-1.5">{{ campo }}</div>
+            {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+          {% endif %}
+          {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="flex flex-wrap justify-end gap-2">
+    <button type="submit" class="btn btn-primary">Salvar configurações</button>
+  </div>
+</form>
+
+<div class="card mt-6 p-6">
+  <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Reprocessar o mês corrente</h2>
+  <p class="mt-1 text-sm text-[var(--kronus-gray-600)]">
+    Recalcula a apuração de todos os colaboradores ativos com os parâmetros atuais.
+    Dias já fechados no fechamento mensal não são tocados.
+  </p>
+  <form method="post" action="{% url 'rh:reprocessar_mes' %}" class="mt-4"
+        onsubmit="return confirm('Reprocessar o mês corrente de todos os colaboradores ativos?')">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline">
+      {% icone "raio" classe="h-4 w-4" %} Reprocessar agora
+    </button>
+  </form>
+</div>
+{% endblock %}

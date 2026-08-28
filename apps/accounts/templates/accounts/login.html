@@ -1,0 +1,49 @@
+{% extends "base_auth.html" %}
+
+{% block conteudo %}
+<h1 class="font-display text-xl font-semibold text-[var(--kronus-gray-900)]">Entrar</h1>
+<p class="mt-1 text-sm text-[var(--kronus-gray-500)]">Use seu CPF ou e-mail corporativo.</p>
+
+<form method="post" class="mt-6 space-y-5" x-data="{ modo: 'cpf', identificador: '' }">
+  {% csrf_token %}
+
+  {# Toggle CPF / E-mail — Seção 6.2 do plano #}
+  <div class="grid grid-cols-2 gap-1 rounded-lg bg-[var(--kronus-gray-100)] p-1">
+    <button type="button" @click="modo = 'cpf'"
+            :class="modo === 'cpf' ? 'bg-white shadow-sm text-[var(--kronus-primary-600)]' : 'text-[var(--kronus-gray-500)]'"
+            class="rounded-md px-3 py-1.5 text-sm font-medium transition">CPF</button>
+    <button type="button" @click="modo = 'email'"
+            :class="modo === 'email' ? 'bg-white shadow-sm text-[var(--kronus-primary-600)]' : 'text-[var(--kronus-gray-500)]'"
+            class="rounded-md px-3 py-1.5 text-sm font-medium transition">E-mail</button>
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ form.non_field_errors.0 }}
+    </div>
+  {% endif %}
+
+  <div>
+    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]"
+           x-text="modo === 'cpf' ? 'CPF' : 'E-mail'"></label>
+    <div class="mt-1.5">{{ form.username }}</div>
+    {% if form.username.errors %}<p class="mt-1 text-xs text-red-600">{{ form.username.errors.0 }}</p>{% endif %}
+  </div>
+
+  <div>
+    <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Senha</label>
+    <div class="mt-1.5">{{ form.password }}</div>
+    {% if form.password.errors %}<p class="mt-1 text-xs text-red-600">{{ form.password.errors.0 }}</p>{% endif %}
+  </div>
+
+  <div class="flex items-center justify-between">
+    <label class="flex items-center gap-2 text-sm text-[var(--kronus-gray-600)]">
+      {{ form.lembrar }} Lembrar-me
+    </label>
+    <a href="{% url 'accounts:password_reset' %}" class="text-sm text-[var(--kronus-primary-600)] hover:underline">Esqueci minha senha</a>
+  </div>
+
+  <button type="submit" class="btn btn-primary w-full py-2.5">Entrar</button>
+  {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+</form>
+{% endblock %}

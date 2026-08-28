@@ -1,0 +1,273 @@
+{% load static kronus_icons %}<!DOCTYPE html>
+<html lang="pt-BR" class="h-full scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kronus — {{ TAGLINE }}</title>
+  <meta name="description" content="{{ KRONUS.META_DESCRIPTION }}">
+  <meta property="og:title" content="Kronus — {{ TAGLINE }}">
+  <meta property="og:description" content="{{ KRONUS.META_DESCRIPTION }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ KRONUS.APP_URL }}">
+  <meta property="og:site_name" content="Kronus">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="canonical" href="{{ KRONUS.APP_URL }}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  {% include "components/_estilos.html" %}
+
+  {# Schema.org — Seção 2.4 do plano #}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Kronus",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "description": "{{ KRONUS.META_DESCRIPTION }}",
+    "url": "{{ KRONUS.APP_URL }}",
+    "publisher": {
+      "@type": "Organization",
+      "name": "{{ KSTEC_NOME }}",
+      "url": "{{ KSTEC_SITE }}"
+    }
+  }
+  </script>
+</head>
+
+<body class="min-h-full bg-white">
+
+{# ══════════════ NAVBAR ══════════════ #}
+<header class="sticky top-0 z-30 border-b border-[var(--kronus-gray-200)] bg-white/90 backdrop-blur">
+  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+    <a href="/" aria-label="Kronus — página inicial">
+      {% include "components/logo.html" with tamanho="md" %}
+    </a>
+    <nav class="hidden items-center gap-8 text-sm font-medium text-[var(--kronus-gray-600)] md:flex">
+      <a href="#funcionalidades" class="transition hover:text-[var(--kronus-primary-600)]">Funcionalidades</a>
+      <a href="#como-funciona" class="transition hover:text-[var(--kronus-primary-600)]">Como funciona</a>
+      <a href="#conformidade" class="transition hover:text-[var(--kronus-primary-600)]">Conformidade</a>
+      <a href="#planos" class="transition hover:text-[var(--kronus-primary-600)]">Planos</a>
+    </nav>
+    <a href="{% url 'accounts:login' %}" class="btn btn-primary">Entrar</a>
+  </div>
+</header>
+
+{# ══════════════ HERO ══════════════ #}
+<section class="bg-gradient-to-b from-[var(--kronus-gray-50)] to-white">
+  <div class="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 lg:py-28">
+    <span class="inline-flex items-center gap-2 rounded-full bg-[var(--kronus-gold-50)] px-3 py-1.5 text-xs font-semibold text-[var(--kronus-gold-700)] ring-1 ring-inset ring-[var(--kronus-gold-200)]">
+      {% icone "balanca" classe="h-4 w-4" %} REP-P · Portaria 671/2021
+    </span>
+    <h1 class="mx-auto mt-6 max-w-3xl font-display text-4xl font-bold leading-tight text-[var(--kronus-gray-900)] sm:text-5xl">
+      Ponto inteligente.<br>Gestão simplificada.
+    </h1>
+    <p class="mx-auto mt-5 max-w-2xl text-lg font-light text-[var(--kronus-gray-600)]">
+      {{ KRONUS.META_DESCRIPTION }} Registro por reconhecimento facial em totem,
+      web e mobile — com banco de horas, espelho de ponto e API de integração.
+    </p>
+    <div class="mt-9 flex flex-wrap justify-center gap-3">
+      <a href="#contato" class="btn btn-primary px-6 py-3 text-base">Solicitar demonstração</a>
+      <a href="#funcionalidades" class="btn btn-outline px-6 py-3 text-base">
+        Conhecer o sistema {% icone "seta_direita" classe="h-4 w-4" %}
+      </a>
+    </div>
+    <p class="mt-8 font-mono text-sm tracking-wide text-[var(--kronus-gray-400)]">{{ TAGLINE }}</p>
+  </div>
+</section>
+
+{# ══════════════ FUNCIONALIDADES ══════════════ #}
+<section id="funcionalidades" class="border-t border-[var(--kronus-gray-200)] py-20">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <h2 class="font-display text-3xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Funcionalidades</h2>
+    <p class="mt-4 max-w-2xl text-[var(--kronus-gray-600)]">
+      Tudo o que a jornada de trabalho exige, do registro à prestação de contas.
+    </p>
+
+    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {% include "landing/_card_funcionalidade.html" with icone_nome="rosto" titulo="Reconhecimento facial" texto="Identificação em menos de 2 segundos no totem, com fallback por CPF sempre disponível." %}
+      {% include "landing/_card_funcionalidade.html" with icone_nome="local" titulo="Geolocalização" texto="Cerca virtual configurável por empresa, com detecção de GPS fictício." %}
+      {% include "landing/_card_funcionalidade.html" with icone_nome="banco_horas" titulo="Banco de horas" texto="Cálculo automático diário, compensação e adicional noturno conforme a CLT." %}
+      {% include "landing/_card_funcionalidade.html" with icone_nome="documento" titulo="Espelho de ponto" texto="PDF assinado eletronicamente, com hash de integridade verificável." %}
+      {% include "landing/_card_funcionalidade.html" with icone_nome="link" titulo="API de integração" texto="REST documentada em OpenAPI, com chaves revogáveis e webhooks de eventos." %}
+      {% include "landing/_card_funcionalidade.html" with icone_nome="predio" titulo="Multi-empresa" texto="Um contrato, várias empresas — cada uma com sua marca, cores e regras." %}
+    </div>
+  </div>
+</section>
+
+{# ══════════════ COMO FUNCIONA ══════════════ #}
+<section id="como-funciona" class="bg-[var(--kronus-gray-50)] py-20">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <h2 class="font-display text-3xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Como funciona</h2>
+    <div class="mt-12 grid gap-10 sm:grid-cols-3">
+      <div>
+        <div class="flex items-center gap-3">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--kronus-primary-600)] font-mono text-lg font-bold text-white">1</span>
+          <span class="text-[var(--kronus-gold-600)]">{% icone "usuarios" classe="h-6 w-6" %}</span>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold">Cadastre</h3>
+        <p class="mt-2 text-sm text-[var(--kronus-gray-600)]">Importe colaboradores, defina escalas de trabalho e registre as faces.</p>
+      </div>
+      <div>
+        <div class="flex items-center gap-3">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--kronus-primary-600)] font-mono text-lg font-bold text-white">2</span>
+          <span class="text-[var(--kronus-gold-600)]">{% icone "relogio" classe="h-6 w-6" %}</span>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold">Registre</h3>
+        <p class="mt-2 text-sm text-[var(--kronus-gray-600)]">A batida acontece no totem, no navegador ou no celular — sempre com evidência.</p>
+      </div>
+      <div>
+        <div class="flex items-center gap-3">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--kronus-primary-600)] font-mono text-lg font-bold text-white">3</span>
+          <span class="text-[var(--kronus-gold-600)]">{% icone "grafico" classe="h-6 w-6" %}</span>
+        </div>
+        <h3 class="mt-4 font-display text-lg font-semibold">Gerencie</h3>
+        <p class="mt-2 text-sm text-[var(--kronus-gray-600)]">Acompanhe jornadas, aprove justificativas e exporte AFD e AEJ.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════ TOTEM ══════════════ #}
+<section class="py-20">
+  <div class="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
+    <div>
+      <h2 class="font-display text-3xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Totem com reconhecimento facial</h2>
+      <p class="mt-5 text-[var(--kronus-gray-600)]">
+        Um tablet na entrada, em modo quiosque. O rosto é detectado no próprio
+        aparelho e a identificação acontece no servidor — em menos de dois segundos.
+      </p>
+      <ul class="mt-6 space-y-3 text-sm text-[var(--kronus-gray-700)]">
+        <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>Fallback por CPF e data de nascimento sempre disponível</span></li>
+        <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>Funciona em tablets de entrada, com 3 GB de memória</span></li>
+        <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>Tela de ociosidade personalizável com a marca da empresa</span></li>
+        <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>Detecção de queda de conexão com reconexão automática</span></li>
+      </ul>
+    </div>
+
+    {# Mock do totem em portrait — puro CSS/SVG, sem imagem externa #}
+    <div class="flex justify-center">
+      <div class="w-64 rounded-[1.75rem] border-8 border-[var(--kronus-gray-800)] bg-[var(--totem-bg)] p-5 shadow-2xl">
+        <div class="flex h-96 flex-col items-center justify-center gap-5 text-center">
+          <div class="text-white">{% include "components/logo.html" with tom="branco" variante="icone" tamanho="xl" %}</div>
+          <p class="font-display text-sm font-semibold text-white">Registre seu ponto</p>
+          <div class="w-full rounded-xl border-2 border-[var(--totem-camera-border)] bg-[var(--totem-camera-bg)] p-6 shadow-glow">
+            <span class="mx-auto block w-fit text-[var(--kronus-gold-400)]">{% icone "rosto" classe="h-12 w-12" %}</span>
+          </div>
+          <p class="font-mono text-2xl font-bold tabular-nums text-white">08:02:15</p>
+          <p class="text-[10px] uppercase tracking-[0.2em] text-white/50">Kronus</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════ CONFORMIDADE ══════════════ #}
+<section id="conformidade" class="bg-[var(--kronus-primary-800)] py-20 text-white">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="flex flex-wrap items-center gap-4">
+      <span class="text-[var(--kronus-gold-400)]">{% icone "escudo" classe="h-8 w-8" %}</span>
+      <h2 class="font-display text-3xl font-semibold">Conformidade legal</h2>
+    </div>
+    <p class="mt-5 max-w-2xl text-[var(--kronus-primary-100)]">
+      O Kronus é um REP-P — Registrador Eletrônico de Ponto via Programa —
+      construído sobre as exigências da Portaria 671/2021 do MTP.
+    </p>
+
+    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-xl bg-white/5 p-5 ring-1 ring-inset ring-white/10">
+        <span class="text-[var(--kronus-gold-400)]">{% icone "lista" classe="h-5 w-5" %}</span>
+        <h3 class="mt-3 font-display text-base font-semibold">NSR sequencial</h3>
+        <p class="mt-1.5 text-sm text-[var(--kronus-primary-100)]">Numeração por empresa, sem lacunas nem repetições.</p>
+      </div>
+      <div class="rounded-xl bg-white/5 p-5 ring-1 ring-inset ring-white/10">
+        <span class="text-[var(--kronus-gold-400)]">{% icone "chave" classe="h-5 w-5" %}</span>
+        <h3 class="mt-3 font-display text-base font-semibold">Hash encadeado</h3>
+        <p class="mt-1.5 text-sm text-[var(--kronus-primary-100)]">SHA-256 ligado ao registro anterior: adulterar um invalida todos.</p>
+      </div>
+      <div class="rounded-xl bg-white/5 p-5 ring-1 ring-inset ring-white/10">
+        <span class="text-[var(--kronus-gold-400)]">{% icone "documento" classe="h-5 w-5" %}</span>
+        <h3 class="mt-3 font-display text-base font-semibold">AFD e AEJ</h3>
+        <p class="mt-1.5 text-sm text-[var(--kronus-primary-100)]">Arquivos no layout oficial, prontos para fiscalização.</p>
+      </div>
+      <div class="rounded-xl bg-white/5 p-5 ring-1 ring-inset ring-white/10">
+        <span class="text-[var(--kronus-gold-400)]">{% icone "escudo" classe="h-5 w-5" %}</span>
+        <h3 class="mt-3 font-display text-base font-semibold">LGPD</h3>
+        <p class="mt-1.5 text-sm text-[var(--kronus-primary-100)]">Biometria em vetor não reversível, com consentimento explícito.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════ PLANOS ══════════════ #}
+<section id="planos" class="py-20">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <h2 class="font-display text-3xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Planos</h2>
+    <div class="mt-10 grid gap-6 md:grid-cols-3">
+      {% for plano in planos %}
+        <div class="card flex flex-col p-8 {% if plano.destaque %}ring-2 ring-[var(--kronus-gold-500)]{% endif %}">
+          {% if plano.destaque %}
+            <span class="mb-3 inline-flex w-fit items-center gap-1 rounded-full bg-[var(--kronus-gold-100)] px-2.5 py-0.5 text-xs font-semibold text-[var(--kronus-gold-700)]">
+              {% icone "estrela" classe="h-3.5 w-3.5" %} Mais escolhido
+            </span>
+          {% endif %}
+          <h3 class="font-display text-xl font-semibold">{{ plano.nome }}</h3>
+          <p class="mt-2 font-mono text-3xl font-bold text-[var(--kronus-primary-600)]">R$ {{ plano.preco_mensal|floatformat:2 }}<span class="text-base font-normal text-[var(--kronus-gray-400)]">/mês</span></p>
+          <p class="mt-3 text-sm text-[var(--kronus-gray-600)]">{{ plano.descricao }}</p>
+          <ul class="mt-5 flex-1 space-y-2 text-sm text-[var(--kronus-gray-600)]">
+            <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>Até {{ plano.max_colaboradores }} colaboradores</span></li>
+            <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>Até {{ plano.max_empresas }} empresa{{ plano.max_empresas|pluralize }}</span></li>
+            {% for recurso in plano.recursos_habilitados %}
+              <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>{{ recurso }}</span></li>
+            {% endfor %}
+          </ul>
+          <a href="#contato" class="btn btn-primary mt-6">Solicitar proposta</a>
+        </div>
+      {% empty %}
+        <p class="col-span-full text-center text-sm text-[var(--kronus-gray-400)]">Planos em breve.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ══════════════ CTA FINAL ══════════════ #}
+<section id="contato" class="bg-[var(--kronus-primary-700)] py-20 text-white">
+  <div class="mx-auto max-w-3xl px-4 text-center sm:px-6">
+    <h2 class="font-display text-3xl font-semibold">Pronto para colocar o tempo sob controle?</h2>
+    <p class="mt-4 text-[var(--kronus-primary-100)]">
+      Fale com a KS TEC e receba uma demonstração do Kronus na sua operação.
+    </p>
+    <p class="mt-8 text-sm text-[var(--kronus-primary-200)]">
+      O formulário de contato integrado entra na Fase 6 do desenvolvimento.
+      Enquanto isso, escreva para
+      <a href="mailto:contato@kstec.online" class="font-medium text-[var(--kronus-gold-400)] underline">contato@kstec.online</a>.
+    </p>
+  </div>
+</section>
+
+{# ══════════════ RODAPÉ ══════════════ #}
+<footer class="bg-[var(--kronus-primary-900)] py-12 text-center text-sm text-white/60">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="flex justify-center">
+      {% include "components/logo.html" with tom="branco" tamanho="md" %}
+    </div>
+    <p class="mt-3">{{ KRONUS.TAGLINE_RODAPE }}</p>
+
+    {# Integradores chegam pela landing procurando a API. #}
+    <nav class="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
+      <a href="{% url 'api:guia' %}" class="transition hover:text-white">Guia da API</a>
+      <a href="{% url 'api:swagger' %}" class="transition hover:text-white">Referência (Swagger)</a>
+      <a href="{% url 'accounts:login' %}" class="transition hover:text-white">Entrar</a>
+    </nav>
+    <a href="{{ KSTEC_SITE }}" target="_blank" rel="noopener" class="mt-6 inline-flex items-center gap-2 transition hover:text-white">
+      <span>Uma solução</span>
+      <img src="{{ KSTEC_LOGO }}" alt="{{ KSTEC_NOME }}" class="kstec-logo-white h-4 w-auto opacity-70">
+    </a>
+    <p class="mt-4 text-xs text-white/35">© {% now "Y" %} {{ KSTEC_NOME }} · CNPJ {{ KRONUS.DESENVOLVEDORA_CNPJ }}</p>
+  </div>
+</footer>
+</body>
+</html>

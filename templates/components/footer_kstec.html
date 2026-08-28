@@ -1,0 +1,14 @@
+{% comment %}
+  Rodapé institucional — Seção 3.5 do plano.
+  A logo KS TEC é sempre menor e secundária em relação à marca Kronus.
+{% endcomment %}
+<footer class="border-t border-[var(--kronus-gray-200)] bg-white px-4 py-4 sm:px-6 lg:px-8">
+  <div class="flex flex-col items-center justify-between gap-2 text-xs text-[var(--kronus-gray-500)] sm:flex-row">
+    <p>{{ KRONUS.TAGLINE_RODAPE }}</p>
+    <a href="{{ KSTEC_SITE }}" target="_blank" rel="noopener"
+       class="flex items-center gap-2 transition hover:text-[var(--kronus-gray-700)]">
+      <span>Desenvolvido por</span>
+      <img src="{{ KSTEC_LOGO }}" alt="{{ KSTEC_NOME }}" class="h-4 w-auto">
+    </a>
+  </div>
+</footer>

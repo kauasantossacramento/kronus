@@ -1,0 +1,12 @@
+{% comment %}Parâmetro: trilha = lista de dicts {rotulo, url}.{% endcomment %}
+<nav aria-label="Trilha" class="mb-4 text-xs text-[var(--kronus-gray-500)]">
+  <ol class="flex flex-wrap items-center gap-1">
+    {% for item in trilha %}
+      <li class="flex items-center gap-1">
+        {% if item.url %}<a href="{{ item.url }}" class="hover:text-[var(--kronus-primary-600)] hover:underline">{{ item.rotulo }}</a>
+        {% else %}<span class="text-[var(--kronus-gray-700)]">{{ item.rotulo }}</span>{% endif %}
+        {% if not forloop.last %}<span aria-hidden="true">/</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</nav>

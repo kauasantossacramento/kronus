@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Arquivos fiscais</h1>
+  <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+    AFD e AEJ conforme a Portaria 671/2021 — o que o Auditor-Fiscal do Trabalho exige numa inspeção.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="card mb-6">
+  <form method="get" class="flex flex-wrap items-end gap-3 p-4">
+    <div>
+      <label for="inicio" class="block text-xs font-medium text-[var(--kronus-gray-600)]">De</label>
+      <input type="date" name="inicio" id="inicio" value="{{ inicio|date:'Y-m-d' }}"
+             class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+    </div>
+    <div>
+      <label for="fim" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Até</label>
+      <input type="date" name="fim" id="fim" value="{{ fim|date:'Y-m-d' }}"
+             class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+    </div>
+    <button type="submit" class="btn btn-outline">Verificar período</button>
+  </form>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-2">
+
+  {# ══════════════ AFD ══════════════ #}
+  <div class="card p-6">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h2 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">AFD</h2>
+        <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">Arquivo Fonte de Dados — marcações brutas</p>
+      </div>
+      <span class="shrink-0 rounded-lg p-2 {% if afd.valido %}bg-emerald-50 text-emerald-600{% else %}bg-red-50 text-red-600{% endif %}">
+        {% if afd.valido %}{% icone "check_circulo" classe="h-5 w-5" %}{% else %}{% icone "erro" classe="h-5 w-5" %}{% endif %}
+      </span>
+    </div>
+
+    <p class="mt-4 text-sm leading-relaxed text-[var(--kronus-gray-600)]">
+      Contém <strong>toda marcação registrada</strong> no período, na ordem do NSR — inclusive
+      as canceladas por ajuste. O auditor confere a continuidade da numeração: lacuna ou
+      repetição torna o sistema inidôneo.
+    </p>
+
+    <dl class="mt-5 space-y-2 border-t border-[var(--kronus-gray-200)] pt-4 text-sm">
+      <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Marcações</dt><dd class="font-mono font-semibold">{{ afd.marcacoes }}</dd></div>
+      <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Linhas</dt><dd class="font-mono">{{ afd.linhas }}</dd></div>
+      <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Faixa de NSR</dt><dd class="font-mono">{{ afd.nsr_inicial|default:"—" }} – {{ afd.nsr_final|default:"—" }}</dd></div>
+      <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Tamanho</dt><dd class="font-mono">{{ afd.bytes|filesizeformat }}</dd></div>
+    </dl>
+
+    {% if afd.problemas %}
+      <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+        <p class="flex items-center gap-2 text-sm font-medium text-red-800">
+          {% icone "alerta" classe="h-4 w-4" %} Problemas encontrados
+        </p>
+        <ul class="mt-2 space-y-1 text-xs text-red-700">
+          {% for problema in afd.problemas %}<li>• {{ problema }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      <p class="mt-4 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+        {% icone "check" classe="mt-0.5 h-4 w-4 shrink-0" %}
+        <span>NSR contínuo, tamanhos de linha corretos e trailer consistente.</span>
+      </p>
+    {% endif %}
+
+    <a href="{% url 'relatorios:afd' %}?inicio={{ inicio|date:'Y-m-d' }}&fim={{ fim|date:'Y-m-d' }}"
+       class="btn btn-primary mt-5 w-full">
+      {% icone "download" classe="h-4 w-4" %} Baixar {{ nome_afd }}
+    </a>
+  </div>
+
+  {# ══════════════ AEJ ══════════════ #}
+  <div class="card p-6">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h2 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">AEJ</h2>
+        <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">Arquivo Eletrônico de Jornada — jornada tratada</p>
+      </div>
+      <span class="shrink-0 rounded-lg p-2 {% if aej.valido %}bg-emerald-50 text-emerald-600{% else %}bg-red-50 text-red-600{% endif %}">
+        {% if aej.valido %}{% icone "check_circulo" classe="h-5 w-5" %}{% else %}{% icone "erro" classe="h-5 w-5" %}{% endif %}
+      </span>
+    </div>
+
+    <p class="mt-4 text-sm leading-relaxed text-[var(--kronus-gray-600)]">
+      Contém a jornada <strong>depois do tratamento</strong>: escala prevista, apuração diária,
+      ocorrências e totais. O auditor compara com o AFD — divergência sem ocorrência
+      registrada é o que ele procura.
+    </p>
+
+    <dl class="mt-5 space-y-2 border-t border-[var(--kronus-gray-200)] pt-4 text-sm">
+      <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Empregados</dt><dd class="font-mono font-semibold">{{ aej.empregados }}</dd></div>
+      <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Dias apurados</dt><dd class="font-mono">{{ aej.dias }}</dd></div>
+      <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Ocorrências</dt><dd class="font-mono">{{ aej.ocorrencias }}</dd></div>
+      <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Tamanho</dt><dd class="font-mono">{{ aej.bytes|filesizeformat }}</dd></div>
+    </dl>
+
+    {% if aej.problemas %}
+      <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+        <p class="flex items-center gap-2 text-sm font-medium text-red-800">
+          {% icone "alerta" classe="h-4 w-4" %} Problemas encontrados
+        </p>
+        <ul class="mt-2 space-y-1 text-xs text-red-700">
+          {% for problema in aej.problemas %}<li>• {{ problema }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      <p class="mt-4 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+        {% icone "check" classe="mt-0.5 h-4 w-4 shrink-0" %}
+        <span>Estrutura consistente. Cada divergência do AFD tem ocorrência registrada.</span>
+      </p>
+    {% endif %}
+
+    <a href="{% url 'relatorios:aej' %}?inicio={{ inicio|date:'Y-m-d' }}&fim={{ fim|date:'Y-m-d' }}"
+       class="btn btn-primary mt-5 w-full">
+      {% icone "download" classe="h-4 w-4" %} Baixar {{ nome_aej }}
+    </a>
+  </div>
+</div>
+
+{# Ressalva honesta sobre conformidade de layout #}
+<div class="card mt-6 border-amber-200 bg-amber-50 p-5">
+  <p class="flex items-start gap-3 text-sm text-amber-900">
+    {% icone "alerta" classe="mt-0.5 h-5 w-5 shrink-0" %}
+    <span>
+      <strong>Antes do uso em fiscalização:</strong> a estrutura e a sequência de campos seguem a
+      Portaria 671/2021, mas as <strong>larguras de cada campo</strong> devem ser conferidas contra
+      o Anexo oficial. O layout está declarado em <code class="rounded bg-amber-100 px-1 font-mono text-xs">apps/relatorios/afd.py</code>
+      para que o ajuste seja pontual. Gere um arquivo de teste e valide com o seu contador
+      ou com o validador oficial antes da primeira inspeção.
+    </span>
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+"""
+Kronus — tarefas assíncronas do módulo de ponto.
+
+Agendadas em `config/celery.py` (Celery Beat).
+"""
+import logging
+from datetime import timedelta
+
+from celery import shared_task
+from django.utils import timezone
+
+logger = logging.getLogger("kronus.ponto")
+
+
+@shared_task(name="apps.ponto.tasks.fechar_banco_horas_do_dia")
+def fechar_banco_horas_do_dia(data_iso: str = None):
+    """
+    Consolida o banco de horas de todos os colaboradores ativos.
+
+    Executa às 23:59 (Seção 8.4 do plano). Aceita `data_iso` para
+    reprocessar um dia específico.
+    """
+    from datetime import date
+
+    from apps.clientes.models import Empresa
+    from apps.ponto.services import ConsolidacaoService
+
+    dia = date.fromisoformat(data_iso) if data_iso else timezone.localdate()
+    total_colaboradores = 0
+    total_empresas = 0
+
+    empresas = Empresa.objects.filter(
+        ativo=True, cliente__ativo=True, cliente__suspenso=False
+    ).select_related("cliente", "config")
+
+    for empresa in empresas:
+        try:
+            total_colaboradores += ConsolidacaoService.consolidar_empresa_no_dia(
+                empresa, dia
+            )
+            total_empresas += 1
+        except Exception:  # uma empresa com problema não derruba as demais
+            logger.exception("Falha ao consolidar a empresa %s em %s", empresa.pk, dia)
+
+    logger.info(
+        "Banco de horas consolidado: %s empresa(s), %s colaborador(es), dia %s",
+        total_empresas,
+        total_colaboradores,
+        dia,
+    )
+    return {
+        "dia": dia.isoformat(),
+        "empresas": total_empresas,
+        "colaboradores": total_colaboradores,
+    }
+
+
+@shared_task(name="apps.ponto.tasks.reconsolidar_colaborador")
+def reconsolidar_colaborador(colaborador_id: int, inicio_iso: str, fim_iso: str):
+    """Recalcula um intervalo — usado após ajustes retroativos do RH."""
+    from datetime import date
+
+    from apps.ponto.services import ConsolidacaoService
+    from apps.rh.models import Colaborador
+
+    colaborador = Colaborador.objects.select_related("escala", "empresa").get(
+        pk=colaborador_id
+    )
+    resultados = ConsolidacaoService.consolidar_periodo(
+        colaborador, date.fromisoformat(inicio_iso), date.fromisoformat(fim_iso)
+    )
+    return {"colaborador": colaborador_id, "dias": len(resultados)}
+
+
+@shared_task(name="apps.ponto.tasks.gerar_comprovante_pdf")
+def gerar_comprovante_pdf(registro_id: int):
+    """
+    Gera e anexa o comprovante de registro em PDF.
+
+    Roda fora do ciclo de request para não atrasar a batida — o
+    colaborador vê a confirmação imediatamente e baixa o PDF depois.
+    """
+    from apps.ponto.models import RegistroPonto
+    from apps.relatorios.generators import ComprovanteGenerator
+
+    registro = RegistroPonto.objects.select_related(
+        "colaborador", "empresa", "totem"
+    ).get(pk=registro_id)
+    if registro.comprovante_pdf:
+        return {"registro": registro_id, "status": "ja_existente"}
+
+    try:
+        ComprovanteGenerator(registro).salvar()
+        return {"registro": registro_id, "status": "gerado"}
+    except Exception:
+        logger.exception("Falha ao gerar comprovante do registro %s", registro_id)
+        return {"registro": registro_id, "status": "erro"}
+
+
+@shared_task(name="apps.ponto.tasks.verificar_integridade_das_cadeias")
+def verificar_integridade_das_cadeias():
+    """
+    Auditoria periódica da cadeia de hashes de cada empresa
+    (Portaria 671 — integridade dos registros).
+    """
+    from apps.clientes.models import Empresa
+    from apps.ponto.services import RegistroPontoService
+
+    problemas = []
+    for empresa in Empresa.objects.filter(ativo=True):
+        resultado = RegistroPontoService.verificar_cadeia(empresa)
+        if not resultado["integra"]:
+            logger.error(
+                "Integridade comprometida na empresa %s: %s", empresa.pk, resultado
+            )
+            problemas.append({"empresa": empresa.pk, **resultado})
+    return {"empresas_com_problema": problemas}
+
+
+@shared_task(name="apps.ponto.tasks.limpar_registros_antigos_de_tentativa")
+def limpar_registros_antigos_de_tentativa(dias: int = 90):
+    """
+    Descarta frames de tentativas de reconhecimento antigos.
+
+    Minimização de dados da LGPD (Seção 10): a imagem só interessa para
+    diagnóstico recente; a métrica permanece.
+    """
+    from apps.facial.models import TentativaReconhecimento
+
+    limite = timezone.now() - timedelta(days=dias)
+    antigas = TentativaReconhecimento.objects.filter(
+        created_at__lt=limite, imagem__isnull=False
+    ).exclude(imagem="")
+
+    total = 0
+    for tentativa in antigas.iterator():
+        tentativa.imagem.delete(save=False)
+        tentativa.imagem = None
+        tentativa.save(update_fields=["imagem", "updated_at"])
+        total += 1
+    return {"imagens_removidas": total}

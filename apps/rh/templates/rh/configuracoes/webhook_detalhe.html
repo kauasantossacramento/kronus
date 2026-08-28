@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <nav class="mb-1 text-xs text-[var(--kronus-gray-400)]">
+      <a href="{% url 'rh:webhooks' %}" class="hover:underline">Webhooks</a> / {{ webhook.nome }}
+    </nav>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">{{ webhook.nome }}</h1>
+    <p class="mt-2 font-mono text-xs text-[var(--kronus-gray-500)]">{{ webhook.url }}</p>
+  </div>
+  <form method="post" action="{% url 'rh:webhook_testar' webhook.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">{% icone "raio" classe="h-4 w-4" %} Enviar teste</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="grid gap-6 lg:grid-cols-3">
+
+  {# Entregas: a razão de existir desta tela. #}
+  <div class="lg:col-span-2">
+    <div class="card overflow-hidden">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Entregas recentes</h2>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+          Últimas 50. Falhas são retentadas automaticamente com espera crescente
+          (1 min, 5 min, 25 min, 2 h, 10 h).
+        </p>
+      </div>
+      <div class="max-h-[36rem] overflow-y-auto">
+        <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+          <thead class="sticky top-0 bg-[var(--kronus-gray-50)]">
+            <tr class="text-left text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gray-500)]">
+              <th class="px-5 py-2.5">Evento</th>
+              <th class="px-5 py-2.5">Quando</th>
+              <th class="px-5 py-2.5">Resultado</th>
+              <th class="px-5 py-2.5"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+            {% for entrega in entregas %}
+              <tr class="align-top hover:bg-[var(--kronus-gray-50)]">
+                <td class="px-5 py-3">
+                  <code class="font-mono text-xs text-[var(--kronus-gray-800)]">{{ entrega.evento }}</code>
+                  <p class="mt-0.5 font-mono text-[10px] text-[var(--kronus-gray-400)]">{{ entrega.identificador }}</p>
+                </td>
+                <td class="px-5 py-3 font-mono text-xs text-[var(--kronus-gray-600)]">
+                  {{ entrega.created_at|date:"d/m H:i:s" }}
+                  {% if entrega.tentativas > 1 %}<p class="text-[10px] text-[var(--kronus-gray-400)]">{{ entrega.tentativas }} tentativas</p>{% endif %}
+                </td>
+                <td class="px-5 py-3">
+                  {% if entrega.status == "entregue" %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      {% icone "check" classe="h-3 w-3" %} {{ entrega.status_code }}
+                    </span>
+                  {% elif entrega.status == "desistiu" %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                      {% icone "erro" classe="h-3 w-3" %} Desistiu
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      {% icone "relogio" classe="h-3 w-3" %} Pendente
+                    </span>
+                    {% if entrega.proxima_tentativa %}
+                      <p class="mt-0.5 text-[10px] text-[var(--kronus-gray-400)]">retenta {{ entrega.proxima_tentativa|date:"d/m H:i" }}</p>
+                    {% endif %}
+                  {% endif %}
+                  {% if entrega.resposta and entrega.status != "entregue" %}
+                    <p class="mt-1 max-w-xs break-words font-mono text-[10px] text-red-600">{{ entrega.resposta|truncatechars:160 }}</p>
+                  {% endif %}
+                </td>
+                <td class="px-5 py-3 text-right">
+                  {% if entrega.status != "entregue" %}
+                    <form method="post" action="{% url 'rh:webhook_reenviar' webhook.pk entrega.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline text-xs">Reenviar</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="px-5 py-12 text-center text-[var(--kronus-gray-400)]">
+                Nenhuma entrega ainda. Use <strong>Enviar teste</strong> para conferir o endpoint.
+              </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+
+    {# Segredo: exibido porque o receptor precisa dele para validar. #}
+    <div class="card p-5">
+      <h2 class="flex items-center gap-2 font-display text-base font-semibold text-[var(--kronus-gray-900)]">
+        {% icone "chave" classe="h-4 w-4 text-[var(--kronus-gold-600)]" %} Segredo de assinatura
+      </h2>
+      <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+        Configure este valor no seu receptor para validar <code class="font-mono">X-Kronus-Signature</code>.
+      </p>
+      <div class="mt-3 flex items-center gap-2">
+        <code id="segredo" class="flex-1 overflow-x-auto rounded-lg bg-[var(--kronus-gray-900)] px-3 py-2 font-mono text-xs text-[var(--kronus-gold-300)]">{{ webhook.segredo }}</code>
+        <button type="button" class="btn btn-outline text-xs"
+                onclick="navigator.clipboard.writeText(document.getElementById('segredo').textContent.trim()); this.textContent='Copiado';">Copiar</button>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Configuração</h2>
+      <form method="post" class="mt-4 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="salvar">
+
+        <div>
+          <label for="nome" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Nome</label>
+          <input type="text" id="nome" name="nome" value="{{ webhook.nome }}" maxlength="100"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+        </div>
+
+        <div>
+          <label for="url" class="block text-sm font-medium text-[var(--kronus-gray-700)]">URL de destino</label>
+          <input type="url" id="url" name="url" value="{{ webhook.url }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 font-mono text-xs shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+        </div>
+
+        <fieldset>
+          <legend class="text-sm font-medium text-[var(--kronus-gray-700)]">Eventos assinados</legend>
+          <div class="mt-2 space-y-1.5">
+            {% for valor, rotulo in eventos_disponiveis %}
+              <label class="flex items-start gap-2 text-sm">
+                <input type="checkbox" name="eventos" value="{{ valor }}"
+                       {% if valor in eventos_assinados %}checked{% endif %}
+                       class="mt-0.5 h-4 w-4 rounded border-[var(--kronus-gray-300)] text-[var(--kronus-primary-600)] focus:ring-[var(--kronus-primary-500)]">
+                <span class="text-[var(--kronus-gray-700)]">{{ rotulo }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="border-t border-[var(--kronus-gray-200)] pt-4">
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="ativo" {% if webhook.ativo %}checked{% endif %}
+                   class="h-4 w-4 rounded border-[var(--kronus-gray-300)] text-[var(--kronus-primary-600)] focus:ring-[var(--kronus-primary-500)]">
+            <span class="font-medium text-[var(--kronus-gray-700)]">Ativo</span>
+          </label>
+          {% if webhook.falhas_consecutivas %}
+            <p class="mt-2 rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+              {{ webhook.falhas_consecutivas }} falha{{ webhook.falhas_consecutivas|pluralize }} consecutiva{{ webhook.falhas_consecutivas|pluralize }}.
+              {% if not webhook.ativo %}Foi desativado automaticamente; marcar "Ativo" zera o contador.{% else %}Após 5, o webhook é desativado.{% endif %}
+            </p>
+          {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full">Salvar</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

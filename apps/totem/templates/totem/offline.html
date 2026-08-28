@@ -1,0 +1,65 @@
+{% extends "base_totem.html" %}
+{% load static %}
+
+{% block titulo %}Sem conexão · Kronus{% endblock %}
+
+{% block conteudo %}
+{# ── ESTADO 5 — OFFLINE (Seção 6.5.1 do plano) ──────────────── #}
+<div class="totem-offline">
+  {% if empresa.logo %}
+    <img src="{{ empresa.logo.url }}" alt="{{ empresa.nome_exibicao }}" class="totem-idle__logo">
+  {% else %}
+    <img src="{% static 'img/logo-kronus-branco.svg' %}" alt="Kronus" style="height:5rem">
+    <p style="font-weight:700;letter-spacing:.15em;text-transform:uppercase">Kronus</p>
+  {% endif %}
+
+  <p style="display:flex;align-items:center;gap:.5rem;font-size:1.35rem;font-weight:600">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="none"
+         stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+      <path d="M6.4 7.4a7.5 7.5 0 0 0 0 9.2M17.6 7.4a7.5 7.5 0 0 1 0 9.2"/>
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+      <path d="M4 20 20 4" stroke="var(--totem-danger)"/>
+    </svg>
+    Sem conexão
+  </p>
+
+  <p style="color:var(--totem-text-muted)">
+    Reconectando em
+    <span id="contador" style="font-family:'JetBrains Mono',monospace;font-weight:700">02:00</span>
+  </p>
+
+  <div class="totem-offline__barra">
+    <div class="totem-offline__progresso" id="progresso" style="width:0%"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Countdown de 2 minutos; ao fim, recarrega. Se a conexão voltar antes,
+  // o evento 'online' recarrega imediatamente (Seção 6.5.1, Estado 5).
+  (function () {
+    var TOTAL = 120;
+    var restante = TOTAL;
+    var contador = document.getElementById('contador');
+    var progresso = document.getElementById('progresso');
+
+    function formatar(s) {
+      var m = Math.floor(s / 60), r = s % 60;
+      return ('0' + m).slice(-2) + ':' + ('0' + r).slice(-2);
+    }
+
+    var intervalo = setInterval(function () {
+      restante -= 1;
+      contador.textContent = formatar(Math.max(restante, 0));
+      progresso.style.width = ((TOTAL - restante) / TOTAL * 100) + '%';
+      if (restante <= 0) {
+        clearInterval(intervalo);
+        location.reload();
+      }
+    }, 1000);
+
+    window.addEventListener('online', function () { location.reload(); });
+  })();
+</script>
+{% endblock %}

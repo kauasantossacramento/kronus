@@ -1,0 +1,9 @@
+{% load kronus_icons %}
+{% comment %}Card da grade de funcionalidades. Parâmetros: icone_nome, titulo, texto.{% endcomment %}
+<div class="card p-6 transition hover:shadow-md">
+  <span class="grid h-11 w-11 place-items-center rounded-xl bg-[var(--kronus-primary-50)] text-[var(--kronus-primary-600)]">
+    {% icone icone_nome classe="h-6 w-6" %}
+  </span>
+  <h3 class="mt-4 font-display text-lg font-semibold text-[var(--kronus-gray-900)]">{{ titulo }}</h3>
+  <p class="mt-2 text-sm leading-relaxed text-[var(--kronus-gray-600)]">{{ texto }}</p>
+</div>

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Relatórios gerenciais</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">{{ inicio|date:"d/m/Y" }} a {{ fim|date:"d/m/Y" }}</p>
+  </div>
+  <a href="{% url 'relatorios:gerenciais_csv' %}?inicio={{ inicio|date:'Y-m-d' }}&fim={{ fim|date:'Y-m-d' }}{% if departamento_selecionado %}&departamento={{ departamento_selecionado }}{% endif %}"
+     class="btn btn-outline">
+    {% icone "download" classe="h-4 w-4" %} Exportar CSV
+  </a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  {% include "components/stats_card.html" with rotulo="Horas extras" valor=totais.extras|hhmm_abs icone_nome="raio" cor="ouro" %}
+  {% include "components/stats_card.html" with rotulo="Atrasos" valor=totais.atraso|hhmm_abs icone_nome="alerta" cor="alerta" %}
+  {% include "components/stats_card.html" with rotulo="Faltas" valor=totais.faltas icone_nome="erro" cor="perigo" %}
+  {% include "components/stats_card.html" with rotulo="Custo estimado de extras" valor=totais.custo|floatformat:2 icone_nome="cartao" rodape="Onde há salário cadastrado" %}
+</div>
+
+<div class="card mt-6">
+  <form method="get" class="flex flex-wrap items-end gap-3 border-b border-[var(--kronus-gray-200)] p-4">
+    <input type="hidden" name="aba" value="{{ aba }}">
+    <div>
+      <label for="inicio" class="block text-xs font-medium text-[var(--kronus-gray-600)]">De</label>
+      <input type="date" name="inicio" id="inicio" value="{{ inicio|date:'Y-m-d' }}"
+             class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+    </div>
+    <div>
+      <label for="fim" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Até</label>
+      <input type="date" name="fim" id="fim" value="{{ fim|date:'Y-m-d' }}"
+             class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+    </div>
+    <div>
+      <label for="departamento" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Departamento</label>
+      <select name="departamento" id="departamento" class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+        <option value="">Todos</option>
+        {% for d in departamentos %}
+          <option value="{{ d.pk }}" {% if departamento_selecionado == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-outline">Filtrar</button>
+  </form>
+
+  {# Abas: cada uma reordena pela métrica correspondente #}
+  <div class="flex flex-wrap gap-2 border-b border-[var(--kronus-gray-200)] px-4 py-3">
+    <a href="?aba=extras&inicio={{ inicio|date:'Y-m-d' }}&fim={{ fim|date:'Y-m-d' }}"
+       class="rounded-lg px-3 py-1.5 text-sm font-medium transition {% if aba == 'extras' %}bg-[var(--kronus-primary-600)] text-white{% else %}bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-600)] hover:bg-[var(--kronus-gray-200)]{% endif %}">Horas extras</a>
+    <a href="?aba=atrasos&inicio={{ inicio|date:'Y-m-d' }}&fim={{ fim|date:'Y-m-d' }}"
+       class="rounded-lg px-3 py-1.5 text-sm font-medium transition {% if aba == 'atrasos' %}bg-[var(--kronus-primary-600)] text-white{% else %}bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-600)] hover:bg-[var(--kronus-gray-200)]{% endif %}">Atrasos</a>
+    <a href="?aba=faltas&inicio={{ inicio|date:'Y-m-d' }}&fim={{ fim|date:'Y-m-d' }}"
+       class="rounded-lg px-3 py-1.5 text-sm font-medium transition {% if aba == 'faltas' %}bg-[var(--kronus-primary-600)] text-white{% else %}bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-600)] hover:bg-[var(--kronus-gray-200)]{% endif %}">Faltas</a>
+    <a href="?aba=saldo&inicio={{ inicio|date:'Y-m-d' }}&fim={{ fim|date:'Y-m-d' }}"
+       class="rounded-lg px-3 py-1.5 text-sm font-medium transition {% if aba == 'saldo' %}bg-[var(--kronus-primary-600)] text-white{% else %}bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-600)] hover:bg-[var(--kronus-gray-200)]{% endif %}">Banco de horas</a>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+        <tr>
+          <th class="px-4 py-3 font-medium">Colaborador</th>
+          <th class="px-4 py-3 font-medium">Departamento</th>
+          <th class="px-4 py-3 text-right font-medium">Extras</th>
+          <th class="px-4 py-3 text-right font-medium">Noturnas</th>
+          <th class="px-4 py-3 text-right font-medium">Atrasos</th>
+          <th class="px-4 py-3 text-center font-medium">Dias c/ atraso</th>
+          <th class="px-4 py-3 text-center font-medium">Faltas</th>
+          <th class="px-4 py-3 text-right font-medium">Saldo</th>
+          <th class="px-4 py-3 text-right font-medium">Custo extras</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for linha in linhas %}
+          <tr class="hover:bg-[var(--kronus-gray-50)]">
+            <td class="px-4 py-3">
+              <a href="{% url 'rh:colaborador_detalhe' linha.colaborador.pk %}" class="font-medium text-[var(--kronus-primary-600)] hover:underline">{{ linha.colaborador.nome_exibicao }}</a>
+            </td>
+            <td class="px-4 py-3 text-[var(--kronus-gray-600)]">{{ linha.colaborador.departamento|default:"—" }}</td>
+            <td class="px-4 py-3 text-right font-mono tabular-nums text-[var(--kronus-gold-600)]">{{ linha.extras|hhmm_abs }}</td>
+            <td class="px-4 py-3 text-right font-mono tabular-nums text-[var(--kronus-gray-500)]">{{ linha.noturnas|hhmm_abs }}</td>
+            <td class="px-4 py-3 text-right font-mono tabular-nums text-amber-600">{{ linha.atraso|hhmm_abs }}</td>
+            <td class="px-4 py-3 text-center font-mono">{{ linha.dias_com_atraso|default:"—" }}</td>
+            <td class="px-4 py-3 text-center font-mono {% if linha.faltas %}text-red-600{% endif %}">{{ linha.faltas|default:"—" }}</td>
+            <td class="px-4 py-3 text-right font-mono font-semibold tabular-nums {% classe_saldo linha.saldo %}">{{ linha.saldo|hhmm }}</td>
+            <td class="px-4 py-3 text-right font-mono">
+              {% if linha.custo_extras is not None %}
+                R$ {{ linha.custo_extras|floatformat:2 }}
+              {% else %}
+                <span class="text-[var(--kronus-gray-300)]" title="Cargo sem salário cadastrado">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum colaborador no filtro.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="mt-4 flex items-start gap-2 text-xs text-[var(--kronus-gray-500)]">
+  {% icone "info" classe="mt-0.5 h-4 w-4 shrink-0" %}
+  <span>
+    O custo estimado usa o salário do cargo cadastrado dividido por 220 horas mensais,
+    acrescido do percentual de hora extra da empresa. Onde não há salário, o campo fica
+    em branco — zero seria lido como "não custou nada".
+  </span>
+</p>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static kronus_icons %}
+
+{% block conteudo %}
+<div class="card max-w-4xl p-6">
+  <form method="post" enctype="multipart/form-data" class="space-y-5">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {% for erro in form.non_field_errors %}<p>{{ erro }}</p>{% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="grid gap-5 sm:grid-cols-2">
+      {% for campo in form %}
+        {% if campo.name == "foto_perfil" %}
+          {# Campo de imagem: câmera ou arquivo (ver components/captura_foto.html) #}
+          <div class="sm:col-span-2">
+            {% if form.instance.foto_perfil %}{% include "components/captura_foto.html" with campo=campo preview_url=form.instance.foto_perfil.url ajuda="Fotografe na hora pela webcam ou escolha um arquivo. Esta foto aparece na tela do totem ao registrar o ponto." %}{% else %}{% include "components/captura_foto.html" with campo=campo ajuda="Fotografe na hora pela webcam ou escolha um arquivo. Esta foto aparece na tela do totem ao registrar o ponto." %}{% endif %}
+          </div>
+        {% else %}
+          <div class="{% if campo.field.widget.input_type == 'checkbox' %}sm:col-span-2 flex items-start gap-2{% elif campo.name == 'observacoes' %}sm:col-span-2{% endif %}">
+            {% if campo.field.widget.input_type == 'checkbox' %}
+              {{ campo }}
+              <div>
+                <label for="{{ campo.id_for_label }}" class="text-sm text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+                {% if campo.help_text %}<p class="text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+              </div>
+            {% else %}
+              <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+              <div class="mt-1.5">{{ campo }}</div>
+              {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+            {% endif %}
+            {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="flex justify-end gap-2 border-t border-[var(--kronus-gray-200)] pt-5">
+      <a href="javascript:history.back()" class="btn btn-outline">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Salvar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/captura-foto.js' %}"></script>
+{% endblock %}

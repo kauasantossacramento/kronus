@@ -1,0 +1,15 @@
+{% extends "base_totem.html" %}
+{% load static %}
+
+{% block titulo %}Indisponível · Kronus{% endblock %}
+
+{% block conteudo %}
+<div class="totem-offline">
+  <img src="{% static 'img/logo-kronus-branco.svg' %}" alt="Kronus" style="height:4.5rem">
+  <p class="totem-offline__titulo">Equipamento indisponível</p>
+  <p class="totem-offline__legenda" style="max-width:22rem;text-align:center">
+    O acesso desta empresa ao Kronus está temporariamente suspenso.
+    Procure o setor responsável para registrar seu ponto.
+  </p>
+</div>
+{% endblock %}

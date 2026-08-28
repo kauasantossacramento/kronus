@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">
+    Espelho de <span class="capitalize">{{ nome_mes }}</span> de {{ espelho.ano }}
+  </h1>
+  <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+    {{ espelho.data_inicio|date:"d/m/Y" }} a {{ espelho.data_fim|date:"d/m/Y" }}
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+{% if divergente %}
+  <div class="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+    {% icone "alerta" classe="mt-0.5 h-5 w-5 shrink-0" %}
+    <span>
+      <strong>Atenção:</strong> o conteúdo apurado mudou depois do fechamento deste espelho.
+      Procure o RH antes de assinar — assinar um documento diferente do que foi apurado
+      esvazia o valor da assinatura.
+    </span>
+  </div>
+{% endif %}
+
+{% if espelho.assinado %}
+  <div class="mb-6 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+    {% icone "escudo" classe="mt-0.5 h-5 w-5 shrink-0" %}
+    <span>
+      Assinado por você em {{ espelho.assinado_em|date:"d/m/Y \à\s H:i" }}
+      {% if espelho.assinatura_ip %}(IP {{ espelho.assinatura_ip }}){% endif %}.
+      A partir da assinatura, o documento não pode ser alterado.
+    </span>
+  </div>
+{% endif %}
+
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  {% include "components/stats_card.html" with rotulo="Horas trabalhadas" valor=totais.trabalhado icone_nome="relogio" %}
+  {% include "components/stats_card.html" with rotulo="Horas previstas" valor=totais.esperado icone_nome="calendario" %}
+  {% include "components/stats_card.html" with rotulo="Horas extras" valor=totais.extras icone_nome="raio" cor="ouro" %}
+  {% include "components/stats_card.html" with rotulo="Saldo final" valor=totais.saldo_final icone_nome="banco_horas" cor=resumo.saldo_final|classe_saldo_cor %}
+</div>
+
+<div class="card mt-6 overflow-x-auto">
+  <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+    <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+      <tr>
+        <th class="px-4 py-3 font-medium">Dia</th>
+        <th class="px-4 py-3 font-medium">Marcações</th>
+        <th class="px-4 py-3 text-right font-medium">Trabalhado</th>
+        <th class="px-4 py-3 text-right font-medium">Previsto</th>
+        <th class="px-4 py-3 text-right font-medium">Saldo</th>
+        <th class="px-4 py-3 font-medium">Status</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+      {% for linha in linhas %}
+        <tr class="hover:bg-[var(--kronus-gray-50)]">
+          <td class="whitespace-nowrap px-4 py-2.5">
+            <span class="font-mono font-medium">{{ linha.data|date:"d/m" }}</span>
+            <span class="ml-1 text-xs capitalize text-[var(--kronus-gray-400)]">{{ linha.data|date:"D" }}</span>
+          </td>
+          <td class="px-4 py-2.5">
+            {% if linha.marcacoes %}
+              <span class="flex flex-wrap gap-1.5">
+                {% for marcacao in linha.marcacoes %}
+                  <span class="rounded bg-[var(--kronus-gray-100)] px-1.5 py-0.5 font-mono text-xs tabular-nums">{{ marcacao|date:"H:i" }}</span>
+                {% endfor %}
+              </span>
+            {% else %}
+              <span class="text-[var(--kronus-gray-300)]">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2.5 text-right font-mono tabular-nums">{{ linha.trabalhado }}</td>
+          <td class="px-4 py-2.5 text-right font-mono tabular-nums text-[var(--kronus-gray-500)]">{{ linha.esperado }}</td>
+          <td class="px-4 py-2.5 text-right font-mono font-semibold tabular-nums {% if linha.banco %}{% classe_saldo linha.banco.saldo_dia %}{% endif %}">{{ linha.saldo }}</td>
+          <td class="px-4 py-2.5">{% if linha.status %}{% badge_status linha.status %}{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Integridade e assinatura ─────────────────────────────── #}
+<div class="card mt-6 border-[var(--kronus-gold-300)] bg-[var(--kronus-gold-50)] p-6">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gold-700)]">Código de verificação</p>
+      <p class="mt-1 font-mono text-xl font-bold tracking-widest text-[var(--kronus-gray-900)]">{{ codigo_verificacao }}</p>
+    </div>
+    <a href="{% url 'ponto:espelho' espelho.ano espelho.mes %}" target="_blank" class="btn btn-outline">
+      {% icone "download" classe="h-4 w-4" %} Baixar documento
+    </a>
+  </div>
+  <p class="mt-3 text-xs leading-relaxed text-[var(--kronus-gray-600)]">
+    Este código deriva do conteúdo do espelho — CPF, período, marcações e seus NSRs.
+    Ele prova <em>qual</em> conteúdo você conferiu: qualquer alteração posterior
+    produziria um código diferente.
+  </p>
+</div>
+
+{% if not espelho.assinado %}
+  <div class="card mt-6 p-6" x-data="{ aceito: false }">
+    <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Assinatura eletrônica</h2>
+    <p class="mt-2 text-sm leading-relaxed text-[var(--kronus-gray-600)]">
+      Ao assinar, o sistema registra a data, a hora, o seu IP e o código acima.
+      <strong>Depois da assinatura o espelho não pode mais ser alterado</strong> — nem por você,
+      nem pelo RH. Se algo estiver errado, solicite uma justificativa antes de assinar.
+    </p>
+
+    <form method="post" action="{% url 'ponto:assinar_espelho' espelho.pk %}" class="mt-5">
+      {% csrf_token %}
+      <input type="hidden" name="aceite" value="1">
+      <label class="flex items-start gap-2 text-sm text-[var(--kronus-gray-700)]">
+        <input type="checkbox" x-model="aceito"
+               class="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--kronus-primary-600)] focus:ring-[var(--kronus-primary-500)]">
+        <span>
+          Confirmo que conferi as marcações e os totais deste espelho e que eles
+          correspondem à minha jornada no período.
+        </span>
+      </label>
+
+      <div class="mt-5 flex flex-wrap gap-2 border-t border-[var(--kronus-gray-200)] pt-5">
+        <button type="submit" class="btn btn-primary" :disabled="!aceito">
+          {% icone "escudo" classe="h-4 w-4" %} Assinar espelho
+        </button>
+        <a href="{% url 'ponto:solicitar_justificativa' %}" class="btn btn-outline">
+          Há algo errado — solicitar justificativa
+        </a>
+        <a href="{% url 'ponto:meus_espelhos' %}" class="btn btn-outline">Voltar</a>
+      </div>
+    </form>
+  </div>
+{% else %}
+  <div class="mt-6 flex justify-end">
+    <a href="{% url 'ponto:meus_espelhos' %}" class="btn btn-outline">Voltar</a>
+  </div>
+{% endif %}
+{% endblock %}

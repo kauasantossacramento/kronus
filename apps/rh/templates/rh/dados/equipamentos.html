@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Equipamentos</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    Situação dos totens instalados em {{ empresa.nome_fantasia|default:empresa.razao_social }}.
+    Cadastro, troca e devolução são feitos pela KS TEC — o equipamento é fornecido em comodato.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-5xl space-y-5">
+
+  {% if offline %}
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+      <p class="flex items-start gap-2">
+        {% icone "alerta" classe="mt-0.5 h-4 w-4 shrink-0" %}
+        <span>
+          <strong>{{ offline|length }} equipamento(s) sem sinal.</strong>
+          Enquanto isso durar, ninguém consegue bater ponto neles — oriente a equipe a usar
+          o ponto pelo navegador e acione o suporte da KS TEC.
+        </span>
+      </p>
+    </div>
+  {% endif %}
+
+  {% for ficha in fichas %}
+    <div class="card p-5 {% if not ficha.totem.ativo %}opacity-60{% endif %}">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="flex items-center gap-2 font-display text-base font-semibold text-[var(--kronus-gray-900)]">
+            {% icone "totem" classe="h-4 w-4 text-[var(--kronus-primary-600)]" %}
+            {{ ficha.totem.apelido|default:ficha.totem.identificador }}
+          </h2>
+          <p class="mt-0.5 font-mono text-xs text-[var(--kronus-gray-500)]">{{ ficha.totem.identificador }}</p>
+          {% if ficha.totem.local_instalacao %}
+            <p class="mt-1 inline-flex items-center gap-1 text-xs text-[var(--kronus-gray-500)]">
+              {% icone "local" classe="h-3.5 w-3.5" %}{{ ficha.totem.local_instalacao }}
+            </p>
+          {% endif %}
+        </div>
+
+        <div class="text-right">
+          {% if not ficha.totem.ativo %}
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-[var(--kronus-gray-100)] px-3 py-1 text-sm font-medium text-[var(--kronus-gray-600)]">Inativo</span>
+          {% elif ficha.totem.online %}
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">{% icone "antena" classe="h-4 w-4" %} Online</span>
+          {% else %}
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700">{% icone "alerta" classe="h-4 w-4" %} Sem sinal</span>
+            <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+              {% if ficha.totem.minutos_desde_heartbeat %}há {{ ficha.totem.minutos_desde_heartbeat }} min{% else %}nunca conectou{% endif %}
+            </p>
+          {% endif %}
+        </div>
+      </div>
+
+      <dl class="mt-4 grid gap-4 border-t border-[var(--kronus-gray-200)] pt-4 text-sm sm:grid-cols-4">
+        <div>
+          <dt class="text-xs text-[var(--kronus-gray-500)]">Marcações hoje</dt>
+          <dd class="font-mono text-lg font-bold text-[var(--kronus-gray-900)]">{{ ficha.registros_hoje }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-[var(--kronus-gray-500)]">Último sinal</dt>
+          <dd class="font-mono text-xs">{{ ficha.totem.ultimo_heartbeat|date:"d/m H:i"|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-[var(--kronus-gray-500)]">Bateria</dt>
+          <dd class="font-mono text-xs {% if ficha.totem.bateria_percentual != None and ficha.totem.bateria_percentual < 20 %}text-red-600{% endif %}">
+            {% if ficha.totem.bateria_percentual != None %}{{ ficha.totem.bateria_percentual }}%{% else %}—{% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs text-[var(--kronus-gray-500)]">Fallback por CPF</dt>
+          <dd class="text-xs">{% if ficha.totem.permite_fallback_cpf %}habilitado{% else %}desabilitado{% endif %}</dd>
+        </div>
+      </dl>
+
+      {% if ficha.ultimo_evento %}
+        <p class="mt-3 text-xs text-[var(--kronus-gray-500)]">
+          Último evento: {{ ficha.ultimo_evento.get_tipo_display }}
+          <span class="text-[var(--kronus-gray-400)]">— {{ ficha.ultimo_evento.created_at|date:"d/m H:i" }}</span>
+        </p>
+      {% endif %}
+    </div>
+  {% empty %}
+    <div class="card p-12 text-center text-[var(--kronus-gray-400)]">
+      Nenhum totem instalado nesta empresa.
+      <p class="mt-1 text-sm">O ponto continua disponível pelo navegador em Registrar ponto.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

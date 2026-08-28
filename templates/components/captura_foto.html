@@ -1,0 +1,99 @@
+{% load kronus_icons %}
+{% comment %}
+  ══════════════════════════════════════════════════════════════
+  CAPTURA DE FOTO — câmera ou arquivo
+
+  Substitui um `<input type="file">` de imagem por um widget que
+  oferece as duas entradas: tirar a foto na hora pela webcam ou
+  escolher um arquivo já existente.
+
+  A foto capturada é convertida em `File` e injetada no próprio
+  input via DataTransfer — então o formulário Django continua
+  recebendo um upload comum, sem endpoint novo nem base64 no POST.
+
+  Requer contexto seguro (HTTPS ou localhost) para a câmera. Fora
+  disso o widget detecta e oferece apenas o upload de arquivo, com
+  o motivo explicado — em vez de um botão que não faz nada.
+
+  Parâmetros:
+    campo        BoundField do formulário (obrigatório)
+    rotulo       texto do label (opcional; usa o label do campo)
+    preview_url  URL da imagem atual (opcional)
+    ajuda        texto auxiliar (opcional)
+  ══════════════════════════════════════════════════════════════
+{% endcomment %}
+
+<div x-data="capturaFoto('{{ campo.id_for_label }}')" x-init="init()">
+  <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">
+    {{ rotulo|default:campo.label }}
+  </label>
+
+  <div class="mt-2 flex flex-wrap items-start gap-4">
+
+    {# ── Pré-visualização ──────────────────────────────────── #}
+    <div class="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)]">
+      <img x-ref="preview" alt="Pré-visualização"
+           class="h-full w-full object-cover"
+           :class="temImagem ? '' : 'hidden'"
+           {% if preview_url %}src="{{ preview_url }}"{% endif %}>
+      <span x-show="!temImagem"
+            class="grid h-full w-full place-items-center text-[var(--kronus-gray-300)]">
+        {% icone "usuario" classe="h-10 w-10" %}
+      </span>
+    </div>
+
+    {# ── Câmera ao vivo ────────────────────────────────────── #}
+    <div x-show="camaraAberta" x-cloak class="shrink-0">
+      <div class="relative overflow-hidden rounded-xl border-2 border-[var(--kronus-primary-500)] bg-slate-900"
+           style="width:14rem;aspect-ratio:3/4">
+        <video x-ref="video" playsinline autoplay muted
+               class="h-full w-full object-cover" style="transform:scaleX(-1)"></video>
+        <div class="pointer-events-none absolute inset-[12%_18%] rounded-full border-2 border-dashed border-white/50"></div>
+      </div>
+      <div class="mt-2 flex gap-2">
+        <button type="button" class="btn btn-primary flex-1 text-xs" @click="tirarFoto()">
+          {% icone "camera" classe="h-4 w-4" %} Tirar foto
+        </button>
+        <button type="button" class="btn btn-outline text-xs" @click="fecharCamera()">Cancelar</button>
+      </div>
+    </div>
+
+    {# ── Ações ─────────────────────────────────────────────── #}
+    <div x-show="!camaraAberta" class="flex min-w-[14rem] flex-1 flex-col gap-2">
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn btn-outline text-xs" @click="abrirCamera()"
+                x-show="podeUsarCamera">
+          {% icone "camera" classe="h-4 w-4" %} <span x-text="temImagem ? 'Refazer foto' : 'Fotografar agora'"></span>
+        </button>
+        <button type="button" class="btn btn-outline text-xs" @click="$refs.arquivo.click()">
+          {% icone "pasta" classe="h-4 w-4" %} Escolher arquivo
+        </button>
+        <button type="button" class="btn btn-outline text-xs" @click="limpar()" x-show="temImagem" x-cloak>
+          {% icone "fechar" classe="h-4 w-4" %} Remover
+        </button>
+      </div>
+
+      {% if ajuda or campo.help_text %}
+        <p class="text-xs text-[var(--kronus-gray-500)]">{{ ajuda|default:campo.help_text }}</p>
+      {% endif %}
+
+      <p x-show="motivoSemCamera" x-cloak
+         class="flex items-start gap-1.5 text-xs text-amber-600">
+        {% icone "alerta" classe="mt-0.5 h-3.5 w-3.5 shrink-0" %}
+        <span x-text="motivoSemCamera"></span>
+      </p>
+      <p x-show="erro" x-cloak
+         class="flex items-start gap-1.5 text-xs text-red-600">
+        {% icone "erro" classe="mt-0.5 h-3.5 w-3.5 shrink-0" %}
+        <span x-text="erro"></span>
+      </p>
+    </div>
+  </div>
+
+  {# O input real do formulário — o widget escreve nele #}
+  <div class="hidden" x-ref="wrapper">{{ campo }}</div>
+
+  {% if campo.errors %}
+    <p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>
+  {% endif %}
+</div>

@@ -1,0 +1,25 @@
+{% extends "base_auth.html" %}
+
+{% block conteudo %}
+<h1 class="font-display text-xl font-semibold text-[var(--kronus-gray-900)]">Acesso do colaborador</h1>
+<p class="mt-1 text-sm text-[var(--kronus-gray-500)]">Informe seu CPF e sua senha para registrar o ponto.</p>
+
+<form method="post" class="mt-6 space-y-5">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+
+  <div>
+    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">CPF</label>
+    <div class="mt-1.5">{{ form.username }}</div>
+  </div>
+  <div>
+    <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Senha</label>
+    <div class="mt-1.5">{{ form.password }}</div>
+  </div>
+  <label class="flex items-center gap-2 text-sm text-[var(--kronus-gray-600)]">{{ form.lembrar }} Lembrar-me</label>
+  <button type="submit" class="btn btn-primary w-full py-3 text-base">Entrar</button>
+  <p class="text-center"><a href="{% url 'accounts:password_reset' %}" class="text-sm text-[var(--kronus-primary-600)] hover:underline">Esqueci minha senha</a></p>
+</form>
+{% endblock %}

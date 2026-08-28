@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block conteudo %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="card p-6 lg:col-span-2">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Vincular colaboradores</h2>
+    <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+      Selecione com Ctrl (ou Cmd) para escolher vários. O banco de horas do mês
+      corrente é recalculado automaticamente após o vínculo.
+    </p>
+    <form method="post" class="mt-5 space-y-5">
+      {% csrf_token %}
+      {% for campo in form %}
+        <div>
+          <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+          <div class="mt-1.5">{{ campo }}</div>
+          {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="flex justify-end gap-2 border-t border-[var(--kronus-gray-200)] pt-5">
+        <a href="{% url 'rh:escala_lista' %}" class="btn btn-outline">Voltar</a>
+        <button type="submit" class="btn btn-primary">Vincular</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Já vinculados</h2>
+    </div>
+    <ul class="max-h-96 divide-y divide-[var(--kronus-gray-100)] overflow-y-auto">
+      {% for colaborador in vinculados %}
+        <li class="flex items-center gap-2 px-5 py-2.5 text-sm">
+          <span class="text-[var(--kronus-gray-300)]">{% icone "usuario" classe="h-4 w-4" %}</span>
+          <span class="truncate text-[var(--kronus-gray-700)]">{{ colaborador.nome_exibicao }}</span>
+        </li>
+      {% empty %}
+        <li class="px-5 py-8 text-center text-xs text-[var(--kronus-gray-400)]">Nenhum colaborador vinculado.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

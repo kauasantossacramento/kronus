@@ -1,0 +1,197 @@
+/* ══════════════════════════════════════════════════════════════
+   KRONUS DESIGN SYSTEM
+   Plataforma de Ponto Eletrônico Digital — kronus.online
+   KS TEC Soluções de Tecnologia Ltda
+
+   Fonte: Seção 3.2 do Plano de Desenvolvimento.
+   Estes tokens são a única fonte de verdade das cores do produto.
+   O white-label parcial (Seção 3.6) sobrescreve apenas
+   --kronus-primary-500/600 e --kronus-gold-500 em runtime.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Primárias: Midnight Blue (autoridade, profundidade, tempo) ── */
+  --kronus-primary-50:  #EFF6FF;
+  --kronus-primary-100: #DBEAFE;
+  --kronus-primary-200: #BFDBFE;
+  --kronus-primary-300: #93C5FD;
+  --kronus-primary-400: #60A5FA;
+  --kronus-primary-500: #1E3A5F;   /* COR PRINCIPAL — Midnight Blue */
+  --kronus-primary-600: #172E4A;
+  --kronus-primary-700: #0F2035;
+  --kronus-primary-800: #0A1628;
+  --kronus-primary-900: #060E1A;
+
+  /* ── Acento: Âmbar Dourado (Era de Ouro, destaque, premium) ── */
+  --kronus-gold-50:     #FFFBEB;
+  --kronus-gold-100:    #FEF3C7;
+  --kronus-gold-200:    #FDE68A;
+  --kronus-gold-300:    #FCD34D;
+  --kronus-gold-400:    #FBBF24;
+  --kronus-gold-500:    #D4A017;   /* ACENTO PRINCIPAL — Ouro */
+  --kronus-gold-600:    #B8860B;
+  --kronus-gold-700:    #92690A;
+
+  /* ── Status / Feedback ── */
+  --kronus-success:     #10B981;
+  --kronus-warning:     #F59E0B;
+  --kronus-danger:      #EF4444;
+  --kronus-info:        #3B82F6;
+
+  /* ── Neutros (Slate — tom frio harmoniza com o midnight blue) ── */
+  --kronus-gray-50:     #F8FAFC;
+  --kronus-gray-100:    #F1F5F9;
+  --kronus-gray-200:    #E2E8F0;
+  --kronus-gray-300:    #CBD5E1;
+  --kronus-gray-400:    #94A3B8;
+  --kronus-gray-500:    #64748B;
+  --kronus-gray-600:    #475569;
+  --kronus-gray-700:    #334155;
+  --kronus-gray-800:    #1E293B;
+  --kronus-gray-900:    #0F172A;
+
+  /* ── Totem (Dark Theme exclusivo) ── */
+  --totem-bg:           #060E1A;
+  --totem-surface:      #0F2035;
+  --totem-text:         #F8FAFC;
+  --totem-text-muted:   #94A3B8;
+  --totem-glow:         #D4A017;
+  --totem-glow-idle:    #1E3A5F;
+  --totem-success:      #10B981;
+  --totem-success-glow: #065F46;
+  --totem-camera-border:#1E3A5F;
+  --totem-camera-bg:    #0A1628;
+  --totem-gold-accent:  #FBBF24;
+
+  /* ── Tipografia (Seção 3.3) ── */
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Base
+   ══════════════════════════════════════════════════════════════ */
+body {
+  font-family: var(--font-body);
+  color: var(--kronus-gray-800);
+  background-color: var(--kronus-gray-50);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  color: var(--kronus-gray-900);
+}
+
+.font-mono, .tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Marca (Seção 3.4)
+   ══════════════════════════════════════════════════════════════ */
+.kronus-logo-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--kronus-primary-500);
+}
+.kronus-logo-text.light { color: #FFFFFF; }
+.kronus-logo-text.gold  { color: var(--kronus-gold-500); }
+
+/* Logo KS TEC em versão branca sobre fundos escuros (Seção 3.5) */
+.kstec-logo-white { filter: brightness(0) invert(1); }
+
+/* ══════════════════════════════════════════════════════════════
+   Componentes
+   ══════════════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border-radius: .5rem;
+  padding: .55rem 1rem;
+  font-size: .875rem;
+  font-weight: 600;
+  transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+  cursor: pointer;
+}
+.btn-primary {
+  background-color: var(--kronus-primary-600);
+  color: #fff;
+}
+.btn-primary:hover { background-color: var(--kronus-primary-700); }
+
+.btn-gold {
+  background-color: var(--kronus-gold-500);
+  color: var(--kronus-primary-900);
+}
+.btn-gold:hover { background-color: var(--kronus-gold-600); color: #fff; }
+
+.btn-outline {
+  border: 1px solid var(--kronus-gray-300);
+  background-color: #fff;
+  color: var(--kronus-gray-700);
+}
+.btn-outline:hover { background-color: var(--kronus-gray-100); }
+
+.btn-danger { background-color: var(--kronus-danger); color: #fff; }
+.btn-danger:hover { filter: brightness(.92); }
+
+.card {
+  background-color: #fff;
+  border-radius: .75rem;
+  border: 1px solid var(--kronus-gray-200);
+  box-shadow: 0 1px 2px rgb(15 23 42 / .04);
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  border-radius: .5rem;
+  padding: .55rem .75rem;
+  font-size: .875rem;
+  font-weight: 500;
+  color: #CBD5E1;
+  transition: background-color .15s ease, color .15s ease;
+}
+.sidebar-link:hover {
+  background-color: rgb(255 255 255 / .06);
+  color: #fff;
+}
+.sidebar-link.ativo {
+  background-color: rgb(255 255 255 / .10);
+  color: #fff;
+  box-shadow: inset 3px 0 0 var(--kronus-gold-500);
+}
+
+/* Separador decorativo dourado — usado em títulos de seção */
+.regua-ouro::after {
+  content: "";
+  display: block;
+  width: 2.5rem;
+  height: 3px;
+  margin-top: .5rem;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--kronus-gold-500), var(--kronus-gold-300));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Acessibilidade
+   ══════════════════════════════════════════════════════════════ */
+:focus-visible {
+  outline: 2px solid var(--kronus-gold-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

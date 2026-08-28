@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Webhooks</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    O Kronus avisa o seu sistema quando algo acontece — um ponto registrado, um
+    colaborador desligado — em vez de o seu sistema ficar perguntando. Cada entrega
+    vai assinada com HMAC-SHA256 para que você confirme que veio daqui.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="mb-6">{% include "rh/configuracoes/_abas.html" with ativa="webhooks" %}</div>
+
+{% if not plano_tem_webhook %}
+  <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <p class="flex items-start gap-2">
+      {% icone "info" classe="mt-0.5 h-4 w-4 shrink-0" %}
+      <span>O plano <strong>{{ empresa.cliente.plano }}</strong> não inclui webhooks. Fale com a KS TEC para habilitar.</span>
+    </p>
+  </div>
+{% endif %}
+
+<div class="grid gap-6 lg:grid-cols-3">
+
+  <div class="space-y-4 lg:col-span-2">
+    {% for webhook in webhooks %}
+      <div class="card p-5 {% if not webhook.ativo %}opacity-70{% endif %}">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="flex items-center gap-2 font-display text-base font-semibold text-[var(--kronus-gray-900)]">
+              {% icone "webhook" classe="h-4 w-4 text-[var(--kronus-primary-600)]" %}
+              <a href="{% url 'rh:webhook_detalhe' webhook.pk %}" class="hover:underline">{{ webhook.nome }}</a>
+            </h2>
+            <p class="mt-1 truncate font-mono text-xs text-[var(--kronus-gray-500)]">{{ webhook.url }}</p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            {% if not webhook.ativo %}
+              <span class="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">Desativado</span>
+            {% elif webhook.falhas_consecutivas %}
+              <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">{{ webhook.falhas_consecutivas }} falha{{ webhook.falhas_consecutivas|pluralize }}</span>
+            {% else %}
+              <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Ativo</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          {% for evento in webhook.eventos %}
+            <span class="rounded bg-[var(--kronus-gray-100)] px-2 py-0.5 font-mono text-xs text-[var(--kronus-gray-700)]">{{ evento }}</span>
+          {% endfor %}
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--kronus-gray-200)] pt-3 text-xs text-[var(--kronus-gray-500)]">
+          <span>
+            {% if webhook.ultima_entrega %}
+              Última entrega {{ webhook.ultima_entrega|date:"d/m/Y H:i" }}
+              {% if webhook.ultimo_status %}· HTTP <span class="font-mono {% if webhook.ultimo_status >= 300 %}text-red-600{% else %}text-emerald-600{% endif %}">{{ webhook.ultimo_status }}</span>{% endif %}
+            {% else %}
+              Nenhuma entrega ainda
+            {% endif %}
+          </span>
+          <div class="flex gap-2">
+            <a href="{% url 'rh:webhook_detalhe' webhook.pk %}" class="btn btn-outline text-xs">Abrir</a>
+            <form method="post" onsubmit="return confirm('Remover o webhook &quot;{{ webhook.nome }}&quot;? As entregas registradas também somem.');">
+              {% csrf_token %}
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="webhook" value="{{ webhook.pk }}">
+              <button type="submit" class="btn btn-danger text-xs">Remover</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="card p-12 text-center text-[var(--kronus-gray-400)]">
+        Nenhum webhook configurado.
+      </div>
+    {% endfor %}
+  </div>
+
+  {# Cadastro #}
+  <div>
+    <div class="card p-5">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Novo webhook</h2>
+      <form method="post" class="mt-4 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="criar">
+
+        <div>
+          <label for="nome" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Nome</label>
+          <input type="text" id="nome" name="nome" required maxlength="100" placeholder="ERP da folha"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]"
+                 {% if not plano_tem_webhook %}disabled{% endif %}>
+        </div>
+
+        <div>
+          <label for="url" class="block text-sm font-medium text-[var(--kronus-gray-700)]">URL de destino</label>
+          <input type="url" id="url" name="url" required placeholder="https://erp.exemplo.com/kronus/"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 font-mono text-xs shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]"
+                 {% if not plano_tem_webhook %}disabled{% endif %}>
+          <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">Precisa ser HTTPS: o payload carrega CPF e marcações.</p>
+        </div>
+
+        <fieldset>
+          <legend class="text-sm font-medium text-[var(--kronus-gray-700)]">Eventos assinados</legend>
+          <div class="mt-2 space-y-1.5">
+            {% for valor, rotulo in eventos_disponiveis %}
+              <label class="flex items-start gap-2 text-sm">
+                <input type="checkbox" name="eventos" value="{{ valor }}"
+                       class="mt-0.5 h-4 w-4 rounded border-[var(--kronus-gray-300)] text-[var(--kronus-primary-600)] focus:ring-[var(--kronus-primary-500)]"
+                       {% if not plano_tem_webhook %}disabled{% endif %}>
+                <span>
+                  <span class="text-[var(--kronus-gray-700)]">{{ rotulo }}</span>
+                  <code class="ml-1 text-xs text-[var(--kronus-gray-400)]">{{ valor }}</code>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary w-full" {% if not plano_tem_webhook %}disabled{% endif %}>
+          {% icone "mais" classe="h-4 w-4" %} Criar webhook
+        </button>
+      </form>
+    </div>
+
+    <div class="card mt-4 p-5">
+      <h3 class="flex items-center gap-2 text-sm font-semibold text-[var(--kronus-gray-900)]">
+        {% icone "escudo" classe="h-4 w-4 text-[var(--kronus-gold-600)]" %} Como validar a assinatura
+      </h3>
+      <p class="mt-2 text-xs text-[var(--kronus-gray-600)]">
+        Cada POST traz <code class="font-mono">X-Kronus-Timestamp</code> e
+        <code class="font-mono">X-Kronus-Signature</code>. Recalcule o HMAC-SHA256 de
+        <code class="font-mono">timestamp + "." + corpo</code> com o segredo do webhook
+        e compare em tempo constante. Recuse timestamps com mais de alguns minutos.
+      </p>
+      <pre class="mt-3 overflow-x-auto rounded-lg bg-[var(--kronus-gray-900)] p-3 font-mono text-[11px] leading-relaxed text-[var(--kronus-gold-300)]"><code>import hmac, hashlib
+
+def confere(corpo, segredo, ts, assinatura):
+    msg = f"{ts}.".encode() + corpo
+    esperada = "sha256=" + hmac.new(
+        segredo.encode(), msg, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(esperada, assinatura)</code></pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

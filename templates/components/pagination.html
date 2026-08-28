@@ -1,0 +1,21 @@
+{% load kronus_tags kronus_icons %}
+{% if page_obj.has_other_pages %}
+<nav class="mt-6 flex items-center justify-between border-t border-[var(--kronus-gray-200)] pt-4 text-sm">
+  <p class="text-[var(--kronus-gray-500)]">
+    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+    · {{ page_obj.paginator.count }} registro{{ page_obj.paginator.count|pluralize }}
+  </p>
+  <div class="flex gap-2">
+    {% if page_obj.has_previous %}
+      <a href="?{% query_atual page=page_obj.previous_page_number %}" class="btn btn-outline">
+        {% icone "seta_esquerda" classe="h-4 w-4" %} Anterior
+      </a>
+    {% endif %}
+    {% if page_obj.has_next %}
+      <a href="?{% query_atual page=page_obj.next_page_number %}" class="btn btn-outline">
+        Próxima {% icone "seta_direita" classe="h-4 w-4" %}
+      </a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

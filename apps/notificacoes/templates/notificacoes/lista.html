@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block conteudo %}
+<div class="card">
+  <ul class="divide-y divide-[var(--kronus-gray-100)]">
+    {% for n in notificacoes %}
+      <li class="flex items-start gap-3 px-5 py-4 {% if not n.lida %}bg-[var(--kronus-primary-50)]{% endif %}">
+        <span class="mt-0.5 shrink-0
+          {% if n.nivel == 'sucesso' %}text-emerald-600{% elif n.nivel == 'alerta' %}text-amber-600{% elif n.nivel == 'erro' %}text-red-600{% else %}text-[var(--kronus-primary-600)]{% endif %}">
+          {% if n.nivel == 'sucesso' %}{% icone "check_circulo" classe="h-5 w-5" %}
+          {% elif n.nivel == 'alerta' %}{% icone "alerta" classe="h-5 w-5" %}
+          {% elif n.nivel == 'erro' %}{% icone "erro" classe="h-5 w-5" %}
+          {% else %}{% icone "info" classe="h-5 w-5" %}{% endif %}
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-[var(--kronus-gray-800)]">{{ n.titulo }}</p>
+          <p class="mt-0.5 text-sm text-[var(--kronus-gray-600)]">{{ n.mensagem }}</p>
+          <p class="mt-1 font-mono text-xs text-[var(--kronus-gray-400)]">{{ n.created_at|date:"d/m/Y H:i" }}</p>
+        </div>
+        {% if not n.lida %}
+          <a href="{% url 'notificacoes:marcar_lida' n.pk %}" class="shrink-0 text-xs font-medium text-[var(--kronus-primary-600)] hover:underline">Marcar como lida</a>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="px-5 py-16 text-center">
+        <span class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-400)]">
+          {% icone "sino" classe="h-6 w-6" %}
+        </span>
+        <p class="mt-3 text-sm text-[var(--kronus-gray-400)]">Nenhuma notificação.</p>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

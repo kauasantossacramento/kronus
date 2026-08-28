@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.sqlite3
+.git/
+.env
+node_modules/
+media/
+staticfiles/
+docs/
+SESSION_LOG_*.md

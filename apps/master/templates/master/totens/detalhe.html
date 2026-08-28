@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <nav class="mb-1 text-xs text-[var(--kronus-gray-400)]">
+      <a href="{% url 'master:totem_lista' %}" class="hover:underline">Parque de totens</a> / {{ totem.identificador }}
+    </nav>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">{{ totem.apelido|default:totem.identificador }}</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+      {{ totem.empresa.cliente.razao_social }} · {{ totem.empresa.nome_fantasia|default:totem.empresa.razao_social }}
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'master:totem_comodato' totem.pk %}" class="btn btn-outline">{% icone "documento" classe="h-4 w-4" %} Comodato</a>
+    <a href="{% url 'master:totem_editar' totem.pk %}" class="btn btn-primary">{% icone "editar" classe="h-4 w-4" %} Editar</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="grid gap-6 lg:grid-cols-3">
+
+  <div class="space-y-6 lg:col-span-2">
+
+    {# URL do quiosque: é o que o técnico digita no tablet na instalação. #}
+    <section class="card p-6">
+      <h2 class="flex items-center gap-2 font-display text-base font-semibold text-[var(--kronus-gray-900)]">
+        {% icone "link" classe="h-4 w-4 text-[var(--kronus-primary-600)]" %} URL do quiosque
+      </h2>
+      <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+        Abra este endereço no navegador do tablet e fixe em tela cheia. O token na URL é a
+        credencial do equipamento — trate como senha.
+      </p>
+      <div class="mt-3 flex items-center gap-2">
+        <code id="url-kiosk" class="flex-1 overflow-x-auto rounded-lg bg-[var(--kronus-gray-900)] px-3 py-2 font-mono text-xs text-[var(--kronus-gold-300)]">{{ url_kiosk_absoluta }}</code>
+        <button type="button" class="btn btn-outline text-xs"
+                onclick="navigator.clipboard.writeText(document.getElementById('url-kiosk').textContent.trim()); this.textContent='Copiado';">
+          Copiar
+        </button>
+      </div>
+
+      <form method="post" action="{% url 'master:totem_regenerar_token' totem.pk %}" class="mt-4 border-t border-[var(--kronus-gray-200)] pt-4"
+            onsubmit="return confirm('Regenerar o token? A URL atual para de funcionar imediatamente e o tablet precisará ser reconfigurado.');">
+        {% csrf_token %}
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-xs text-[var(--kronus-gray-500)]">
+            Equipamento perdido ou roubado? Regenerar invalida a URL atual na hora.
+          </p>
+          <button type="submit" class="btn btn-danger text-xs">{% icone "chave" classe="h-3.5 w-3.5" %} Regenerar token</button>
+        </div>
+      </form>
+    </section>
+
+    {# Diário de bordo — a primeira coisa que o suporte olha. #}
+    <section class="card overflow-hidden">
+      <div class="border-b border-[var(--kronus-gray-200)] px-6 py-4">
+        <h2 class="flex items-center gap-2 font-display text-base font-semibold text-[var(--kronus-gray-900)]">
+          {% icone "lista" classe="h-4 w-4 text-[var(--kronus-primary-600)]" %} Diário de bordo
+        </h2>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">Últimos 50 eventos do equipamento.</p>
+      </div>
+      <ul class="max-h-96 divide-y divide-[var(--kronus-gray-100)] overflow-y-auto text-sm">
+        {% for evento in eventos %}
+          <li class="flex items-start gap-3 px-6 py-3">
+            <span class="mt-0.5 shrink-0
+              {% if evento.tipo == 'erro' or evento.tipo == 'offline' or evento.tipo == 'reconhecimento_falha' %}text-red-600
+              {% elif evento.tipo == 'reconhecimento_ok' or evento.tipo == 'online' %}text-emerald-600
+              {% else %}text-[var(--kronus-gray-400)]{% endif %}">
+              {% if evento.tipo == 'erro' or evento.tipo == 'offline' %}{% icone "alerta" classe="h-4 w-4" %}
+              {% elif evento.tipo == 'reconhecimento_ok' %}{% icone "rosto" classe="h-4 w-4" %}
+              {% elif evento.tipo == 'fallback_cpf' %}{% icone "usuario" classe="h-4 w-4" %}
+              {% elif evento.tipo == 'configuracao' %}{% icone "config" classe="h-4 w-4" %}
+              {% else %}{% icone "info" classe="h-4 w-4" %}{% endif %}
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-[var(--kronus-gray-800)]">{{ evento.get_tipo_display }}</p>
+              {% if evento.detalhes %}<p class="text-xs text-[var(--kronus-gray-500)]">{{ evento.detalhes }}</p>{% endif %}
+            </div>
+            <time class="shrink-0 font-mono text-xs text-[var(--kronus-gray-400)]">{{ evento.created_at|date:"d/m H:i" }}</time>
+          </li>
+        {% empty %}
+          <li class="px-6 py-10 text-center text-[var(--kronus-gray-400)]">Nenhum evento registrado ainda.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <div class="space-y-6">
+
+    <section class="card p-6">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Situação</h2>
+      <div class="mt-3">
+        {% if not totem.ativo %}
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-[var(--kronus-gray-100)] px-3 py-1 text-sm font-medium text-[var(--kronus-gray-600)]">Inativo</span>
+        {% elif totem.online %}
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">{% icone "antena" classe="h-4 w-4" %} Online</span>
+        {% else %}
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700">{% icone "alerta" classe="h-4 w-4" %} Offline</span>
+        {% endif %}
+      </div>
+      <dl class="mt-4 space-y-2 border-t border-[var(--kronus-gray-200)] pt-4 text-sm">
+        <div class="flex justify-between gap-3"><dt class="text-[var(--kronus-gray-500)]">Último sinal</dt>
+          <dd class="font-mono text-xs">{{ totem.ultimo_heartbeat|date:"d/m/Y H:i"|default:"nunca" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-[var(--kronus-gray-500)]">Último IP</dt>
+          <dd class="font-mono text-xs">{{ totem.ultimo_ip|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-[var(--kronus-gray-500)]">Versão do app</dt>
+          <dd class="font-mono text-xs">{{ totem.versao_firmware|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-[var(--kronus-gray-500)]">Bateria</dt>
+          <dd class="font-mono text-xs {% if totem.bateria_percentual != None and totem.bateria_percentual < 20 %}text-red-600{% endif %}">
+            {% if totem.bateria_percentual != None %}{{ totem.bateria_percentual }}%{% else %}—{% endif %}</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-[var(--kronus-gray-500)]">Marcações hoje</dt>
+          <dd class="font-mono text-xs font-semibold">{{ registros_hoje }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="card p-6">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Equipamento</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div><dt class="text-xs text-[var(--kronus-gray-500)]">Identificador</dt><dd class="font-mono text-xs">{{ totem.identificador }}</dd></div>
+        <div><dt class="text-xs text-[var(--kronus-gray-500)]">Modelo</dt><dd>{{ totem.modelo_tablet|default:"—" }}</dd></div>
+        <div><dt class="text-xs text-[var(--kronus-gray-500)]">Serial</dt><dd class="font-mono text-xs">{{ totem.serial_tablet|default:"—" }}</dd></div>
+        <div><dt class="text-xs text-[var(--kronus-gray-500)]">Local</dt><dd>{{ totem.local_instalacao|default:"—" }}</dd></div>
+      </dl>
+    </section>
+
+    {# Regra 12 da Seção 14: quem este totem reconhece. #}
+    <section class="card p-6">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Empresas atendidas</h2>
+      <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+        Colaboradores destas empresas são reconhecidos neste equipamento.
+      </p>
+      <ul class="mt-3 space-y-1.5 text-sm">
+        {% for empresa in empresas_atendidas %}
+          <li class="flex items-start gap-1.5">{% icone "predio" classe="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--kronus-gray-400)]" %}
+            <span>{{ empresa.nome_fantasia|default:empresa.razao_social }}</span></li>
+        {% endfor %}
+      </ul>
+      {% if totem.grupo %}
+        <p class="mt-3 border-t border-[var(--kronus-gray-200)] pt-3 text-xs text-[var(--kronus-gray-500)]">
+          Via grupo <a href="{% url 'master:grupo_totem_editar' totem.grupo.pk %}" class="text-[var(--kronus-primary-600)] hover:underline">{{ totem.grupo.nome }}</a>.
+        </p>
+      {% endif %}
+    </section>
+
+    <section class="card p-6">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Comodato</h2>
+      {% if totem.em_comodato %}
+        <dl class="mt-3 space-y-2 text-sm">
+          <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Instalação</dt><dd class="font-mono text-xs">{{ totem.data_instalacao|date:"d/m/Y"|default:"—" }}</dd></div>
+          <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Devolução</dt><dd class="font-mono text-xs">{{ totem.data_devolucao|date:"d/m/Y"|default:"em vigor" }}</dd></div>
+        </dl>
+        {% if totem.contrato_comodato %}
+          <a href="{{ totem.contrato_comodato.url }}" target="_blank" rel="noopener"
+             class="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--kronus-primary-600)] hover:underline">
+            {% icone "documento" classe="h-4 w-4" %} Ver contrato
+          </a>
+        {% endif %}
+        {% if not totem.data_devolucao %}
+          <form method="post" action="{% url 'master:totem_devolver' totem.pk %}" class="mt-4 border-t border-[var(--kronus-gray-200)] pt-4"
+                onsubmit="return confirm('Encerrar o comodato e desativar o equipamento? O histórico de marcações é preservado.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline w-full text-xs">Registrar devolução</button>
+          </form>
+        {% endif %}
+      {% else %}
+        <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">Equipamento próprio do cliente.</p>
+        <a href="{% url 'master:totem_comodato' totem.pk %}" class="mt-3 inline-block text-sm text-[var(--kronus-primary-600)] hover:underline">Registrar comodato</a>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

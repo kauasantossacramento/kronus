@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <nav class="mb-1 text-xs text-[var(--kronus-gray-400)]">
+      <a href="{% url 'master:totem_lista' %}" class="hover:underline">Parque de totens</a> / Grupos
+    </nav>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Grupos de totens</h1>
+    <p class="mt-2 max-w-2xl text-sm text-[var(--kronus-gray-500)]">
+      Um grupo faz um totem reconhecer colaboradores de mais de uma empresa do
+      <strong>mesmo cliente</strong> — o caso do grupo econômico com vários CNPJs
+      atrás da mesma portaria. Um grupo nunca atravessa contas diferentes.
+    </p>
+  </div>
+  <a href="{% url 'master:grupo_totem_criar' %}" class="btn btn-primary">{% icone "mais" classe="h-4 w-4" %} Novo grupo</a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+  {% for grupo in grupos %}
+    <div class="card flex flex-col p-6 {% if not grupo.ativo %}opacity-60{% endif %}">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">{{ grupo.nome }}</h2>
+          <p class="mt-0.5 truncate text-xs text-[var(--kronus-gray-500)]">{{ grupo.cliente.razao_social }}</p>
+        </div>
+        {% if not grupo.ativo %}
+          <span class="shrink-0 rounded-full bg-[var(--kronus-gray-100)] px-2 py-0.5 text-xs text-[var(--kronus-gray-600)]">Inativo</span>
+        {% endif %}
+      </div>
+
+      {% if grupo.descricao %}<p class="mt-2 text-sm text-[var(--kronus-gray-600)]">{{ grupo.descricao }}</p>{% endif %}
+
+      <dl class="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--kronus-gray-200)] pt-4 text-sm">
+        <div>
+          <dt class="flex items-center gap-1 text-xs text-[var(--kronus-gray-500)]">{% icone "totem" classe="h-3.5 w-3.5" %} Totens</dt>
+          <dd class="font-mono text-lg font-bold text-[var(--kronus-gray-900)]">{{ grupo.qtd_totens }}</dd>
+        </div>
+        <div>
+          <dt class="flex items-center gap-1 text-xs text-[var(--kronus-gray-500)]">{% icone "predio" classe="h-3.5 w-3.5" %} Empresas</dt>
+          <dd class="font-mono text-lg font-bold text-[var(--kronus-gray-900)]">{{ grupo.qtd_empresas }}</dd>
+        </div>
+      </dl>
+
+      {% if not grupo.qtd_empresas %}
+        <p class="mt-3 rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+          Sem empresas vinculadas: os totens deste grupo reconhecem apenas a empresa de cadastro de cada um.
+        </p>
+      {% endif %}
+
+      <div class="mt-auto flex justify-end pt-5">
+        <a href="{% url 'master:grupo_totem_editar' grupo.pk %}" class="btn btn-outline text-xs">Editar</a>
+      </div>
+    </div>
+  {% empty %}
+    <div class="card col-span-full p-12 text-center text-[var(--kronus-gray-400)]">
+      Nenhum grupo cadastrado.
+      <a href="{% url 'master:grupo_totem_criar' %}" class="ml-1 text-[var(--kronus-primary-600)] hover:underline">Criar o primeiro</a>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

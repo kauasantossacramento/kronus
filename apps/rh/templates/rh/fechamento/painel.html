@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Fechamento mensal</h1>
+    <p class="mt-2 text-sm capitalize text-[var(--kronus-gray-500)]">{{ nome_mes }} de {{ ano }}</p>
+  </div>
+  <form method="get" class="flex items-end gap-2">
+    <select name="mes" class="rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+      {% for numero, nome in meses %}<option value="{{ numero }}" {% if numero == mes %}selected{% endif %}>{{ nome|capfirst }}</option>{% endfor %}
+    </select>
+    <select name="ano" class="rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+      {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-outline">Ver</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+{% if periodo_futuro %}
+  <div class="mb-6 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    {% icone "alerta" classe="mt-0.5 h-5 w-5 shrink-0" %}
+    <span>Este período ainda não começou. O fechamento só faz sentido para meses já encerrados.</span>
+  </div>
+{% endif %}
+
+<div class="grid gap-4 sm:grid-cols-3">
+  {% include "components/stats_card.html" with rotulo="Colaboradores" valor=linhas|length icone_nome="usuarios" %}
+  {% include "components/stats_card.html" with rotulo="Períodos fechados" valor=total_fechados icone_nome="check_circulo" cor="sucesso" %}
+  {% include "components/stats_card.html" with rotulo="Jornadas em aberto" valor=total_pendencias icone_nome="alerta" cor="alerta" rodape="Impedem o fechamento" %}
+</div>
+
+<div class="card mt-6">
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--kronus-gray-200)] p-4">
+    <p class="flex items-start gap-2 text-xs text-[var(--kronus-gray-500)]">
+      {% icone "info" classe="mt-0.5 h-4 w-4 shrink-0" %}
+      <span>
+        Fechar congela os dias do período: eles deixam de ser recalculados automaticamente.
+        Um espelho já <strong>assinado</strong> pelo colaborador não pode ser reaberto.
+      </span>
+    </p>
+    <form method="post" action="{% url 'rh:fechar_periodo' ano mes %}"
+          onsubmit="return confirm('Fechar o período de {{ mes }}/{{ ano }} para todos os colaboradores sem pendência?')">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary text-xs">
+        {% icone "check" classe="h-4 w-4" %} Fechar todos
+      </button>
+    </form>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+        <tr>
+          <th class="px-4 py-3 font-medium">Colaborador</th>
+          <th class="px-4 py-3 text-right font-medium">Trabalhado</th>
+          <th class="px-4 py-3 text-right font-medium">Previsto</th>
+          <th class="px-4 py-3 text-right font-medium">Extras</th>
+          <th class="px-4 py-3 text-right font-medium">Saldo final</th>
+          <th class="px-4 py-3 text-center font-medium">Pendências</th>
+          <th class="px-4 py-3 font-medium">Situação</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for linha in linhas %}
+          <tr class="hover:bg-[var(--kronus-gray-50)]">
+            <td class="px-4 py-3">
+              <a href="{% url 'rh:colaborador_detalhe' linha.colaborador.pk %}" class="font-medium text-[var(--kronus-primary-600)] hover:underline">{{ linha.colaborador.nome_exibicao }}</a>
+              <p class="text-xs text-[var(--kronus-gray-400)]">{{ linha.colaborador.departamento|default:"—" }}</p>
+            </td>
+            <td class="px-4 py-3 text-right font-mono tabular-nums">{{ linha.resumo.minutos_trabalhados|hhmm_abs }}</td>
+            <td class="px-4 py-3 text-right font-mono tabular-nums text-[var(--kronus-gray-500)]">{{ linha.resumo.minutos_esperados|hhmm_abs }}</td>
+            <td class="px-4 py-3 text-right font-mono tabular-nums text-[var(--kronus-gold-600)]">{{ linha.resumo.minutos_extras|hhmm_abs }}</td>
+            <td class="px-4 py-3 text-right font-mono font-bold tabular-nums {% classe_saldo linha.resumo.saldo_final %}">{{ linha.resumo.saldo_final|hhmm }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if linha.pendencias %}
+                <span class="rounded bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">{{ linha.pendencias }}</span>
+              {% else %}
+                <span class="text-[var(--kronus-gray-300)]">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              {% if linha.assinado %}
+                <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                  {% icone "escudo" classe="h-3.5 w-3.5" %} Assinado
+                </span>
+              {% elif linha.fechado %}
+                <span class="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">Fechado</span>
+              {% else %}
+                <span class="rounded-md bg-[var(--kronus-gray-100)] px-2 py-1 text-xs font-medium text-[var(--kronus-gray-600)]">Aberto</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="flex justify-end gap-2">
+                <a href="{% url 'ponto:espelho_colaborador' ano mes linha.colaborador.pk %}" target="_blank"
+                   class="text-[var(--kronus-gray-400)] transition hover:text-[var(--kronus-primary-600)]" title="Espelho">
+                  {% icone "download" classe="h-4 w-4" %}
+                </a>
+                {% if not linha.fechado %}
+                  <form method="post" action="{% url 'rh:fechar_periodo_colaborador' ano mes linha.colaborador.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="text-xs font-medium text-[var(--kronus-primary-600)] hover:underline">Fechar</button>
+                  </form>
+                {% elif not linha.assinado %}
+                  <button type="button" class="text-xs font-medium text-amber-600 hover:underline"
+                          onclick="document.getElementById('reabrir-{{ linha.colaborador.pk }}').showModal()">Reabrir</button>
+                {% else %}
+                  <span class="text-xs text-[var(--kronus-gray-300)]" title="Espelho assinado não pode ser reaberto">bloqueado</span>
+                {% endif %}
+              </span>
+
+              {% if linha.fechado and not linha.assinado %}
+                <dialog id="reabrir-{{ linha.colaborador.pk }}" class="rounded-xl p-0 backdrop:bg-slate-900/50">
+                  <form method="post" action="{% url 'rh:reabrir_periodo' ano mes linha.colaborador.pk %}" class="w-96 p-6 text-left">
+                    {% csrf_token %}
+                    <h3 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Reabrir período</h3>
+                    <p class="mt-2 text-sm text-[var(--kronus-gray-600)]">
+                      Os dias de {{ linha.colaborador.nome_exibicao }} voltarão a ser recalculados.
+                      O motivo fica na trilha de auditoria.
+                    </p>
+                    <textarea name="motivo" rows="3" required minlength="10"
+                              placeholder="Motivo da reabertura"
+                              class="mt-3 block w-full rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300"></textarea>
+                    <div class="mt-4 flex justify-end gap-2">
+                      <button type="button" class="btn btn-outline text-xs"
+                              onclick="this.closest('dialog').close()">Cancelar</button>
+                      <button type="submit" class="btn btn-danger text-xs">Reabrir</button>
+                    </div>
+                  </form>
+                </dialog>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum colaborador ativo.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

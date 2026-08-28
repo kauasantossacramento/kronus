@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Meus registros</h1>
+    <p class="mt-2 text-sm capitalize text-[var(--kronus-gray-500)]">{{ nome_mes }} de {{ ano }}</p>
+  </div>
+  <div class="flex flex-wrap items-end gap-2">
+    <form method="get" class="flex items-end gap-2">
+      <select name="mes" class="rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+        {% for numero, nome in meses %}
+          <option value="{{ numero }}" {% if numero == mes %}selected{% endif %}>{{ nome|capfirst }}</option>
+        {% endfor %}
+      </select>
+      <select name="ano" class="rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+        {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-outline">Ver</button>
+    </form>
+    <a href="{% url 'ponto:espelho' ano mes %}" target="_blank" class="btn btn-primary">
+      {% icone "download" classe="h-4 w-4" %} Espelho de ponto
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+{# ── Resumo do período ────────────────────────────────────── #}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  {% include "components/stats_card.html" with rotulo="Horas trabalhadas" valor=totais.trabalhado icone_nome="relogio" %}
+  {% include "components/stats_card.html" with rotulo="Horas previstas" valor=totais.esperado icone_nome="calendario" %}
+  {% include "components/stats_card.html" with rotulo="Horas extras" valor=totais.extras icone_nome="raio" cor="ouro" %}
+  {% include "components/stats_card.html" with rotulo="Saldo do mês" valor=totais.saldo_periodo icone_nome="banco_horas" cor=resumo.saldo_periodo|classe_saldo_cor %}
+</div>
+
+<div class="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-[var(--kronus-gray-200)] bg-white px-5 py-3 text-sm">
+  <span class="text-[var(--kronus-gray-500)]">Saldo anterior</span>
+  <span class="font-mono font-semibold {% classe_saldo resumo.saldo_anterior %}">{{ totais.saldo_anterior }}</span>
+  <span class="text-[var(--kronus-gray-300)]">·</span>
+  <span class="text-[var(--kronus-gray-500)]">Saldo acumulado</span>
+  <span class="font-mono font-semibold {% classe_saldo resumo.saldo_final %}">{{ totais.saldo_final }}</span>
+  <span class="ml-auto flex items-center gap-1.5 font-mono text-xs text-[var(--kronus-gray-400)]">
+    {% icone "escudo" classe="h-3.5 w-3.5" %} {{ codigo_verificacao }}
+  </span>
+</div>
+
+{# ── Dia a dia ────────────────────────────────────────────── #}
+<div class="card mt-6 overflow-x-auto">
+  <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+    <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+      <tr>
+        <th class="px-4 py-3 font-medium">Dia</th>
+        <th class="px-4 py-3 font-medium">Marcações</th>
+        <th class="px-4 py-3 text-right font-medium">Trabalhado</th>
+        <th class="px-4 py-3 text-right font-medium">Previsto</th>
+        <th class="px-4 py-3 text-right font-medium">Extras</th>
+        <th class="px-4 py-3 text-right font-medium">Saldo</th>
+        <th class="px-4 py-3 font-medium">Status</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+      {% for linha in linhas %}
+        <tr class="hover:bg-[var(--kronus-gray-50)]">
+          <td class="whitespace-nowrap px-4 py-2.5">
+            <span class="font-mono font-medium">{{ linha.data|date:"d/m" }}</span>
+            <span class="ml-1 text-xs capitalize text-[var(--kronus-gray-400)]">{{ linha.data|date:"D" }}</span>
+          </td>
+          <td class="px-4 py-2.5">
+            {% if linha.marcacoes %}
+              <span class="flex flex-wrap gap-1.5">
+                {% for marcacao in linha.marcacoes %}
+                  <span class="rounded bg-[var(--kronus-gray-100)] px-1.5 py-0.5 font-mono text-xs tabular-nums">{{ marcacao|date:"H:i" }}</span>
+                {% endfor %}
+              </span>
+            {% else %}
+              <span class="text-[var(--kronus-gray-300)]">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2.5 text-right font-mono tabular-nums">{{ linha.trabalhado }}</td>
+          <td class="px-4 py-2.5 text-right font-mono tabular-nums text-[var(--kronus-gray-500)]">{{ linha.esperado }}</td>
+          <td class="px-4 py-2.5 text-right font-mono tabular-nums text-[var(--kronus-gold-600)]">{{ linha.extras }}</td>
+          <td class="px-4 py-2.5 text-right font-mono font-semibold tabular-nums {% if linha.banco %}{% classe_saldo linha.banco.saldo_dia %}{% endif %}">{{ linha.saldo }}</td>
+          <td class="px-4 py-2.5">
+            {% if linha.status %}{% badge_status linha.status %}{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot class="border-t-2 border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)] font-semibold">
+      <tr>
+        <td class="px-4 py-3" colspan="2">Totais do mês</td>
+        <td class="px-4 py-3 text-right font-mono">{{ totais.trabalhado }}</td>
+        <td class="px-4 py-3 text-right font-mono">{{ totais.esperado }}</td>
+        <td class="px-4 py-3 text-right font-mono text-[var(--kronus-gold-600)]">{{ totais.extras }}</td>
+        <td class="px-4 py-3 text-right font-mono {% classe_saldo resumo.saldo_periodo %}">{{ totais.saldo_periodo }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endblock %}

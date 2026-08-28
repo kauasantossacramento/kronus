@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Exportar para folha</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    Totais do período por colaborador, no formato do sistema de folha do cliente.
+    Confira a prévia antes de baixar: um total fora do esperado costuma ser
+    apuração incompleta, e descobrir isso depois do fechamento custa caro.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-5xl space-y-6">
+
+  <form method="get" class="card flex flex-wrap items-end gap-4 p-5">
+    <div>
+      <label for="data_inicio" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">De</label>
+      <input type="date" id="data_inicio" name="data_inicio" value="{{ data_inicio|date:'Y-m-d' }}"
+             class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+    </div>
+    <div>
+      <label for="data_fim" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Até</label>
+      <input type="date" id="data_fim" name="data_fim" value="{{ data_fim|date:'Y-m-d' }}"
+             class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+    </div>
+    <div class="min-w-[16rem] flex-1">
+      <label for="layout" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Sistema de folha</label>
+      <select id="layout" name="layout" onchange="this.form.submit()"
+              class="block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+        {% for item in layouts %}
+          <option value="{{ item.chave }}" {% if item.chave == layout %}selected{% endif %}>{{ item.rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-outline">{% icone "filtro" classe="h-4 w-4" %} Atualizar</button>
+  </form>
+
+  <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <p class="flex items-start gap-2">
+      {% icone "alerta" classe="mt-0.5 h-4 w-4 shrink-0" %}
+      <span>
+        Os layouts foram montados a partir da documentação pública de cada sistema e
+        <strong>não foram validados contra um arquivo aceito em produção</strong>.
+        Antes do primeiro fechamento valendo, exporte um mês de teste e peça ao contador
+        para importar em homologação.
+      </span>
+    </p>
+  </div>
+
+  {% if erro %}
+    <div class="card border border-red-200 p-6 text-sm text-red-700">
+      Não foi possível gerar a prévia: {{ erro }}
+    </div>
+  {% elif resumo %}
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="card p-4">
+        <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Colaboradores</p>
+        <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-gray-900)]">{{ resumo.colaboradores }}</p>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Horas extras</p>
+        <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-primary-600)]">{{ resumo.horas_extras_decimal }}</p>
+        <p class="text-xs text-[var(--kronus-gray-400)]">{{ resumo.minutos_extras }} min</p>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Adic. noturno</p>
+        <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-gray-900)]">{{ resumo.minutos_noturnos }}</p>
+        <p class="text-xs text-[var(--kronus-gray-400)]">minutos</p>
+      </div>
+      <div class="card p-4 {% if resumo.dias_falta %}ring-2 ring-amber-200{% endif %}">
+        <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Faltas</p>
+        <p class="mt-1 font-mono text-2xl font-bold {% if resumo.dias_falta %}text-amber-700{% else %}text-[var(--kronus-gray-900)]{% endif %}">{{ resumo.dias_falta }}</p>
+      </div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <div class="border-b border-[var(--kronus-gray-200)] px-6 py-4">
+        <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Prévia do arquivo</h2>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+          {{ layout_atual.descricao }}
+          Codificação <code class="font-mono">{{ layout_atual.codificacao }}</code>.
+        </p>
+      </div>
+      {% if amostra %}
+        <pre class="overflow-x-auto bg-[var(--kronus-gray-900)] px-6 py-4 font-mono text-[11px] leading-relaxed text-[var(--kronus-gold-300)]"><code>{% for linha in amostra %}{{ linha }}
+{% endfor %}</code></pre>
+      {% else %}
+        <p class="px-6 py-10 text-center text-[var(--kronus-gray-400)]">
+          Nenhuma apuração no período. Verifique se o banco de horas foi consolidado.
+        </p>
+      {% endif %}
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)] px-6 py-4">
+        <p class="text-xs text-[var(--kronus-gray-500)]">
+          Período de {{ data_inicio|date:"d/m/Y" }} a {{ data_fim|date:"d/m/Y" }}.
+        </p>
+        {% if amostra %}
+          <a class="btn btn-primary"
+             href="{% url 'rh:baixar_folha' %}?data_inicio={{ data_inicio|date:'Y-m-d' }}&data_fim={{ data_fim|date:'Y-m-d' }}&layout={{ layout }}">
+            {% icone "download" classe="h-4 w-4" %} Baixar arquivo
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

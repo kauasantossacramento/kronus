@@ -1,0 +1,51 @@
+{% comment %}
+  ══════════════════════════════════════════════════════════════
+  MARCA KRONUS — Seções 3.1 e 3.4 do plano
+
+  O símbolo é uma ampulheta geométrica: a moldura em traço firme
+  representa o registro (o continente do tempo) e a areia acumulada
+  na base, em âmbar dourado, representa o tempo já apurado — que é
+  exatamente o que o produto entrega ao RH. O grão em queda no
+  estrangulamento marca o instante da batida.
+
+  Traçado em `currentColor`, então o símbolo herda a cor do contexto;
+  apenas a areia e o grão usam o dourado do design system.
+
+  Parâmetros:
+    variante  horizontal (padrão) | stacked | icone | wordmark
+    tom       cor (padrão) | branco | ouro
+    tamanho   sm | md (padrão) | lg | xl
+  ══════════════════════════════════════════════════════════════
+{% endcomment %}
+
+<span class="inline-flex {% if variante == 'stacked' %}flex-col items-center gap-1.5{% else %}items-center gap-2.5{% endif %}
+             {% if tom == 'branco' %}text-white{% elif tom == 'ouro' %}text-[var(--kronus-gold-500)]{% else %}text-[var(--kronus-primary-500)]{% endif %}">
+
+  {% if variante != "wordmark" %}
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"
+         class="{% if tamanho == 'sm' %}h-6 w-6{% elif tamanho == 'lg' %}h-10 w-10{% elif tamanho == 'xl' %}h-16 w-16{% else %}h-8 w-8{% endif %} shrink-0"
+         fill="none" role="img" aria-label="Kronus">
+      <title>Kronus</title>
+
+      {# Areia acumulada na base — o tempo já apurado #}
+      <path d="M24 26.4c0 2.9 5.6 5.2 6.9 9.1H17.1c1.3-3.9 6.9-6.2 6.9-9.1Z"
+            fill="{% if tom == 'branco' %}#FBBF24{% else %}var(--kronus-gold-500){% endif %}"/>
+
+      {# Grão em queda — o instante do registro #}
+      <circle cx="24" cy="22.2" r="1.5"
+              fill="{% if tom == 'branco' %}#FBBF24{% else %}var(--kronus-gold-500){% endif %}"/>
+
+      {# Moldura da ampulheta #}
+      <g stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 6.5h22M13 41.5h22"/>
+        <path d="M16.5 6.5v4.8c0 5.6 7.5 9.3 7.5 12.7 0 3.4-7.5 7.1-7.5 12.7v5.3"/>
+        <path d="M31.5 6.5v4.8c0 5.6-7.5 9.3-7.5 12.7 0 3.4 7.5 7.1 7.5 12.7v5.3"/>
+      </g>
+    </svg>
+  {% endif %}
+
+  {% if variante != "icone" %}
+    <span class="kronus-logo-text{% if tom == 'branco' %} light{% elif tom == 'ouro' %} gold{% endif %}
+                 {% if tamanho == 'sm' %}text-base{% elif tamanho == 'lg' %}text-2xl{% elif tamanho == 'xl' %}text-4xl{% else %}text-xl{% endif %}">Kronus</span>
+  {% endif %}
+</span>

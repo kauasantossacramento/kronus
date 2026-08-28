@@ -1,0 +1,66 @@
+{% extends "base_totem.html" %}
+{% load static %}
+
+{% block titulo %}Diagnóstico · {{ totem.identificador }}{% endblock %}
+
+{% block conteudo %}
+<div class="totem-diag">
+  <h1>{{ totem.identificador }}</h1>
+  <p style="color:var(--totem-text-muted)">{{ empresa.nome_exibicao }} · app v{{ versao_app }}</p>
+
+  <h2>Estado</h2>
+  <table>
+    <tr><th>Situação</th><td>
+      <span class="pill {% if totem.online %}pill--ok{% else %}pill--off{% endif %}">{{ totem.status }}</span>
+    </td></tr>
+    <tr><th>Último heartbeat</th><td class="totem-mono">
+      {{ totem.ultimo_heartbeat|date:"d/m/Y H:i:s"|default:"nunca" }}
+      {% if totem.minutos_desde_heartbeat %} (há {{ totem.minutos_desde_heartbeat }} min){% endif %}
+    </td></tr>
+    <tr><th>Último IP</th><td class="totem-mono">{{ totem.ultimo_ip|default:"—" }}</td></tr>
+    <tr><th>Versão do app</th><td class="totem-mono">{{ totem.versao_firmware|default:"—" }}</td></tr>
+    <tr><th>Bateria</th><td class="totem-mono">{% if totem.bateria_percentual %}{{ totem.bateria_percentual }}%{% else %}—{% endif %}</td></tr>
+    <tr><th>Fallback por CPF</th><td>{{ totem.permite_fallback_cpf|yesno:"habilitado,desabilitado" }}</td></tr>
+    <tr><th>Grupo</th><td>{{ totem.grupo|default:"—" }}</td></tr>
+    <tr><th>Modelo</th><td>{{ totem.modelo_tablet|default:"—" }}{% if totem.serial_tablet %} · {{ totem.serial_tablet }}{% endif %}</td></tr>
+  </table>
+
+  <h2>Reconhecimento ({{ total_tentativas }} tentativa{{ total_tentativas|pluralize }})</h2>
+  <table>
+    <thead><tr><th>Resultado</th><th>Total</th><th>%</th></tr></thead>
+    <tbody>
+      {% for item in resumo_reconhecimento %}
+        <tr>
+          <td>{{ item.resultado }}</td>
+          <td class="totem-mono">{{ item.total }}</td>
+          <td class="totem-mono">{{ item.percentual }}%</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3" style="color:var(--totem-text-muted)">Nenhuma tentativa registrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Últimos eventos</h2>
+  <table>
+    <thead><tr><th>Quando</th><th>Evento</th><th>Detalhes</th></tr></thead>
+    <tbody>
+      {% for evento in eventos %}
+        <tr>
+          <td class="totem-mono" style="white-space:nowrap">{{ evento.created_at|date:"d/m H:i:s" }}</td>
+          <td>{{ evento.get_tipo_display }}</td>
+          <td style="color:var(--totem-text-muted)">{{ evento.detalhes|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3" style="color:var(--totem-text-muted)">Sem eventos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p style="margin-top:2rem">
+    <a href="{% url 'totem:kiosk' totem.token_acesso %}" class="totem-botao" style="display:inline-block;width:auto;padding:.6rem 1.4rem;text-decoration:none">
+      Voltar ao totem
+    </a>
+  </p>
+</div>
+{% endblock %}

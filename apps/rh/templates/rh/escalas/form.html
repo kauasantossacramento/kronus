@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block conteudo %}
+<form method="post" class="mx-auto max-w-4xl space-y-6">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {% for erro in form.non_field_errors %}<p>{{ erro }}</p>{% endfor %}
+    </div>
+  {% endif %}
+
+  {# ── Dados da escala ─────────────────────────────────────── #}
+  <div class="card p-6">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Identificação</h2>
+    <div class="mt-4 grid gap-5 sm:grid-cols-2">
+      {% for campo in form %}
+        {% if not campo.name|slice:":4" == "dia_" %}
+          <div class="{% if campo.name == 'descricao' %}sm:col-span-2{% endif %}
+                      {% if campo.field.widget.input_type == 'checkbox' %}flex items-center gap-2{% endif %}">
+            {% if campo.field.widget.input_type == 'checkbox' %}
+              {{ campo }}
+              <label for="{{ campo.id_for_label }}" class="text-sm text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+            {% else %}
+              <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+              <div class="mt-1.5">{{ campo }}</div>
+            {% endif %}
+            {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+            {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Grade semanal ───────────────────────────────────────── #}
+  <div class="card p-6">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Jornada semanal</h2>
+    <p class="mt-1 flex items-start gap-2 text-xs text-[var(--kronus-gray-500)]">
+      {% icone "info" classe="mt-0.5 h-4 w-4 shrink-0" %}
+      <span>
+        Marque os dias trabalhados e informe os horários. A carga semanal é calculada
+        automaticamente. Em escalas cíclicas (12x36, plantão), a grade é ignorada em
+        favor da data de referência.
+      </span>
+    </p>
+
+    <div class="mt-5 overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+          <tr>
+            <th class="py-2 pr-4 font-medium">Dia</th>
+            <th class="px-2 py-2 font-medium">Entrada</th>
+            <th class="px-2 py-2 font-medium">Saída intervalo</th>
+            <th class="px-2 py-2 font-medium">Retorno</th>
+            <th class="px-2 py-2 font-medium">Saída</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+          {% for dia in form.dias_montados %}
+            <tr x-data="{ trabalha: {{ dia.trabalha.value|yesno:'true,false' }} }">
+              <td class="py-2.5 pr-4">
+                <label class="flex items-center gap-2 whitespace-nowrap">
+                  <input type="checkbox" name="{{ dia.trabalha.html_name }}"
+                         x-model="trabalha"
+                         class="h-4 w-4 rounded border-slate-300 text-[var(--kronus-primary-600)] focus:ring-[var(--kronus-primary-500)]">
+                  <span class="text-sm font-medium text-[var(--kronus-gray-700)]">{{ dia.rotulo }}</span>
+                </label>
+              </td>
+              <td class="px-2 py-2.5" :class="trabalha ? '' : 'opacity-40'">{{ dia.entrada }}</td>
+              <td class="px-2 py-2.5" :class="trabalha ? '' : 'opacity-40'">{{ dia.intervalo_inicio }}</td>
+              <td class="px-2 py-2.5" :class="trabalha ? '' : 'opacity-40'">{{ dia.intervalo_fim }}</td>
+              <td class="px-2 py-2.5" :class="trabalha ? '' : 'opacity-40'">{{ dia.saida }}</td>
+            </tr>
+            {% if dia.entrada.errors %}
+              <tr><td colspan="5" class="pb-2 text-xs text-red-600">{{ dia.entrada.errors.0 }}</td></tr>
+            {% endif %}
+            {% if dia.intervalo_fim.errors %}
+              <tr><td colspan="5" class="pb-2 text-xs text-red-600">{{ dia.intervalo_fim.errors.0 }}</td></tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="flex justify-end gap-2">
+    <a href="{% url 'rh:escala_lista' %}" class="btn btn-outline">Cancelar</a>
+    <button type="submit" class="btn btn-primary">Salvar escala</button>
+  </div>
+</form>
+{% endblock %}

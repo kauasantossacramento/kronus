@@ -1,0 +1,14 @@
+{
+  "name": "kronus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kronus — Ponto Eletronico Digital (KS TEC)",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/main.css --minify",
+    "watch:css": "tailwindcss -i ./static/css/input.css -o ./static/css/main.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "tailwindcss": "^3.4.0"
+  }
+}

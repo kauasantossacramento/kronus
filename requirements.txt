@@ -1,0 +1,12 @@
+# ══════════════════════════════════════════════════════════════
+# Kronus — requirements canônicos (Seção 12.2 do plano)
+# Instalação completa de produção.
+# Para bootstrap rápido (Fases 1-2, sem stack de visão computacional)
+# use: pip install -r requirements-base.txt
+# ══════════════════════════════════════════════════════════════
+-r requirements-base.txt
+
+# ── Reconhecimento facial (Fase 3) ────────────────────────────
+deepface>=0.0.93
+opencv-python-headless>=4.9
+tf-keras>=2.16

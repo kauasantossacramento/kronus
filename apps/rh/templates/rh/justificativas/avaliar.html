@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-3xl space-y-6">
+
+  <div class="card p-6">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h2 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">{{ justificativa.colaborador.nome_exibicao }}</h2>
+        <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+          {{ justificativa.get_tipo_display }} em {{ justificativa.data|date:"d/m/Y" }}
+        </p>
+      </div>
+      <span class="rounded-md px-3 py-1.5 text-sm font-medium ring-1 ring-inset
+        {% if justificativa.status == 'aprovado' %}bg-emerald-50 text-emerald-700 ring-emerald-600/20
+        {% elif justificativa.status == 'rejeitado' %}bg-red-50 text-red-700 ring-red-600/20
+        {% else %}bg-amber-50 text-amber-700 ring-amber-600/20{% endif %}">{{ justificativa.get_status_display }}</span>
+    </div>
+
+    <div class="mt-5 rounded-lg bg-[var(--kronus-gray-50)] p-4 text-sm text-[var(--kronus-gray-700)]">
+      {{ justificativa.motivo|linebreaksbr }}
+    </div>
+
+    <div class="mt-4 flex flex-wrap items-center gap-4 text-xs text-[var(--kronus-gray-500)]">
+      <span>Solicitada por {{ justificativa.solicitada_por|default:"—" }}</span>
+      <span>·</span>
+      <span>{{ justificativa.created_at|date:"d/m/Y H:i" }}</span>
+      {% if justificativa.abona_dia %}
+        <span class="rounded bg-[var(--kronus-primary-50)] px-2 py-0.5 font-medium text-[var(--kronus-primary-700)]">Pedido de abono do dia</span>
+      {% endif %}
+    </div>
+
+    {% if justificativa.arquivo_comprovante %}
+      <a href="{{ justificativa.arquivo_comprovante.url }}" target="_blank" class="btn btn-outline mt-4">
+        {% icone "documento" classe="h-4 w-4" %} Abrir comprovante
+      </a>
+    {% endif %}
+  </div>
+
+  {# Como o dia está apurado hoje #}
+  <div class="card p-5">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Situação do dia</h2>
+    {% if dia %}
+      <dl class="mt-3 grid gap-4 sm:grid-cols-4 text-sm">
+        <div><dt class="text-xs text-[var(--kronus-gray-500)]">Status</dt><dd class="mt-1">{% badge_status dia.status %}</dd></div>
+        <div><dt class="text-xs text-[var(--kronus-gray-500)]">Trabalhado</dt><dd class="font-mono">{{ dia.minutos_trabalhados|hhmm_abs }}</dd></div>
+        <div><dt class="text-xs text-[var(--kronus-gray-500)]">Previsto</dt><dd class="font-mono">{{ dia.minutos_esperados|hhmm_abs }}</dd></div>
+        <div><dt class="text-xs text-[var(--kronus-gray-500)]">Saldo</dt><dd class="font-mono {% classe_saldo dia.saldo_dia %}">{{ dia.saldo_dia|hhmm }}</dd></div>
+      </dl>
+      {% if dia.observacao %}
+        <p class="mt-3 text-xs text-amber-600">{{ dia.observacao }}</p>
+      {% endif %}
+    {% else %}
+      <p class="mt-2 text-sm text-[var(--kronus-gray-400)]">Este dia ainda não foi apurado.</p>
+    {% endif %}
+  </div>
+
+  <div class="card p-6">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Decisão</h2>
+    <form method="post" class="mt-4 space-y-4">
+      {% csrf_token %}
+      <div class="flex gap-6">
+        {% for opcao in form.decisao %}
+          <label class="flex items-center gap-2 text-sm text-[var(--kronus-gray-700)]">{{ opcao.tag }} {{ opcao.choice_label }}</label>
+        {% endfor %}
+      </div>
+      {% if form.decisao.errors %}<p class="text-xs text-red-600">{{ form.decisao.errors.0 }}</p>{% endif %}
+
+      <div>
+        <label for="{{ form.parecer.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ form.parecer.label }}</label>
+        <div class="mt-1.5">{{ form.parecer }}</div>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ form.parecer.help_text }}</p>
+        {% if form.parecer.errors %}<p class="mt-1 text-xs text-red-600">{{ form.parecer.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="flex justify-end gap-2 border-t border-[var(--kronus-gray-200)] pt-4">
+        <a href="{% url 'rh:justificativa_lista' %}" class="btn btn-outline">Voltar</a>
+        <button type="submit" class="btn btn-primary">Registrar decisão</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

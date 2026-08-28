@@ -1,0 +1,141 @@
+{% load kronus_tags %}<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Comprovante de Registro de Ponto — NSR {{ registro.nsr }}</title>
+<style>
+  /* Comprovante em bobina/A6 — Portaria 671/2021, Anexo. */
+  @page { size: 80mm auto; margin: 6mm 5mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-size: 9pt;
+    line-height: 1.45;
+    color: #0F172A;
+    margin: 0;
+  }
+  .marca { text-align: center; margin-bottom: 4mm; }
+  .marca .nome {
+    font-family: "Outfit", Helvetica, sans-serif;
+    font-size: 15pt; font-weight: 700;
+    letter-spacing: .15em; text-transform: uppercase;
+    color: #1E3A5F;
+  }
+  .marca .tagline { font-size: 6.5pt; color: #64748B; letter-spacing: .05em; }
+  h1 {
+    font-family: "Outfit", Helvetica, sans-serif;
+    font-size: 9.5pt; font-weight: 600; text-align: center;
+    text-transform: uppercase; letter-spacing: .06em;
+    margin: 0 0 3mm; padding-bottom: 2mm;
+    border-bottom: 1.5pt solid #1E3A5F;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: .9mm 0; vertical-align: top; }
+  td.rotulo { color: #64748B; width: 38%; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .03em; }
+  td.valor { font-weight: 700; text-align: right; }
+  .destaque {
+    margin: 3mm 0;
+    padding: 3mm 2mm;
+    text-align: center;
+    background: #F1F5F9;
+    border-radius: 2mm;
+  }
+  .destaque .hora { font-size: 20pt; font-weight: 700; line-height: 1; }
+  .destaque .tipo {
+    font-family: "Outfit", Helvetica, sans-serif;
+    font-size: 8.5pt; text-transform: uppercase; letter-spacing: .1em;
+    color: #1E3A5F; margin-top: 1.5mm;
+  }
+  .divisor { border: 0; border-top: 1pt dashed #CBD5E1; margin: 3mm 0; }
+  .verificacao {
+    text-align: center; padding: 2.5mm;
+    border: 1pt solid #D4A017; border-radius: 2mm;
+    background: #FFFBEB;
+  }
+  .verificacao .codigo { font-size: 11pt; font-weight: 700; letter-spacing: .12em; }
+  .verificacao .rotulo { font-size: 6.5pt; color: #92690A; text-transform: uppercase; letter-spacing: .08em; }
+  .legal { font-size: 6.5pt; color: #64748B; text-align: center; margin-top: 3mm; line-height: 1.4; }
+  .rodape {
+    margin-top: 4mm; padding-top: 2mm;
+    border-top: 1pt solid #E2E8F0;
+    text-align: center; font-size: 6.5pt; color: #94A3B8;
+  }
+</style>
+</head>
+<body>
+
+  <div class="marca">
+    <div class="nome">Kronus</div>
+    <div class="tagline">Comprovante de Registro de Ponto</div>
+  </div>
+
+  <h1>REP-P · Portaria 671/2021</h1>
+
+  {# ── Empregador ──────────────────────────────────────────── #}
+  <table>
+    <tr><td class="rotulo">Empregador</td><td class="valor">{{ empresa.razao_social }}</td></tr>
+    <tr><td class="rotulo">CNPJ</td><td class="valor">{{ empresa.cnpj_formatado }}</td></tr>
+    {% if empresa.cei_caepf %}
+      <tr><td class="rotulo">CEI/CAEPF</td><td class="valor">{{ empresa.cei_caepf }}</td></tr>
+    {% endif %}
+  </table>
+
+  <hr class="divisor">
+
+  {# ── Empregado ───────────────────────────────────────────── #}
+  <table>
+    <tr><td class="rotulo">Empregado</td><td class="valor">{{ colaborador.nome_exibicao }}</td></tr>
+    <tr><td class="rotulo">CPF</td><td class="valor">{{ colaborador.cpf|cpf }}</td></tr>
+    {% if colaborador.pis_pasep %}
+      <tr><td class="rotulo">PIS/PASEP</td><td class="valor">{{ colaborador.pis_pasep }}</td></tr>
+    {% endif %}
+    {% if colaborador.matricula %}
+      <tr><td class="rotulo">Matrícula</td><td class="valor">{{ colaborador.matricula }}</td></tr>
+    {% endif %}
+  </table>
+
+  {# ── Marcação ────────────────────────────────────────────── #}
+  <div class="destaque">
+    <div class="hora">{{ momento|date:"H:i:s" }}</div>
+    <div class="tipo">{{ registro.get_tipo_display }}</div>
+    <div style="font-size:8pt;margin-top:1mm">{{ momento|date:"d/m/Y" }}</div>
+  </div>
+
+  <table>
+    <tr><td class="rotulo">NSR</td><td class="valor">{{ registro.nsr }}</td></tr>
+    <tr><td class="rotulo">Origem</td><td class="valor">{{ registro.get_metodo_display }}</td></tr>
+    {% if registro.totem %}
+      <tr><td class="rotulo">Equipamento</td><td class="valor">{{ registro.totem.identificador }}</td></tr>
+    {% endif %}
+    {% if registro.tem_geolocalizacao %}
+      <tr>
+        <td class="rotulo">Localização</td>
+        <td class="valor" style="font-size:7pt">{{ registro.latitude|floatformat:5 }}, {{ registro.longitude|floatformat:5 }}</td>
+      </tr>
+    {% endif %}
+    {% if registro.fora_area %}
+      <tr><td class="rotulo">Aviso</td><td class="valor" style="font-size:7pt">Fora da área autorizada</td></tr>
+    {% endif %}
+  </table>
+
+  <hr class="divisor">
+
+  {# ── Integridade ─────────────────────────────────────────── #}
+  <div class="verificacao">
+    <div class="rotulo">Código de verificação</div>
+    <div class="codigo">{{ codigo_verificacao }}</div>
+  </div>
+
+  <p class="legal">
+    Assinatura eletrônica por hash SHA-256 encadeado ao registro anterior.
+    Qualquer alteração no histórico invalida este código.
+  </p>
+
+  <div class="rodape">
+    Emitido em {{ emitido_em|date:"d/m/Y H:i:s" }}<br>
+    Kronus · kronus.online<br>
+    Desenvolvido por {{ KSTEC_NOME|default:"KS TEC Soluções de Tecnologia Ltda" }}
+  </div>
+
+</body>
+</html>

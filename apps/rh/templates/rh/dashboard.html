@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Dashboard</h1>
+  <p class="mt-2 text-sm capitalize text-[var(--kronus-gray-500)]">
+    {{ empresa_atual.nome_exibicao }} · {{ hoje|date:"l, d \d\e F \d\e Y" }}
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+{# ── Linha 1: resumo do dia (Seção 6.6 do plano) ─────────── #}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  {% include "components/stats_card.html" with rotulo="Colaboradores ativos" valor=total_colaboradores icone_nome="usuarios" url="/rh/colaboradores/" %}
+  {% include "components/stats_card.html" with rotulo="Registros hoje" valor=registros_hoje icone_nome="relogio" rodape=presentes_hoje|stringformat:"s"|add:" colaborador(es) presente(s)" url="/rh/registros/" %}
+  {% include "components/stats_card.html" with rotulo="Atrasos hoje" valor=atrasos_hoje icone_nome="alerta" cor="alerta" %}
+  {% include "components/stats_card.html" with rotulo="Faltas hoje" valor=faltas_hoje icone_nome="erro" cor="perigo" %}
+</div>
+
+{# ── Alertas operacionais ────────────────────────────────── #}
+{% if sem_escala or sem_face or totens_offline or alertas_registro or incompletos_hoje %}
+  <div class="mt-6 space-y-2">
+    {% if incompletos_hoje %}
+      <div class="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        {% icone "alerta" classe="h-5 w-5 shrink-0" %}
+        <span><strong>{{ incompletos_hoje }}</strong> jornada{{ incompletos_hoje|pluralize }} em aberto hoje (número ímpar de marcações).</span>
+        <a href="{% url 'rh:registro_lista' %}" class="ml-auto font-medium underline">Revisar</a>
+      </div>
+    {% endif %}
+    {% if alertas_registro %}
+      <div class="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        {% icone "escudo" classe="h-5 w-5 shrink-0" %}
+        <span><strong>{{ alertas_registro }}</strong> registro{{ alertas_registro|pluralize }} com alerta de localização ou GPS suspeito.</span>
+        <a href="{% url 'rh:registro_lista' %}?apenas_alertas=1" class="ml-auto font-medium underline">Ver</a>
+      </div>
+    {% endif %}
+    {% if sem_escala %}
+      <div class="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        {% icone "calendario" classe="h-5 w-5 shrink-0" %}
+        <span><strong>{{ sem_escala }}</strong> colaborador{{ sem_escala|pluralize:"es" }} sem escala vinculada — o cálculo usa a jornada padrão da empresa.</span>
+        <a href="{% url 'rh:escala_lista' %}" class="ml-auto font-medium underline">Escalas</a>
+      </div>
+    {% endif %}
+    {% if sem_face %}
+      <div class="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        {% icone "rosto" classe="h-5 w-5 shrink-0" %}
+        <span><strong>{{ sem_face }}</strong> colaborador{{ sem_face|pluralize:"es" }} sem cadastro facial.</span>
+        <a href="{% url 'rh:colaborador_lista' %}?face=nao" class="ml-auto font-medium underline">Ver lista</a>
+      </div>
+    {% endif %}
+    {% for totem in totens_offline %}
+      <div class="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        {% icone "antena" classe="h-5 w-5 shrink-0" %}
+        <span>Totem <strong>{{ totem }}</strong> está offline{% if totem.minutos_desde_heartbeat %} há {{ totem.minutos_desde_heartbeat }} minutos{% endif %}.</span>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{# ── Pendências de aprovação ─────────────────────────────── #}
+{% if atestados_pendentes or justificativas_pendentes %}
+  <div class="mt-6 grid gap-4 sm:grid-cols-2">
+    {% if atestados_pendentes %}
+      <a href="{% url 'rh:atestado_lista' %}"
+         class="card flex items-center gap-4 p-5 transition hover:shadow-md">
+        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-600">
+          {% icone "saude" classe="h-6 w-6" %}
+        </span>
+        <span>
+          <span class="block font-mono text-2xl font-bold text-[var(--kronus-gray-900)]">{{ atestados_pendentes }}</span>
+          <span class="block text-sm text-[var(--kronus-gray-600)]">atestado{{ atestados_pendentes|pluralize }} aguardando avaliação</span>
+        </span>
+      </a>
+    {% endif %}
+    {% if justificativas_pendentes %}
+      <a href="{% url 'rh:justificativa_lista' %}"
+         class="card flex items-center gap-4 p-5 transition hover:shadow-md">
+        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
+          {% icone "editar" classe="h-6 w-6" %}
+        </span>
+        <span>
+          <span class="block font-mono text-2xl font-bold text-[var(--kronus-gray-900)]">{{ justificativas_pendentes }}</span>
+          <span class="block text-sm text-[var(--kronus-gray-600)]">justificativa{{ justificativas_pendentes|pluralize }} aguardando avaliação</span>
+        </span>
+      </a>
+    {% endif %}
+  </div>
+{% endif %}
+
+{# ── Gráficos (Seção 6.6 do plano) ───────────────────────── #}
+<div class="mt-6 grid gap-6 lg:grid-cols-3">
+  <div class="card p-5 lg:col-span-2">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Registros por dia</h2>
+    <p class="mt-0.5 text-xs text-[var(--kronus-gray-500)]">Últimos 30 dias</p>
+    <div class="mt-4 h-56"><canvas id="grafico-registros"></canvas></div>
+  </div>
+  <div class="card p-5">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Status de hoje</h2>
+    <p class="mt-0.5 text-xs text-[var(--kronus-gray-500)]">Distribuição das jornadas</p>
+    <div class="mt-4 h-56">
+      {% if grafico_status.valores %}
+        <canvas id="grafico-status"></canvas>
+      {% else %}
+        <p class="grid h-full place-items-center text-center text-xs text-[var(--kronus-gray-400)]">
+          Nenhuma jornada apurada hoje ainda.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-3">
+
+  {# ── Últimos registros ─────────────────────────────────── #}
+  <div class="card lg:col-span-2">
+    <div class="flex items-center justify-between border-b border-[var(--kronus-gray-200)] px-5 py-4">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Últimos registros de hoje</h2>
+      <a href="{% url 'rh:registro_lista' %}" class="inline-flex items-center gap-1 text-xs font-medium text-[var(--kronus-primary-600)] hover:underline">
+        Ver todos {% icone "seta_direita" classe="h-3.5 w-3.5" %}
+      </a>
+    </div>
+    <ul class="divide-y divide-[var(--kronus-gray-100)]">
+      {% for registro in ultimos_registros %}
+        <li class="flex items-center gap-3 px-5 py-3">
+          <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--kronus-primary-600)] text-[11px] font-semibold text-white">{{ registro.colaborador.iniciais }}</span>
+          <div class="min-w-0 flex-1">
+            <a href="{% url 'rh:colaborador_detalhe' registro.colaborador_id %}" class="block truncate text-sm font-medium text-[var(--kronus-gray-800)] hover:text-[var(--kronus-primary-600)]">{{ registro.colaborador.nome_exibicao }}</a>
+            <p class="truncate text-xs text-[var(--kronus-gray-500)]">
+              {{ registro.get_tipo_display }} · {{ registro.get_metodo_display }}
+              {% if registro.fora_area %}<span class="text-amber-600"> · fora da área</span>{% endif %}
+            </p>
+          </div>
+          <span class="shrink-0 font-mono text-sm font-semibold tabular-nums text-[var(--kronus-gray-700)]">{{ registro.hora_local|date:"H:i" }}</span>
+        </li>
+      {% empty %}
+        <li class="px-5 py-10 text-center text-sm text-[var(--kronus-gray-400)]">
+          Nenhum registro hoje ainda.
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="space-y-6">
+    {# ── Ausentes ───────────────────────────────────────── #}
+    <div class="card">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Sem registro hoje</h2>
+        <p class="mt-0.5 text-xs text-[var(--kronus-gray-500)]">Com jornada prevista para hoje.</p>
+      </div>
+      <ul class="max-h-64 divide-y divide-[var(--kronus-gray-100)] overflow-y-auto">
+        {% for colaborador in ausentes %}
+          <li class="flex items-center gap-2 px-5 py-2.5 text-sm">
+            <span class="text-amber-500">{% icone "alerta" classe="h-4 w-4" %}</span>
+            <a href="{% url 'rh:colaborador_detalhe' colaborador.pk %}" class="truncate text-[var(--kronus-gray-700)] hover:text-[var(--kronus-primary-600)]">{{ colaborador.nome_exibicao }}</a>
+          </li>
+        {% empty %}
+          <li class="px-5 py-6 text-center text-xs text-[var(--kronus-gray-400)]">Todos com jornada prevista já registraram.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {# ── Banco negativo ─────────────────────────────────── #}
+    <div class="card">
+      <div class="flex items-center justify-between border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Banco de horas negativo</h2>
+        <a href="{% url 'rh:banco_horas' %}" class="text-xs font-medium text-[var(--kronus-primary-600)] hover:underline">Painel</a>
+      </div>
+      <ul class="max-h-64 divide-y divide-[var(--kronus-gray-100)] overflow-y-auto">
+        {% for colaborador in devedores %}
+          <li class="flex items-center gap-2 px-5 py-2.5 text-sm">
+            <span class="text-red-500">{% icone "banco_horas" classe="h-4 w-4" %}</span>
+            <a href="{% url 'rh:colaborador_detalhe' colaborador.pk %}" class="truncate text-[var(--kronus-gray-700)] hover:text-[var(--kronus-primary-600)]">{{ colaborador.nome_exibicao }}</a>
+          </li>
+        {% empty %}
+          <li class="px-5 py-6 text-center text-xs text-[var(--kronus-gray-400)]">Ninguém abaixo de −2h.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {# ── Estrutura ──────────────────────────────────────── #}
+    <div class="card p-5">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Estrutura</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Departamentos</dt><dd class="font-mono font-semibold">{{ total_departamentos }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Com face cadastrada</dt><dd class="font-mono font-semibold">{{ total_com_face }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Totens ativos</dt><dd class="font-mono font-semibold">{{ total_totens }}</dd></div>
+      </dl>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ grafico_registros|json_script:"dados-registros" }}
+{{ grafico_status|json_script:"dados-status" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  (function () {
+    if (typeof Chart === 'undefined') return;
+
+    // Tipografia e cores vindas do design system (Seção 3.2).
+    Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = '#64748B';
+
+    var registros = JSON.parse(document.getElementById('dados-registros').textContent);
+    var canvasRegistros = document.getElementById('grafico-registros');
+    if (canvasRegistros) {
+      new Chart(canvasRegistros, {
+        type: 'bar',
+        data: {
+          labels: registros.rotulos,
+          datasets: [{
+            data: registros.valores,
+            backgroundColor: '#1E3A5F',
+            hoverBackgroundColor: '#D4A017',
+            borderRadius: 3,
+            maxBarThickness: 18
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 12 } },
+            y: { beginAtZero: true, grid: { color: '#E2E8F0' }, ticks: { precision: 0 } }
+          }
+        }
+      });
+    }
+
+    var status = JSON.parse(document.getElementById('dados-status').textContent);
+    var canvasStatus = document.getElementById('grafico-status');
+    if (canvasStatus && status.valores.length) {
+      new Chart(canvasStatus, {
+        type: 'doughnut',
+        data: {
+          labels: status.rotulos,
+          datasets: [{ data: status.valores, backgroundColor: status.cores, borderWidth: 0 }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } }
+          }
+        }
+      });
+    }
+  })();
+</script>
+{% endblock %}

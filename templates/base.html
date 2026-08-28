@@ -1,0 +1,66 @@
+{% load static kronus_tags %}<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}{{ titulo|default:"Painel" }}{% endblock %} · {{ APP_NAME }}</title>
+  <meta name="description" content="{{ KRONUS.META_DESCRIPTION }}">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+
+  {# Tipografia — Seção 3.3 do plano #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  {% include "components/_estilos.html" %}
+
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  {% block head_extra %}{% endblock %}
+</head>
+
+<body class="h-full bg-[var(--kronus-gray-50)]" x-data="{ sidebarAberta: false }">
+
+<div class="flex min-h-full">
+
+  {# ══════════════ SIDEBAR ══════════════ #}
+  {% include "components/sidebar.html" %}
+
+  {# Overlay mobile #}
+  <div x-show="sidebarAberta" x-cloak @click="sidebarAberta = false"
+       class="fixed inset-0 z-30 bg-slate-900/60 lg:hidden"></div>
+
+  {# ══════════════ CONTEÚDO ══════════════ #}
+  <div class="flex min-w-0 flex-1 flex-col lg:pl-64">
+    {% include "components/topbar.html" %}
+
+    <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      {% block breadcrumb %}{% endblock %}
+
+      {% if messages %}
+        <div class="mb-5 space-y-2">
+          {% for message in messages %}
+            {% include "components/toast.html" with message=message %}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block cabecalho %}
+        <div class="mb-6">
+          <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">
+            {{ titulo|default:"Painel" }}
+          </h1>
+          {% block subtitulo %}{% endblock %}
+        </div>
+      {% endblock %}
+
+      {% block conteudo %}{% endblock %}
+    </main>
+
+    {% include "components/footer_kstec.html" %}
+  </div>
+</div>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

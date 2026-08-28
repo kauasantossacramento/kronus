@@ -1,0 +1,243 @@
+{% extends "base_totem.html" %}
+{% load static %}
+
+{% block titulo %}{{ empresa.nome_exibicao }} · Kronus{% endblock %}
+
+{% block head_extra %}
+  {# face-api.js — o Service Worker cacheia para funcionar offline #}
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
+{% endblock %}
+
+{% block conteudo %}
+
+{# ══════════════ ESTADO 1 — IDLE ══════════════ #}
+<section class="totem-tela totem-idle" id="tela-idle"
+         {% if empresa.idle_screen_img %}style="background-image:url('{{ empresa.idle_screen_img.url }}')"{% endif %}>
+  {% if not empresa.idle_screen_img %}
+    {% if empresa.logo %}
+      <img src="{{ empresa.logo.url }}" alt="{{ empresa.nome_exibicao }}" class="totem-idle__logo">
+    {% else %}
+      <img src="{% static 'img/logo-kronus-branco.svg' %}" alt="Kronus" class="totem-idle__logo" style="max-height:20vh">
+    {% endif %}
+    <p class="totem-idle__mensagem">{{ empresa.msg_boas_vindas }}</p>
+    <p class="totem-idle__tagline">{{ KRONUS.TAGLINE_TOTEM }}</p>
+  {% endif %}
+
+  <div class="totem-relogio">
+    <div class="totem-relogio__hora" data-relogio>--:--:--</div>
+    <div class="totem-relogio__data" data-data></div>
+  </div>
+</section>
+
+{# ══════════════ ESTADO 2 — CÂMERA ══════════════ #}
+<section class="totem-tela totem-coluna" id="tela-camera" hidden>
+  {% if empresa.logo %}
+    <img src="{{ empresa.logo.url }}" alt="" class="totem-topo-logo">
+  {% endif %}
+
+  <div class="totem-camera" id="moldura-camera">
+    <video id="video" playsinline autoplay muted></video>
+    <div class="totem-camera__guia"></div>
+  </div>
+
+  <div class="totem-instrucao">
+    <span class="totem-spinner" aria-hidden="true"></span>
+    <p id="instrucao">Posicione o rosto no centro</p>
+  </div>
+
+  <div class="totem-acoes">
+    {% if totem.permite_fallback_cpf %}
+      <button type="button" class="totem-botao totem-botao--secundario" id="botao-fallback">
+        Usar CPF
+      </button>
+    {% endif %}
+  </div>
+
+  <div class="totem-relogio totem-relogio--compacto">
+    <div class="totem-relogio__hora" data-relogio>--:--:--</div>
+  </div>
+</section>
+
+{# ══════════════ ESTADO 3 — SUCESSO ══════════════ #}
+<section class="totem-tela totem-coluna" id="tela-sucesso" hidden>
+  <div class="totem-sucesso">
+    <span class="totem-sucesso__check" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.5 10 17.5 19 7"/>
+      </svg>
+    </span>
+
+    <img id="sucesso-foto" class="totem-sucesso__foto" alt="" hidden>
+    <span id="sucesso-iniciais" class="totem-sucesso__iniciais" hidden></span>
+
+    <p class="totem-sucesso__nome" id="sucesso-nome"></p>
+    <p class="totem-sucesso__cpf" id="sucesso-cpf"></p>
+
+    <p class="totem-sucesso__tipo" id="sucesso-tipo"></p>
+    <p class="totem-sucesso__hora" id="sucesso-hora"></p>
+    <p class="totem-sucesso__data" id="sucesso-data"></p>
+
+    <p class="totem-sucesso__mensagem" id="sucesso-mensagem"></p>
+
+    <div class="totem-sucesso__comprovante">
+      <span id="sucesso-nsr"></span>
+      <span id="sucesso-verificacao" class="totem-mono"></span>
+    </div>
+  </div>
+
+  <p class="totem-contagem" id="contagem-sucesso"></p>
+</section>
+
+{# ══════════════ ESTADO 4 — FALLBACK POR CPF ══════════════ #}
+<section class="totem-tela totem-coluna" id="tela-fallback" hidden>
+  <div class="totem-aviso-topo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none"
+         stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 4.4 21.2 19.6H2.8L12 4.4ZM12 10.2v4"/>
+      <circle cx="12" cy="16.9" r=".9" fill="currentColor" stroke="none"/>
+    </svg>
+    <span>Não identificado — use o teclado</span>
+  </div>
+
+  <form class="totem-formulario" id="form-fallback" autocomplete="off">
+    <label class="totem-rotulo" for="campo-cpf">CPF</label>
+    <input class="totem-campo totem-mono" id="campo-cpf" name="cpf"
+           inputmode="numeric" placeholder="000.000.000-00" maxlength="14" required>
+
+    <label class="totem-rotulo" for="campo-nascimento">Data de nascimento</label>
+    <input class="totem-campo totem-mono" id="campo-nascimento" name="nascimento"
+           inputmode="numeric" placeholder="DD/MM/AAAA" maxlength="10" required>
+
+    <p class="totem-erro" id="erro-fallback" hidden></p>
+
+    <button type="submit" class="totem-botao">Registrar ponto</button>
+    <button type="button" class="totem-botao totem-botao--secundario" id="botao-voltar">Voltar</button>
+  </form>
+
+  <div class="totem-relogio totem-relogio--compacto">
+    <div class="totem-relogio__hora" data-relogio>--:--:--</div>
+  </div>
+</section>
+
+{# ══════════════ ESTADO 5 — OFFLINE ══════════════ #}
+<section class="totem-tela totem-offline" id="tela-offline" hidden>
+  {% if empresa.logo %}
+    <img src="{{ empresa.logo.url }}" alt="{{ empresa.nome_exibicao }}" class="totem-idle__logo">
+  {% else %}
+    <img src="{% static 'img/logo-kronus-branco.svg' %}" alt="Kronus" style="height:4.5rem">
+  {% endif %}
+
+  <p class="totem-offline__titulo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="none"
+         stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+      <path d="M6.4 7.4a7.5 7.5 0 0 0 0 9.2M17.6 7.4a7.5 7.5 0 0 1 0 9.2"/>
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+      <path d="M4 20 20 4" stroke="var(--totem-danger)"/>
+    </svg>
+    Sem conexão
+  </p>
+
+  <p class="totem-offline__legenda">
+    Reconectando em <span class="totem-mono" id="offline-contagem">02:00</span>
+  </p>
+
+  <div class="totem-offline__barra">
+    <div class="totem-offline__progresso" id="offline-progresso" style="width:0%"></div>
+  </div>
+</section>
+
+{# ══════════════ ERRO ══════════════ #}
+<section class="totem-tela totem-coluna" id="tela-erro" hidden>
+  <div class="totem-erro-caixa">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="44" height="44" fill="none"
+         stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5"/><path d="M9.2 9.2 14.8 14.8M14.8 9.2 9.2 14.8"/>
+    </svg>
+    <p id="erro-mensagem"></p>
+    <button type="button" class="totem-botao" id="erro-fallback-botao" hidden>Usar CPF</button>
+    <button type="button" class="totem-botao totem-botao--secundario" id="erro-voltar-botao">Voltar</button>
+  </div>
+</section>
+
+<div class="totem-marca">Kronus</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'totem/js/camera-manager.js' %}"></script>
+<script src="{% static 'totem/js/face-detector.js' %}"></script>
+<script src="{% static 'totem/js/offline-handler.js' %}"></script>
+<script src="{% static 'totem/js/ui-controller.js' %}"></script>
+<script src="{% static 'totem/js/totem-app.js' %}"></script>
+<script>
+  (function () {
+    // O Service Worker é opcional: sem ele o totem funciona, só perde o
+    // cache offline dos assets.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('{% url "totem:service_worker" %}', { scope: '/totem/' })
+        .catch(function (erro) { console.warn('[Kronus] SW não registrado:', erro); });
+    }
+
+    var q = function (sel) { return document.querySelector(sel); };
+    var qa = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+
+    KronusTotem.iniciar({
+      token: '{{ totem.token_acesso }}',
+      identificador: '{{ totem.identificador|escapejs }}',
+      versao: '{{ versao_app }}',
+      permiteFallback: {{ totem.permite_fallback_cpf|yesno:"true,false" }},
+      segundosSucesso: {{ totem.segundos_tela_sucesso }},
+      segundosOffline: {{ totem.segundos_countdown_offline }},
+      urls: {
+        recognize: '{% url "api:totem:totem_recognize" %}',
+        punchCpf: '{% url "api:totem:totem_punch_cpf" %}',
+        heartbeat: '{% url "api:totem:totem_heartbeat" %}',
+        config: '{% url "api:totem:totem_config" %}',
+        modelos: '{% static "totem/js/models/" %}'
+      },
+      elementos: {
+        telas: {
+          idle: q('#tela-idle'),
+          camera: q('#tela-camera'),
+          sucesso: q('#tela-sucesso'),
+          fallback: q('#tela-fallback'),
+          offline: q('#tela-offline'),
+          erro: q('#tela-erro')
+        },
+        video: q('#video'),
+        moldura: q('#moldura-camera'),
+        instrucao: q('#instrucao'),
+        relogios: qa('[data-relogio]'),
+        datas: qa('[data-data]'),
+        botaoFallback: q('#botao-fallback'),
+        botaoVoltar: q('#botao-voltar'),
+        contagemSucesso: q('#contagem-sucesso'),
+        sucesso: {
+          nome: q('#sucesso-nome'),
+          cpf: q('#sucesso-cpf'),
+          tipo: q('#sucesso-tipo'),
+          hora: q('#sucesso-hora'),
+          data: q('#sucesso-data'),
+          mensagem: q('#sucesso-mensagem'),
+          nsr: q('#sucesso-nsr'),
+          verificacao: q('#sucesso-verificacao'),
+          foto: q('#sucesso-foto'),
+          iniciais: q('#sucesso-iniciais')
+        },
+        fallback: {
+          formulario: q('#form-fallback'),
+          cpf: q('#campo-cpf'),
+          nascimento: q('#campo-nascimento'),
+          erro: q('#erro-fallback')
+        },
+        offlineContagem: q('#offline-contagem'),
+        offlineProgresso: q('#offline-progresso'),
+        erroMensagem: q('#erro-mensagem'),
+        erroFallbackBotao: q('#erro-fallback-botao'),
+        erroVoltarBotao: q('#erro-voltar-botao')
+      }
+    });
+  })();
+</script>
+{% endblock %}

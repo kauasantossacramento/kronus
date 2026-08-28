@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-4xl space-y-6">
+
+  <div class="card p-6">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h2 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">{{ atestado.colaborador.nome_exibicao }}</h2>
+        <p class="mt-1 font-mono text-sm text-[var(--kronus-gray-500)]">{{ atestado.colaborador.cpf|cpf }}</p>
+      </div>
+      <span class="rounded-md px-3 py-1.5 text-sm font-medium ring-1 ring-inset
+        {% if atestado.status == 'aprovado' %}bg-emerald-50 text-emerald-700 ring-emerald-600/20
+        {% elif atestado.status == 'rejeitado' %}bg-red-50 text-red-700 ring-red-600/20
+        {% else %}bg-amber-50 text-amber-700 ring-amber-600/20{% endif %}">{{ atestado.get_status_display }}</span>
+    </div>
+
+    <dl class="mt-5 grid gap-4 border-t border-[var(--kronus-gray-200)] pt-5 sm:grid-cols-4">
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Início</dt><dd class="font-mono text-sm">{{ atestado.data_inicio|date:"d/m/Y" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Fim</dt><dd class="font-mono text-sm">{{ atestado.data_fim|date:"d/m/Y" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Dias</dt><dd class="font-mono text-sm font-bold">{{ atestado.dias }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">CID</dt><dd class="font-mono text-sm">{{ atestado.cid|default:"—" }}</dd></div>
+    </dl>
+
+    {% if atestado.observacoes %}
+      <div class="mt-4 rounded-lg bg-[var(--kronus-gray-50)] p-4 text-sm text-[var(--kronus-gray-700)]">{{ atestado.observacoes|linebreaksbr }}</div>
+    {% endif %}
+
+    {% if atestado.arquivo %}
+      <a href="{{ atestado.arquivo.url }}" target="_blank" class="btn btn-outline mt-4">
+        {% icone "documento" classe="h-4 w-4" %} Abrir arquivo enviado
+      </a>
+    {% endif %}
+  </div>
+
+  {# Situação atual do período — o RH decide vendo o impacto #}
+  <div class="card">
+    <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Dias afetados pela decisão</h2>
+      <p class="mt-0.5 text-xs text-[var(--kronus-gray-500)]">
+        Situação apurada hoje. A aprovação converte estes dias em "atestado" e zera o débito.
+      </p>
+    </div>
+    <table class="min-w-full text-sm">
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for dia in dias_afetados %}
+          <tr>
+            <td class="px-5 py-2.5 font-mono">{{ dia.data|date:"d/m/Y" }}</td>
+            <td class="px-5 py-2.5">{% badge_status dia.status %}</td>
+            <td class="px-5 py-2.5 text-right font-mono {% classe_saldo dia.saldo_dia %}">{{ dia.saldo_dia|hhmm }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="px-5 py-8 text-center text-xs text-[var(--kronus-gray-400)]">Período ainda não apurado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card p-6">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Decisão</h2>
+    <form method="post" class="mt-4 space-y-4">
+      {% csrf_token %}
+      <div class="flex gap-6">
+        {% for opcao in form.decisao %}
+          <label class="flex items-center gap-2 text-sm text-[var(--kronus-gray-700)]">{{ opcao.tag }} {{ opcao.choice_label }}</label>
+        {% endfor %}
+      </div>
+      {% if form.decisao.errors %}<p class="text-xs text-red-600">{{ form.decisao.errors.0 }}</p>{% endif %}
+
+      <div>
+        <label for="{{ form.parecer.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ form.parecer.label }}</label>
+        <div class="mt-1.5">{{ form.parecer }}</div>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ form.parecer.help_text }}</p>
+        {% if form.parecer.errors %}<p class="mt-1 text-xs text-red-600">{{ form.parecer.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="flex justify-end gap-2 border-t border-[var(--kronus-gray-200)] pt-4">
+        <a href="{% url 'rh:atestado_lista' %}" class="btn btn-outline">Voltar</a>
+        <button type="submit" class="btn btn-primary">Registrar decisão</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

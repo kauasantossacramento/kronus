@@ -1,0 +1,17 @@
+{% load kronus_icons %}
+{% comment %}Toast de feedback — sem dependência externa.{% endcomment %}
+<div x-data="{ visivel: true }" x-show="visivel" x-cloak
+     class="flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-sm
+     {% if message.tags == 'success' %}border-emerald-200 bg-emerald-50 text-emerald-800
+     {% elif message.tags == 'warning' %}border-amber-200 bg-amber-50 text-amber-800
+     {% elif message.tags == 'error' %}border-red-200 bg-red-50 text-red-800
+     {% else %}border-blue-200 bg-blue-50 text-blue-800{% endif %}">
+  {% if message.tags == 'success' %}{% icone "check_circulo" classe="h-5 w-5 shrink-0" %}
+  {% elif message.tags == 'warning' %}{% icone "alerta" classe="h-5 w-5 shrink-0" %}
+  {% elif message.tags == 'error' %}{% icone "erro" classe="h-5 w-5 shrink-0" %}
+  {% else %}{% icone "info" classe="h-5 w-5 shrink-0" %}{% endif %}
+  <p class="flex-1">{{ message }}</p>
+  <button type="button" @click="visivel = false" class="shrink-0 opacity-50 transition hover:opacity-100" aria-label="Fechar">
+    {% icone "fechar" classe="h-4 w-4" %}
+  </button>
+</div>

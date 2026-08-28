@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Empresas</h1>
+  <a href="{% url 'master:empresa_vincular' %}" class="btn btn-primary">{% icone "mais" classe="h-4 w-4" %} Vincular empresa</a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="card">
+  <form method="get" class="flex flex-wrap items-end gap-3 border-b border-[var(--kronus-gray-200)] p-4">
+    <div class="min-w-[16rem] flex-1">
+      <input type="search" name="q" value="{{ busca }}" placeholder="Razão social ou CNPJ"
+             class="block w-full rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+    </div>
+    <select name="cliente" class="rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+      <option value="">Todos os clientes</option>
+      {% for c in clientes %}<option value="{{ c.pk }}" {% if request.GET.cliente == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-outline">Filtrar</button>
+  </form>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+        <tr>
+          <th class="px-5 py-3 font-medium">Empresa</th>
+          <th class="px-5 py-3 font-medium">CNPJ</th>
+          <th class="px-5 py-3 font-medium">Cliente</th>
+          <th class="px-5 py-3 font-medium">Colaboradores</th>
+          <th class="px-5 py-3 font-medium">Status</th>
+          <th class="px-5 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for empresa in empresas %}
+          <tr class="hover:bg-[var(--kronus-gray-50)]">
+            <td class="px-5 py-3 font-medium text-[var(--kronus-gray-800)]">{{ empresa.nome_exibicao }}</td>
+            <td class="px-5 py-3 font-mono text-xs">{{ empresa.cnpj_formatado }}</td>
+            <td class="px-5 py-3"><a href="{% url 'master:cliente_detalhe' empresa.cliente_id %}" class="text-[var(--kronus-primary-600)] hover:underline">{{ empresa.cliente }}</a></td>
+            <td class="px-5 py-3 font-mono">{{ empresa.qtd_colaboradores }}</td>
+            <td class="px-5 py-3">
+              <span class="rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {% if empresa.ativo %}bg-emerald-50 text-emerald-700 ring-emerald-600/20{% else %}bg-slate-100 text-slate-600 ring-slate-500/20{% endif %}">{% if empresa.ativo %}Ativa{% else %}Inativa{% endif %}</span>
+            </td>
+            <td class="px-5 py-3 text-right"><a href="{% url 'master:empresa_editar' empresa.pk %}" class="text-xs text-[var(--kronus-gray-500)] hover:text-[var(--kronus-primary-600)]">Editar</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="px-5 py-12 text-center text-[var(--kronus-gray-400)]">Nenhuma empresa encontrada.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="px-5 pb-4">{% include "components/pagination.html" %}</div>
+</div>
+{% endblock %}

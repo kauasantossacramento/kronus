@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Cadastro facial</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+      {{ colaborador.nome_exibicao }} · {{ colaborador.cpf|cpf }}
+    </p>
+  </div>
+  <a href="{% url 'rh:colaborador_detalhe' colaborador.pk %}" class="btn btn-outline">Voltar ao colaborador</a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+{% if not motor_disponivel %}
+  <div class="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    {% icone "alerta" classe="mt-0.5 h-5 w-5 shrink-0" %}
+    <div>
+      <p class="font-medium">Motor de reconhecimento indisponível neste servidor.</p>
+      <p class="mt-1">
+        A captura está desabilitada até a stack de visão computacional ser habilitada.
+        Rode <code class="rounded bg-amber-100 px-1 font-mono text-xs">manage.py facial_check</code>
+        para o diagnóstico. O registro de ponto por CPF no totem continua funcionando normalmente.
+      </p>
+    </div>
+  </div>
+{% endif %}
+
+<div class="grid gap-6 lg:grid-cols-3">
+
+  {# ── Captura ─────────────────────────────────────────────── #}
+  <div class="card p-6 lg:col-span-2"
+       x-data="cadastroFacial({
+          urlAmostra: '{% url 'facial:receber_amostra' colaborador.pk %}',
+          minimo: {{ minimo }},
+          maximo: {{ maximo }},
+          jaCapturadas: {{ amostras|length }},
+          habilitado: {{ motor_disponivel|yesno:'true,false' }} && {{ colaborador.consentimento_biometrico|yesno:'true,false' }}
+       })">
+
+    {% if not colaborador.consentimento_biometrico %}
+      {# ── Consentimento LGPD, antes de qualquer captura ───── #}
+      <div class="rounded-xl border-2 border-dashed border-[var(--kronus-primary-200)] bg-[var(--kronus-primary-50)] p-6">
+        <div class="flex items-start gap-3">
+          <span class="mt-0.5 text-[var(--kronus-primary-600)]">{% icone "escudo" classe="h-6 w-6" %}</span>
+          <div>
+            <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">
+              Consentimento para dados biométricos
+            </h2>
+            <p class="mt-2 text-sm leading-relaxed text-[var(--kronus-gray-700)]">
+              A LGPD classifica dados biométricos como <strong>dados pessoais sensíveis</strong>
+              (Art. 11). O tratamento exige consentimento específico e destacado do titular —
+              uma cláusula genérica no contrato de trabalho não basta.
+            </p>
+            <ul class="mt-3 space-y-1.5 text-sm text-[var(--kronus-gray-600)]">
+              <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>A imagem é convertida em um vetor numérico não reversível.</span></li>
+              <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>A finalidade é exclusivamente o registro de ponto.</span></li>
+              <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>Os dados são excluídos {{ colaborador.empresa.configuracao.retencao_faces_dias }} dias após o desligamento.</span></li>
+              <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>O consentimento pode ser revogado a qualquer momento.</span></li>
+              <li class="flex items-start gap-2">{% icone "check" classe="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" %}<span>A recusa não impede o registro de ponto, feito por CPF no totem.</span></li>
+            </ul>
+
+            <form method="post" action="{% url 'facial:consentimento' colaborador.pk %}" class="mt-5"
+                  x-data="{ aceito: false }">
+              {% csrf_token %}
+              <label class="flex items-start gap-2 text-sm text-[var(--kronus-gray-700)]">
+                <input type="checkbox" x-model="aceito" required
+                       class="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--kronus-primary-600)] focus:ring-[var(--kronus-primary-500)]">
+                <span>
+                  Declaro que <strong>{{ colaborador.nome_exibicao }}</strong> foi informado(a) sobre
+                  o tratamento e consentiu com o cadastro de seus dados biométricos.
+                </span>
+              </label>
+              <button type="submit" class="btn btn-primary mt-4" :disabled="!aceito">
+                Registrar consentimento
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    {% else %}
+      {# ── Câmera ────────────────────────────────────────────── #}
+      <div class="flex flex-col items-center">
+        <div class="relative w-full max-w-md overflow-hidden rounded-xl border-2 border-[var(--kronus-gray-200)] bg-slate-900"
+             style="aspect-ratio:4/3">
+          <video x-ref="video" playsinline autoplay muted class="h-full w-full object-cover"
+                 style="transform:scaleX(-1)"></video>
+          <div class="pointer-events-none absolute inset-[10%_22%] rounded-full border-2 border-dashed border-[var(--kronus-gold-400)]/60"></div>
+
+          <div x-show="!camaraAberta" x-cloak
+               class="absolute inset-0 grid place-items-center bg-slate-900/90 text-center text-sm text-slate-300">
+            <div class="px-6">
+              <span class="mx-auto mb-3 block w-fit text-slate-500">{% icone "camera" classe="h-10 w-10" %}</span>
+              <p x-text="mensagemCamera">Câmera desligada</p>
+              <button type="button" class="btn btn-primary mt-4" @click="abrirCamera()"
+                      x-show="contextoSeguro" :disabled="!habilitado">
+                Ligar câmera
+              </button>
+              <p x-show="!contextoSeguro" x-cloak class="mt-3 text-xs leading-relaxed text-amber-300">
+                A câmera exige conexão segura (HTTPS).<br>
+                Use "Enviar foto de arquivo" abaixo, ou inicie o servidor com
+                <code class="rounded bg-white/10 px-1">manage.py intranet</code>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {# ── Roteiro de ângulos ──────────────────────────────── #}
+        <div class="mt-5 w-full max-w-md">
+          <p class="text-center font-display text-base font-semibold text-[var(--kronus-gray-800)]"
+             x-text="passoAtual.titulo"></p>
+          <p class="mt-1 text-center text-sm text-[var(--kronus-gray-500)]" x-text="passoAtual.dica"></p>
+
+          <div class="mt-4 flex justify-center gap-1.5">
+            <template x-for="(passo, indice) in roteiro" :key="passo.angulo">
+              <span class="h-1.5 w-10 rounded-full transition"
+                    :class="indice < capturadas ? 'bg-emerald-500' : (indice === capturadas ? 'bg-[var(--kronus-gold-500)]' : 'bg-[var(--kronus-gray-200)]')"></span>
+            </template>
+          </div>
+
+          <p class="mt-3 text-center text-sm text-[var(--kronus-gray-600)]">
+            <span class="font-mono font-bold" x-text="capturadas"></span> de
+            <span class="font-mono" x-text="minimo"></span> amostras mínimas
+          </p>
+
+          <button type="button" class="btn btn-primary mt-4 w-full py-3"
+                  @click="capturar()" :disabled="!camaraAberta || enviando || capturadas >= maximo">
+            <span x-show="!enviando">{% icone "camera" classe="h-5 w-5" %} Capturar amostra</span>
+            <span x-show="enviando" x-cloak>Processando...</span>
+          </button>
+
+          {# Alternativa sem webcam: enviar uma foto já existente.
+             Útil em recepção sem câmera ou quando o RH já tem a foto. #}
+          <div class="mt-3 flex items-center gap-3">
+            <span class="h-px flex-1 bg-[var(--kronus-gray-200)]"></span>
+            <span class="text-xs text-[var(--kronus-gray-400)]">ou</span>
+            <span class="h-px flex-1 bg-[var(--kronus-gray-200)]"></span>
+          </div>
+
+          <input type="file" accept="image/*" capture="user" class="hidden"
+                 x-ref="arquivo" @change="enviarArquivo($event)">
+          <button type="button" class="btn btn-outline mt-3 w-full"
+                  @click="$refs.arquivo.click()" :disabled="enviando || capturadas >= maximo">
+            {% icone "pasta" classe="h-4 w-4" %} Enviar foto de arquivo
+          </button>
+          <p class="mt-1.5 text-center text-xs text-[var(--kronus-gray-400)]">
+            No celular, abre a câmera do aparelho. Lado menor mínimo de 120 px.
+          </p>
+
+          <p x-show="erro" x-cloak
+             class="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {% icone "erro" classe="mt-0.5 h-4 w-4 shrink-0" %}
+            <span x-text="erro"></span>
+          </p>
+          <p x-show="sucesso" x-cloak
+             class="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {% icone "check_circulo" classe="mt-0.5 h-4 w-4 shrink-0" %}
+            <span x-text="sucesso"></span>
+          </p>
+
+          <div x-show="completo" x-cloak class="mt-4 text-center">
+            <a href="{% url 'rh:colaborador_detalhe' colaborador.pk %}" class="btn btn-gold w-full py-3">
+              {% icone "check" classe="h-5 w-5" %} Concluir cadastro
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Amostras e ações ────────────────────────────────────── #}
+  <div class="space-y-6">
+    <div class="card p-5">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Situação</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Consentimento</dt>
+          <dd class="{% if colaborador.consentimento_biometrico %}text-emerald-600{% else %}text-amber-600{% endif %} font-medium">
+            {% if colaborador.consentimento_biometrico %}registrado{% else %}pendente{% endif %}
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Amostras ativas</dt>
+          <dd class="font-mono font-semibold">{{ amostras|length }}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Face cadastrada</dt>
+          <dd class="{% if colaborador.face_registrada %}text-emerald-600{% else %}text-[var(--kronus-gray-400)]{% endif %} font-medium">
+            {% if colaborador.face_registrada %}sim{% else %}não{% endif %}
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Motor</dt>
+          <dd class="font-mono text-xs">{{ motor_nome }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Amostras capturadas</h2>
+      </div>
+      <ul class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for amostra in amostras %}
+          <li class="flex items-center gap-3 px-5 py-3">
+            {% if amostra.imagem %}
+              <img src="{{ amostra.imagem.url }}" alt="" class="h-10 w-10 rounded object-cover">
+            {% else %}
+              <span class="grid h-10 w-10 place-items-center rounded bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-400)]">
+                {% icone "rosto" classe="h-5 w-5" %}
+              </span>
+            {% endif %}
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-[var(--kronus-gray-800)]">{{ amostra.get_angulo_display }}</p>
+              <p class="text-xs text-[var(--kronus-gray-400)]">
+                qualidade {{ amostra.qualidade|floatformat:0 }} · {{ amostra.created_at|date:"d/m H:i" }}
+              </p>
+            </div>
+            <form method="post" action="{% url 'facial:excluir_amostra' colaborador.pk amostra.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="text-[var(--kronus-gray-400)] transition hover:text-red-600" title="Remover amostra">
+                {% icone "fechar" classe="h-4 w-4" %}
+              </button>
+            </form>
+          </li>
+        {% empty %}
+          <li class="px-5 py-8 text-center text-xs text-[var(--kronus-gray-400)]">Nenhuma amostra capturada.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {% if colaborador.face_registrada or colaborador.consentimento_biometrico %}
+      <div class="card border-red-200 p-5">
+        <h2 class="font-display text-sm font-semibold text-red-700">Direito de exclusão</h2>
+        <p class="mt-2 text-xs leading-relaxed text-[var(--kronus-gray-600)]">
+          A LGPD (Art. 18, VI) garante ao titular a eliminação dos dados tratados por
+          consentimento. Excluir remove o vetor facial e todas as amostras; o registro
+          de ponto segue disponível pelo CPF.
+        </p>
+        <form method="post" action="{% url 'facial:excluir_biometria' colaborador.pk %}" class="mt-4"
+              onsubmit="return confirm('Excluir definitivamente os dados biométricos de {{ colaborador.nome_exibicao|escapejs }}?')">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger w-full text-xs">Excluir dados biométricos</button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ roteiro|json_script:"roteiro-captura" }}
+<script>
+  function cadastroFacial(config) {
+    return {
+      roteiro: JSON.parse(document.getElementById('roteiro-captura').textContent),
+      minimo: config.minimo,
+      maximo: config.maximo,
+      capturadas: config.jaCapturadas,
+      habilitado: config.habilitado,
+      camaraAberta: false,
+      enviando: false,
+      erro: '',
+      sucesso: '',
+      completo: config.jaCapturadas >= config.minimo,
+      mensagemCamera: 'Ligue a câmera para iniciar a captura',
+      stream: null,
+
+      get passoAtual() {
+        return this.roteiro[Math.min(this.capturadas, this.roteiro.length - 1)];
+      },
+
+      // `getUserMedia` so existe em contexto seguro. Detectamos antes
+      // para explicar o motivo em vez de oferecer um botao que falha.
+      contextoSeguro: window.isSecureContext,
+
+      enviarArquivo(evento) {
+        var arquivo = evento.target.files && evento.target.files[0];
+        if (!arquivo) return;
+        var self = this;
+        var leitor = new FileReader();
+        leitor.onload = function (e) {
+          self.enviarImagem(e.target.result);
+          evento.target.value = '';
+        };
+        leitor.readAsDataURL(arquivo);
+      },
+
+      abrirCamera() {
+        var self = this;
+        if (!this.contextoSeguro) {
+          this.mensagemCamera = 'A câmera exige conexão segura (HTTPS).';
+          return;
+        }
+        if (!navigator.mediaDevices) {
+          this.mensagemCamera = 'Câmera não suportada neste navegador.';
+          return;
+        }
+        navigator.mediaDevices
+          .getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false })
+          .then(function (stream) {
+            self.stream = stream;
+            self.$refs.video.srcObject = stream;
+            self.camaraAberta = true;
+          })
+          .catch(function (erro) {
+            self.mensagemCamera =
+              erro.name === 'NotAllowedError'
+                ? 'Permissão de câmera negada. Libere o acesso no navegador.'
+                : 'Não foi possível acessar a câmera.';
+          });
+      },
+
+      fecharCamera() {
+        if (this.stream) {
+          this.stream.getTracks().forEach(function (t) { t.stop(); });
+          this.stream = null;
+        }
+        this.camaraAberta = false;
+      },
+
+      capturar() {
+        var video = this.$refs.video;
+        if (!video || video.readyState < 2) return;
+
+        var canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+        this.enviarImagem(canvas.toDataURL('image/jpeg', 0.9));
+      },
+
+      enviarImagem(dataUrl) {
+        this.enviando = true;
+        this.erro = '';
+        this.sucesso = '';
+        var self = this;
+
+        fetch(config.urlAmostra, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+          },
+          body: JSON.stringify({ image: dataUrl, angulo: self.passoAtual.angulo })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (dados) {
+            self.enviando = false;
+            if (!dados.ok) {
+              self.erro = dados.mensagem;
+              return;
+            }
+            self.capturadas = dados.total_amostras;
+            self.completo = dados.completo;
+            self.sucesso =
+              dados.angulo_exibicao + ' capturado (qualidade ' +
+              Math.round(dados.qualidade) + ').';
+            if (self.completo && self.capturadas >= self.maximo) self.fecharCamera();
+          })
+          .catch(function () {
+            self.enviando = false;
+            self.erro = 'Falha de conexão. Tente novamente.';
+          });
+      }
+    };
+  }
+</script>
+<form style="display:none">{% csrf_token %}</form>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base_auth.html" %}
+{% block titulo %}Erro interno{% endblock %}
+{% block conteudo %}
+<div class="text-center">
+  <p class="font-mono text-5xl font-bold text-[var(--kronus-gray-300)]">500</p>
+  <h1 class="mt-4 font-display text-xl font-semibold text-[var(--kronus-gray-900)]">Erro interno</h1>
+  <p class="mt-2 text-sm text-[var(--kronus-gray-600)]">Algo deu errado do nosso lado. A equipe técnica já foi notificada.</p>
+  <a href="/" class="btn btn-primary mt-6 w-full">Voltar ao início</a>
+</div>
+{% endblock %}

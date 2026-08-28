@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Notificações</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">Quais avisos o sistema envia, e para quem.</p>
+  </div>
+  {% include "rh/configuracoes/_abas.html" with ativa="notificacoes" %}
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="card max-w-3xl p-6">
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    <div class="divide-y divide-[var(--kronus-gray-100)]">
+      {% for campo in campos %}
+        <label class="flex items-start gap-3 py-4">
+          <input type="checkbox" name="{{ campo.nome }}" {% if campo.ativo %}checked{% endif %}
+                 class="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--kronus-primary-600)] focus:ring-[var(--kronus-primary-500)]">
+          <span>
+            <span class="block text-sm font-medium text-[var(--kronus-gray-800)]">{{ campo.rotulo }}</span>
+            <span class="mt-0.5 block text-xs text-[var(--kronus-gray-500)]">{{ campo.ajuda }}</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="border-t border-[var(--kronus-gray-200)] pt-5">
+      <label for="email_notificacoes" class="block text-sm font-medium text-[var(--kronus-gray-700)]">E-mail do RH para avisos</label>
+      <input type="email" name="email_notificacoes" id="email_notificacoes" value="{{ config.email_notificacoes }}"
+             placeholder="rh@empresa.com.br"
+             class="mt-1.5 block w-full rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+      <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+        Recebe alertas operacionais além dos gestores cadastrados.
+      </p>
+    </div>
+
+    <div class="flex justify-end border-t border-[var(--kronus-gray-200)] pt-5">
+      <button type="submit" class="btn btn-primary">Salvar preferências</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

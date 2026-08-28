@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Escalas de trabalho</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">Jornadas contratuais usadas no cálculo de horas.</p>
+  </div>
+  <a href="{% url 'rh:escala_criar' %}" class="btn btn-primary">{% icone "mais" classe="h-4 w-4" %} Nova escala</a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+  {% for escala in escalas %}
+    <div class="card flex flex-col p-6">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">{{ escala.nome }}</h2>
+          <span class="mt-1 inline-flex rounded-md bg-[var(--kronus-primary-50)] px-2 py-0.5 text-xs font-medium text-[var(--kronus-primary-700)]">{{ escala.get_tipo_display }}</span>
+        </div>
+        <span class="text-[var(--kronus-gray-300)]">{% icone "calendario" classe="h-6 w-6" %}</span>
+      </div>
+
+      {% if escala.descricao %}
+        <p class="mt-3 text-sm text-[var(--kronus-gray-600)]">{{ escala.descricao }}</p>
+      {% endif %}
+
+      <dl class="mt-4 space-y-1.5 border-t border-[var(--kronus-gray-200)] pt-4 text-sm">
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Carga diária</dt><dd class="font-mono">{{ escala.carga_diaria_min|hhmm_abs }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Carga semanal</dt><dd class="font-mono">{{ escala.carga_semanal_min|hhmm_abs }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Tolerância</dt><dd class="font-mono">{{ escala.tolerancia_min }} min</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Intervalo</dt><dd>{% if escala.exige_intervalo %}{{ escala.intervalo_min }} min{% else %}Não exigido{% endif %}</dd></div>
+      </dl>
+
+      <div class="mt-auto flex items-center justify-between gap-2 pt-5">
+        <span class="flex items-center gap-1.5 text-xs text-[var(--kronus-gray-400)]">
+          {% icone "usuarios" classe="h-4 w-4" %} {{ escala.qtd }} vinculado{{ escala.qtd|pluralize }}
+        </span>
+        <div class="flex gap-2">
+          <a href="{% url 'rh:escala_vincular' escala.pk %}" class="btn btn-outline text-xs">Vincular</a>
+          <a href="{% url 'rh:escala_editar' escala.pk %}" class="btn btn-outline text-xs">Editar</a>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="card col-span-full p-12 text-center">
+      <span class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-400)]">
+        {% icone "calendario" classe="h-6 w-6" %}
+      </span>
+      <p class="mt-3 text-sm text-[var(--kronus-gray-500)]">
+        Nenhuma escala cadastrada. Sem escala, o sistema usa a jornada padrão da empresa.
+      </p>
+      <a href="{% url 'rh:escala_criar' %}" class="btn btn-primary mt-4">Criar a primeira escala</a>
+    </div>
+  {% endfor %}
+</div>
+<div>{% include "components/pagination.html" %}</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% load static kronus_icons %}
+{% comment %}
+  Sidebar — Seções 6.6 (RH) e 6.7 (Master) do plano.
+  Midnight blue profundo; o item ativo recebe um filete dourado à esquerda.
+  Ícones em SVG (ver apps.core.templatetags.kronus_icons).
+{% endcomment %}
+<aside x-cloak
+       :class="sidebarAberta ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+       class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-[var(--kronus-primary-800)] transition-transform duration-200 lg:translate-x-0">
+
+  {# ── Marca ───────────────────────────────────────────── #}
+  <div class="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5">
+    {% if empresa_atual and empresa_atual.logo %}
+      <img src="{{ empresa_atual.logo.url }}" alt="{{ empresa_atual.nome_exibicao }}"
+           class="h-8 w-auto max-w-[7rem] object-contain">
+    {% else %}
+      {% include "components/logo.html" with tom="branco" tamanho="md" %}
+    {% endif %}
+  </div>
+
+  {# ── Navegação ───────────────────────────────────────── #}
+  <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+
+    {% if eh_master %}
+      <p class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-white/40">Master</p>
+      <a href="{% url 'master:dashboard' %}"     class="sidebar-link {% if menu_ativo == 'dashboard' %}ativo{% endif %}">{% icone "dashboard" classe="h-[18px] w-[18px] shrink-0" %}<span>Dashboard</span></a>
+      <a href="{% url 'master:cliente_lista' %}" class="sidebar-link {% if menu_ativo == 'clientes' %}ativo{% endif %}">{% icone "predio" classe="h-[18px] w-[18px] shrink-0" %}<span>Clientes</span></a>
+      <a href="{% url 'master:empresa_lista' %}" class="sidebar-link {% if menu_ativo == 'empresas' %}ativo{% endif %}">{% icone "pasta" classe="h-[18px] w-[18px] shrink-0" %}<span>Empresas</span></a>
+      <a href="{% url 'master:plano_lista' %}"   class="sidebar-link {% if menu_ativo == 'planos' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Planos</span></a>
+      <a href="{% url 'master:totem_lista' %}"   class="sidebar-link {% if menu_ativo == 'totens' %}ativo{% endif %}">{% icone "totem" classe="h-[18px] w-[18px] shrink-0" %}<span>Totens</span></a>
+      <a href="{% url 'master:log_lista' %}"     class="sidebar-link {% if menu_ativo == 'logs' %}ativo{% endif %}">{% icone "lista" classe="h-[18px] w-[18px] shrink-0" %}<span>Logs de acesso</span></a>
+      <div class="my-3 border-t border-white/10"></div>
+    {% endif %}
+
+    {% if eh_rh %}
+      <p class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-white/40">Gestão</p>
+      <a href="{% url 'rh:dashboard' %}"          class="sidebar-link {% if menu_ativo == 'dashboard' %}ativo{% endif %}">{% icone "dashboard" classe="h-[18px] w-[18px] shrink-0" %}<span>Dashboard</span></a>
+      <a href="{% url 'rh:colaborador_lista' %}"  class="sidebar-link {% if menu_ativo == 'colaboradores' %}ativo{% endif %}">{% icone "usuarios" classe="h-[18px] w-[18px] shrink-0" %}<span>Colaboradores</span></a>
+      <a href="{% url 'rh:departamento_lista' %}" class="sidebar-link {% if menu_ativo == 'departamentos' %}ativo{% endif %}">{% icone "pasta" classe="h-[18px] w-[18px] shrink-0" %}<span>Departamentos</span></a>
+      <a href="{% url 'rh:cargo_lista' %}"        class="sidebar-link {% if menu_ativo == 'cargos' %}ativo{% endif %}">{% icone "medalha" classe="h-[18px] w-[18px] shrink-0" %}<span>Cargos</span></a>
+
+      <p class="px-3 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-white/40">Ponto</p>
+      <a href="{% url 'rh:registro_lista' %}"  class="sidebar-link {% if menu_ativo == 'registros' %}ativo{% endif %}">{% icone "relogio" classe="h-[18px] w-[18px] shrink-0" %}<span>Registros de Ponto</span></a>
+      <a href="{% url 'rh:espelho_lista' %}"   class="sidebar-link {% if menu_ativo == 'espelho' %}ativo{% endif %}">{% icone "documento" classe="h-[18px] w-[18px] shrink-0" %}<span>Espelho de Ponto</span></a>
+      <a href="{% url 'rh:banco_horas' %}"     class="sidebar-link {% if menu_ativo == 'banco_horas' %}ativo{% endif %}">{% icone "banco_horas" classe="h-[18px] w-[18px] shrink-0" %}<span>Banco de Horas</span></a>
+      <a href="{% url 'rh:escala_lista' %}"    class="sidebar-link {% if menu_ativo == 'escalas' %}ativo{% endif %}">{% icone "calendario" classe="h-[18px] w-[18px] shrink-0" %}<span>Escalas de Trabalho</span></a>
+
+      <a href="{% url 'rh:fechamento' %}" class="sidebar-link {% if menu_ativo == 'fechamento' %}ativo{% endif %}">{% icone "check_circulo" classe="h-[18px] w-[18px] shrink-0" %}<span>Fechamento Mensal</span></a>
+
+      <p class="px-3 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-white/40">RH</p>
+      <a href="{% url 'rh:justificativa_lista' %}" class="sidebar-link {% if menu_ativo == 'justificativas' %}ativo{% endif %}">
+        {% icone "editar" classe="h-[18px] w-[18px] shrink-0" %}<span>Justificativas</span>
+        {% if justificativas_pendentes %}<span class="ml-auto rounded-full bg-[var(--kronus-gold-500)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--kronus-primary-900)]">{{ justificativas_pendentes }}</span>{% endif %}
+      </a>
+      <a href="{% url 'rh:atestado_lista' %}" class="sidebar-link {% if menu_ativo == 'atestados' %}ativo{% endif %}">
+        {% icone "saude" classe="h-[18px] w-[18px] shrink-0" %}<span>Atestados</span>
+        {% if atestados_pendentes %}<span class="ml-auto rounded-full bg-[var(--kronus-gold-500)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--kronus-primary-900)]">{{ atestados_pendentes }}</span>{% endif %}
+      </a>
+      <a href="{% url 'rh:afastamento_lista' %}" class="sidebar-link {% if menu_ativo == 'afastamentos' %}ativo{% endif %}">{% icone "sol" classe="h-[18px] w-[18px] shrink-0" %}<span>Afastamentos</span></a>
+
+      <p class="px-3 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-white/40">Relatórios</p>
+      <a href="{% url 'relatorios:gerenciais' %}" class="sidebar-link {% if menu_ativo == 'relatorios' %}ativo{% endif %}">{% icone "grafico" classe="h-[18px] w-[18px] shrink-0" %}<span>Gerenciais</span></a>
+      <a href="{% url 'relatorios:fiscais' %}" class="sidebar-link {% if menu_ativo == 'fiscais' %}ativo{% endif %}">{% icone "balanca" classe="h-[18px] w-[18px] shrink-0" %}<span>AFD e AEJ</span></a>
+      <a href="{% url 'rh:exportar_folha' %}" class="sidebar-link {% if menu_ativo == 'folha' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Exportar folha</span></a>
+
+      <p class="px-3 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-white/40">Sistema</p>
+      <a href="{% url 'rh:configuracoes' %}" class="sidebar-link {% if menu_ativo == 'configuracoes' %}ativo{% endif %}">{% icone "config" classe="h-[18px] w-[18px] shrink-0" %}<span>Configurações</span></a>
+      <a href="{% url 'rh:equipamentos' %}" class="sidebar-link {% if menu_ativo == 'equipamentos' %}ativo{% endif %}">{% icone "totem" classe="h-[18px] w-[18px] shrink-0" %}<span>Equipamentos</span></a>
+    {% endif %}
+
+    {% if eh_colaborador %}
+      <a href="{% url 'ponto:registrar' %}" class="sidebar-link {% if menu_ativo == 'registrar' %}ativo{% endif %}">{% icone "relogio" classe="h-[18px] w-[18px] shrink-0" %}<span>Registrar ponto</span></a>
+      {% if empresa_atual.permite_ver_ponto %}
+        <a href="{% url 'ponto:meus_pontos' %}" class="sidebar-link {% if menu_ativo == 'meus_pontos' %}ativo{% endif %}">{% icone "documento" classe="h-[18px] w-[18px] shrink-0" %}<span>Meus registros</span></a>
+      {% endif %}
+      <a href="{% url 'ponto:meus_espelhos' %}" class="sidebar-link {% if menu_ativo == 'espelhos' %}ativo{% endif %}">
+        {% icone "escudo" classe="h-[18px] w-[18px] shrink-0" %}<span>Espelhos de ponto</span>
+        {% if espelhos_pendentes %}<span class="ml-auto rounded-full bg-[var(--kronus-gold-500)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--kronus-primary-900)]">{{ espelhos_pendentes }}</span>{% endif %}
+      </a>
+    {% endif %}
+  </nav>
+
+  {# ── Assinatura KS TEC (Seção 3.5 — sempre presente) ── #}
+  <div class="border-t border-white/10 px-5 py-4">
+    <a href="{{ KSTEC_SITE }}" target="_blank" rel="noopener"
+       class="flex items-center gap-2 text-[11px] text-white/45 transition hover:text-white/70">
+      <span>Desenvolvido por</span>
+      <img src="{{ KSTEC_LOGO }}" alt="KS TEC" class="kstec-logo-white h-4 w-auto opacity-70">
+    </a>
+  </div>
+</aside>

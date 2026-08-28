@@ -1,0 +1,10 @@
+{% load kronus_icons %}
+{% comment %}
+  Item de menu de uma funcionalidade ainda não entregue.
+  Mantém o mapa de navegação do plano visível e sinaliza a fase
+  em que o módulo será implementado, sem oferecer link quebrado.
+{% endcomment %}
+<span class="sidebar-link cursor-not-allowed opacity-40" title="Disponível na Fase {{ fase }}">
+  {% icone icone_nome classe="h-[18px] w-[18px] shrink-0" %}<span>{{ rotulo }}</span>
+  <span class="ml-auto rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold">F{{ fase }}</span>
+</span>

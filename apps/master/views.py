@@ -1,0 +1,395 @@
+"""
+Kronus — painel Master (KS TEC).
+
+Escopo da Fase 1: dashboard, CRUD de clientes, vinculo de empresas,
+gestao de planos, suspensao/reativacao, API keys e logs.
+A gestao de totens e comodato entra na Fase 5.
+"""
+from django.contrib import messages
+from django.db.models import Count, Q
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse, reverse_lazy
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    DetailView,
+    ListView,
+    UpdateView,
+)
+
+from apps.clientes.forms import ClienteForm, EmpresaForm
+from apps.clientes.models import Cliente, Empresa
+from apps.core.decorators import master_required
+from apps.core.mixins import MasterRequiredMixin, SucessoMensagemMixin
+from apps.core.models import LogAcesso
+from apps.core.services import registrar_log
+from apps.core.utils import obter_ip
+from apps.master.forms import PlanoForm
+from apps.master.models import LogAcessoMaster, Plano
+from apps.rh.models import Colaborador
+from apps.totem.models import Totem
+
+
+def _log_master(request, acao, cliente=None, detalhes=""):
+    LogAcessoMaster.objects.create(
+        usuario=request.user,
+        cliente=cliente,
+        acao=acao,
+        detalhes=detalhes,
+        ip=obter_ip(request),
+    )
+
+
+# ==============================================================
+# Dashboard
+# ==============================================================
+@master_required
+def dashboard(request):
+    """Visao geral da plataforma (Secao 6.7 do plano)."""
+    clientes = Cliente.objects.select_related("plano")
+    ativos = clientes.filter(ativo=True, suspenso=False)
+
+    receita = sum(
+        (c.plano.preco_mensal or 0) for c in ativos.only("plano__preco_mensal")
+    )
+
+    totens = Totem.objects.filter(ativo=True)
+    contexto = {
+        "titulo": "Dashboard Master",
+        "menu_ativo": "dashboard",
+        "total_clientes": clientes.count(),
+        "total_clientes_ativos": ativos.count(),
+        "total_clientes_suspensos": clientes.filter(suspenso=True).count(),
+        "total_empresas": Empresa.objects.filter(ativo=True).count(),
+        "total_colaboradores": Colaborador.objects.filter(ativo=True).count(),
+        "total_totens": totens.count(),
+        "totens_offline": [t for t in totens.select_related("empresa") if not t.online],
+        "receita_mensal": receita,
+        "clientes_recentes": clientes.order_by("-created_at")[:8],
+        "planos": Plano.objects.annotate(qtd_clientes=Count("clientes")),
+    }
+    return render(request, "master/dashboard.html", contexto)
+
+
+# ==============================================================
+# Clientes
+# ==============================================================
+class ClienteListView(MasterRequiredMixin, ListView):
+    model = Cliente
+    template_name = "master/clientes/lista.html"
+    context_object_name = "clientes"
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = (
+            Cliente.objects.select_related("plano")
+            .annotate(qtd_empresas=Count("empresas", distinct=True))
+            .order_by("razao_social")
+        )
+        busca = self.request.GET.get("q", "").strip()
+        if busca:
+            qs = qs.filter(
+                Q(razao_social__icontains=busca)
+                | Q(nome_fantasia__icontains=busca)
+                | Q(cnpj__icontains=busca)
+                | Q(email_contato__icontains=busca)
+            )
+        status = self.request.GET.get("status")
+        if status == "ativos":
+            qs = qs.filter(ativo=True, suspenso=False)
+        elif status == "suspensos":
+            qs = qs.filter(suspenso=True)
+        elif status == "inativos":
+            qs = qs.filter(ativo=False)
+        plano = self.request.GET.get("plano")
+        if plano:
+            qs = qs.filter(plano_id=plano)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        contexto["titulo"] = "Clientes"
+        contexto["menu_ativo"] = "clientes"
+        contexto["planos"] = Plano.objects.all()
+        contexto["busca"] = self.request.GET.get("q", "")
+        contexto["status_selecionado"] = self.request.GET.get("status", "")
+        return contexto
+
+
+class ClienteDetailView(MasterRequiredMixin, DetailView):
+    model = Cliente
+    template_name = "master/clientes/detalhe.html"
+    context_object_name = "cliente"
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        cliente = self.object
+        contexto["titulo"] = cliente.razao_social
+        contexto["menu_ativo"] = "clientes"
+        contexto["empresas"] = cliente.empresas.annotate(
+            qtd_colaboradores=Count("colaborador_set", distinct=True)
+        )
+        contexto["usuarios"] = cliente.usuarios.all()
+        contexto["totens"] = Totem.objects.filter(empresa__cliente=cliente).select_related(
+            "empresa", "grupo"
+        )
+        contexto["logs"] = cliente.logs_master.select_related("usuario")[:20]
+        contexto["uso"] = {
+            "empresas": (cliente.total_empresas, cliente.plano.max_empresas),
+            "colaboradores": (
+                cliente.total_colaboradores,
+                cliente.plano.max_colaboradores,
+            ),
+            "totens": (cliente.total_totens, cliente.plano.max_totems),
+        }
+        return contexto
+
+
+class ClienteCreateView(MasterRequiredMixin, SucessoMensagemMixin, CreateView):
+    model = Cliente
+    form_class = ClienteForm
+    template_name = "master/clientes/criar.html"
+    mensagem_sucesso = "Cliente cadastrado com sucesso."
+    extra_context = {"titulo": "Novo cliente", "menu_ativo": "clientes"}
+
+    def get_success_url(self):
+        return reverse("master:cliente_detalhe", args=[self.object.pk])
+
+    def form_valid(self, form):
+        resposta = super().form_valid(form)
+        _log_master(
+            self.request,
+            LogAcessoMaster.Acao.CLIENTE_CRIADO,
+            self.object,
+            f"Plano: {self.object.plano}",
+        )
+        registrar_log(
+            request=self.request,
+            acao=LogAcesso.Acao.CRIACAO,
+            descricao=f"Cliente criado: {self.object}",
+            objeto=self.object,
+        )
+        return resposta
+
+
+class ClienteUpdateView(MasterRequiredMixin, SucessoMensagemMixin, UpdateView):
+    model = Cliente
+    form_class = ClienteForm
+    template_name = "master/clientes/editar.html"
+    mensagem_sucesso = "Cliente atualizado."
+    extra_context = {"titulo": "Editar cliente", "menu_ativo": "clientes"}
+
+    def get_success_url(self):
+        return reverse("master:cliente_detalhe", args=[self.object.pk])
+
+    def form_valid(self, form):
+        plano_anterior = Cliente.objects.get(pk=self.object.pk).plano
+        resposta = super().form_valid(form)
+        if plano_anterior != self.object.plano:
+            _log_master(
+                self.request,
+                LogAcessoMaster.Acao.PLANO_ALTERADO,
+                self.object,
+                f"{plano_anterior} → {self.object.plano}",
+            )
+        else:
+            _log_master(self.request, LogAcessoMaster.Acao.CLIENTE_EDITADO, self.object)
+        return resposta
+
+
+@master_required
+def cliente_suspender(request, pk):
+    cliente = get_object_or_404(Cliente, pk=pk)
+    if request.method == "POST":
+        motivo = request.POST.get("motivo", "")
+        if cliente.suspenso:
+            cliente.reativar()
+            _log_master(request, LogAcessoMaster.Acao.CLIENTE_REATIVADO, cliente)
+            messages.success(request, f"Cliente {cliente} reativado.")
+        else:
+            cliente.suspender(motivo)
+            _log_master(
+                request, LogAcessoMaster.Acao.CLIENTE_SUSPENSO, cliente, motivo
+            )
+            messages.warning(request, f"Cliente {cliente} suspenso.")
+    return redirect("master:cliente_detalhe", pk=pk)
+
+
+@master_required
+def cliente_api_key(request, pk):
+    """Gera ou revoga a API key de conta do cliente (Secao 7.4)."""
+    cliente = get_object_or_404(Cliente, pk=pk)
+    if request.method == "POST":
+        acao = request.POST.get("acao")
+        if acao == "revogar":
+            cliente.revogar_api_key()
+            _log_master(request, LogAcessoMaster.Acao.API_KEY_REVOGADA, cliente)
+            messages.info(request, "API key revogada.")
+        else:
+            chave = cliente.gerar_api_key()
+            _log_master(request, LogAcessoMaster.Acao.API_KEY_GERADA, cliente)
+            messages.success(
+                request,
+                "Nova API key gerada. Copie agora — ela não será exibida novamente: "
+                f"{chave}",
+            )
+    return redirect("master:cliente_detalhe", pk=pk)
+
+
+# ==============================================================
+# Empresas
+# ==============================================================
+class EmpresaListView(MasterRequiredMixin, ListView):
+    model = Empresa
+    template_name = "master/empresas/lista.html"
+    context_object_name = "empresas"
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = Empresa.objects.select_related("cliente").annotate(
+            qtd_colaboradores=Count("colaborador_set", distinct=True)
+        )
+        busca = self.request.GET.get("q", "").strip()
+        if busca:
+            qs = qs.filter(
+                Q(razao_social__icontains=busca)
+                | Q(nome_fantasia__icontains=busca)
+                | Q(cnpj__icontains=busca)
+            )
+        cliente = self.request.GET.get("cliente")
+        if cliente:
+            qs = qs.filter(cliente_id=cliente)
+        return qs.order_by("cliente__razao_social", "razao_social")
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        contexto["titulo"] = "Empresas"
+        contexto["menu_ativo"] = "empresas"
+        contexto["clientes"] = Cliente.objects.all()
+        contexto["busca"] = self.request.GET.get("q", "")
+        return contexto
+
+
+class EmpresaCreateView(MasterRequiredMixin, SucessoMensagemMixin, CreateView):
+    model = Empresa
+    form_class = EmpresaForm
+    template_name = "master/empresas/vincular.html"
+    mensagem_sucesso = "Empresa vinculada ao cliente."
+    extra_context = {"titulo": "Vincular empresa", "menu_ativo": "empresas"}
+
+    def get_initial(self):
+        inicial = super().get_initial()
+        cliente = self.request.GET.get("cliente")
+        if cliente:
+            inicial["cliente"] = cliente
+        return inicial
+
+    def form_valid(self, form):
+        cliente = form.cleaned_data["cliente"]
+        if not cliente.pode_adicionar_empresa():
+            form.add_error(
+                "cliente",
+                f"O plano {cliente.plano} permite no máximo "
+                f"{cliente.plano.max_empresas} empresa(s).",
+            )
+            return self.form_invalid(form)
+        resposta = super().form_valid(form)
+        _log_master(
+            self.request,
+            LogAcessoMaster.Acao.EMPRESA_VINCULADA,
+            cliente,
+            f"Empresa: {self.object}",
+        )
+        return resposta
+
+    def get_success_url(self):
+        return reverse("master:cliente_detalhe", args=[self.object.cliente_id])
+
+
+class EmpresaUpdateView(MasterRequiredMixin, SucessoMensagemMixin, UpdateView):
+    model = Empresa
+    form_class = EmpresaForm
+    template_name = "master/empresas/vincular.html"
+    mensagem_sucesso = "Empresa atualizada."
+    extra_context = {"titulo": "Editar empresa", "menu_ativo": "empresas"}
+
+    def get_success_url(self):
+        return reverse("master:cliente_detalhe", args=[self.object.cliente_id])
+
+
+# ==============================================================
+# Planos
+# ==============================================================
+class PlanoListView(MasterRequiredMixin, ListView):
+    model = Plano
+    template_name = "master/planos/lista.html"
+    context_object_name = "planos"
+    extra_context = {"titulo": "Planos", "menu_ativo": "planos"}
+
+    def get_queryset(self):
+        return Plano.objects.annotate(
+            qtd_clientes=Count(
+                "clientes", filter=Q(clientes__ativo=True, clientes__suspenso=False)
+            )
+        ).order_by("ordem", "preco_mensal")
+
+
+class PlanoCreateView(MasterRequiredMixin, SucessoMensagemMixin, CreateView):
+    model = Plano
+    form_class = PlanoForm
+    template_name = "master/planos/editar.html"
+    success_url = reverse_lazy("master:plano_lista")
+    mensagem_sucesso = "Plano criado."
+    extra_context = {"titulo": "Novo plano", "menu_ativo": "planos"}
+
+
+class PlanoUpdateView(MasterRequiredMixin, SucessoMensagemMixin, UpdateView):
+    model = Plano
+    form_class = PlanoForm
+    template_name = "master/planos/editar.html"
+    success_url = reverse_lazy("master:plano_lista")
+    mensagem_sucesso = "Plano atualizado."
+    extra_context = {"titulo": "Editar plano", "menu_ativo": "planos"}
+
+
+class PlanoDeleteView(MasterRequiredMixin, DeleteView):
+    model = Plano
+    success_url = reverse_lazy("master:plano_lista")
+    template_name = "master/planos/confirmar_exclusao.html"
+
+    def form_valid(self, form):
+        if self.get_object().clientes.exists():
+            messages.error(
+                self.request, "Não é possível excluir um plano com clientes vinculados."
+            )
+            return HttpResponseRedirect(self.success_url)
+        messages.success(self.request, "Plano excluído.")
+        return super().form_valid(form)
+
+
+# ==============================================================
+# Logs
+# ==============================================================
+class LogAcessoListView(MasterRequiredMixin, ListView):
+    model = LogAcesso
+    template_name = "master/logs/acessos.html"
+    context_object_name = "logs"
+    paginate_by = 50
+    extra_context = {"titulo": "Logs de acesso", "menu_ativo": "logs"}
+
+    def get_queryset(self):
+        qs = LogAcesso.objects.select_related("usuario", "cliente", "empresa")
+        cliente = self.request.GET.get("cliente")
+        if cliente:
+            qs = qs.filter(cliente_id=cliente)
+        acao = self.request.GET.get("acao")
+        if acao:
+            qs = qs.filter(acao=acao)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        contexto["clientes"] = Cliente.objects.all()
+        contexto["acoes"] = LogAcesso.Acao.choices
+        return contexto

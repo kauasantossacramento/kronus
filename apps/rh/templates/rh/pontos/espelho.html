@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Espelho de ponto</h1>
+    <p class="mt-2 text-sm capitalize text-[var(--kronus-gray-500)]">{{ nome_mes }} de {{ ano }}</p>
+  </div>
+  <form method="get" class="flex items-end gap-2">
+    <select name="mes" class="rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+      {% for numero, nome in meses %}<option value="{{ numero }}" {% if numero == mes %}selected{% endif %}>{{ nome|capfirst }}</option>{% endfor %}
+    </select>
+    <select name="ano" class="rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+      {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-outline">Ver</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="card overflow-x-auto">
+  <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+    <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+      <tr>
+        <th class="px-4 py-3 font-medium">Colaborador</th>
+        <th class="px-4 py-3 text-right font-medium">Trabalhado</th>
+        <th class="px-4 py-3 text-right font-medium">Previsto</th>
+        <th class="px-4 py-3 text-right font-medium">Saldo</th>
+        <th class="px-4 py-3 text-center font-medium">Faltas</th>
+        <th class="px-4 py-3 text-center font-medium">Incompletos</th>
+        <th class="px-4 py-3 text-right font-medium">Espelho</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+      {% for item in resumos %}
+        <tr class="hover:bg-[var(--kronus-gray-50)]">
+          <td class="px-4 py-2.5">
+            <a href="{% url 'rh:colaborador_detalhe' item.colaborador.pk %}" class="font-medium text-[var(--kronus-primary-600)] hover:underline">{{ item.colaborador.nome_exibicao }}</a>
+            <p class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ item.colaborador.cpf|cpf }}</p>
+          </td>
+          <td class="px-4 py-2.5 text-right font-mono tabular-nums">{{ item.trabalhado|hhmm_abs }}</td>
+          <td class="px-4 py-2.5 text-right font-mono tabular-nums text-[var(--kronus-gray-500)]">{{ item.esperado|hhmm_abs }}</td>
+          <td class="px-4 py-2.5 text-right font-mono font-semibold tabular-nums {% classe_saldo item.saldo %}">{{ item.saldo|hhmm }}</td>
+          <td class="px-4 py-2.5 text-center font-mono">{% if item.faltas %}<span class="text-red-600">{{ item.faltas }}</span>{% else %}—{% endif %}</td>
+          <td class="px-4 py-2.5 text-center font-mono">{% if item.incompletos %}<span class="text-amber-600">{{ item.incompletos }}</span>{% else %}—{% endif %}</td>
+          <td class="px-4 py-2.5 text-right">
+            <a href="{% url 'ponto:espelho_colaborador' ano mes item.colaborador.pk %}" target="_blank"
+               class="inline-flex items-center gap-1 text-xs font-medium text-[var(--kronus-primary-600)] hover:underline">
+              {% icone "download" classe="h-4 w-4" %} Emitir
+            </a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum colaborador ativo.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

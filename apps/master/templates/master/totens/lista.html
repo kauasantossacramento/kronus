@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Parque de totens</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">Equipamentos em comodato, status de conexão e contratos.</p>
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'master:grupo_totem_lista' %}" class="btn btn-outline">{% icone "pasta" classe="h-4 w-4" %} Grupos</a>
+    <a href="{% url 'master:totem_criar' %}" class="btn btn-primary">{% icone "mais" classe="h-4 w-4" %} Novo totem</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+{# Indicadores: offline em destaque porque é o que exige ação agora. #}
+<div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  <a href="?" class="card p-4 transition hover:ring-2 hover:ring-[var(--kronus-primary-200)]">
+    <div class="flex items-center gap-2 text-[var(--kronus-gray-500)]">{% icone "totem" classe="h-4 w-4" %}<span class="text-xs font-medium uppercase tracking-wide">Total</span></div>
+    <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-gray-900)]">{{ total }}</p>
+  </a>
+  <a href="?situacao=online" class="card p-4 transition hover:ring-2 hover:ring-emerald-200">
+    <div class="flex items-center gap-2 text-emerald-600">{% icone "antena" classe="h-4 w-4" %}<span class="text-xs font-medium uppercase tracking-wide">Online</span></div>
+    <p class="mt-1 font-mono text-2xl font-bold text-emerald-600">{{ qtd_online }}</p>
+  </a>
+  <a href="?situacao=offline" class="card p-4 transition hover:ring-2 hover:ring-red-200 {% if qtd_offline %}ring-2 ring-red-300{% endif %}">
+    <div class="flex items-center gap-2 text-red-600">{% icone "alerta" classe="h-4 w-4" %}<span class="text-xs font-medium uppercase tracking-wide">Offline</span></div>
+    <p class="mt-1 font-mono text-2xl font-bold text-red-600">{{ qtd_offline }}</p>
+    {% if qtd_offline %}<p class="mt-1 text-xs text-red-500">Ninguém está batendo ponto nestes.</p>{% endif %}
+  </a>
+  <a href="?situacao=comodato" class="card p-4 transition hover:ring-2 hover:ring-[var(--kronus-gold-200)]">
+    <div class="flex items-center gap-2 text-[var(--kronus-gold-700)]">{% icone "documento" classe="h-4 w-4" %}<span class="text-xs font-medium uppercase tracking-wide">Em comodato</span></div>
+    <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-gold-700)]">{{ qtd_comodato }}</p>
+  </a>
+</div>
+
+<form method="get" class="card mb-5 flex flex-wrap items-end gap-3 p-4">
+  <div class="min-w-[16rem] flex-1">
+    <label for="busca" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Buscar</label>
+    <input type="search" id="busca" name="busca" value="{{ busca }}"
+           placeholder="Identificador, serial, cliente ou empresa"
+           class="block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+  </div>
+  <div>
+    <label for="situacao" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Situação</label>
+    <select id="situacao" name="situacao" class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <option value="">Todas</option>
+      <option value="online" {% if situacao == "online" %}selected{% endif %}>Online</option>
+      <option value="offline" {% if situacao == "offline" %}selected{% endif %}>Offline</option>
+      <option value="comodato" {% if situacao == "comodato" %}selected{% endif %}>Em comodato</option>
+      <option value="inativo" {% if situacao == "inativo" %}selected{% endif %}>Inativos</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-outline">{% icone "lupa" classe="h-4 w-4" %} Filtrar</button>
+</form>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)]">
+        <tr class="text-left text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gray-500)]">
+          <th class="px-4 py-3">Equipamento</th>
+          <th class="px-4 py-3">Cliente / empresa</th>
+          <th class="px-4 py-3">Local</th>
+          <th class="px-4 py-3">Situação</th>
+          <th class="px-4 py-3">Comodato</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for totem in totens %}
+          <tr class="hover:bg-[var(--kronus-gray-50)]">
+            <td class="px-4 py-3">
+              <a href="{% url 'master:totem_detalhe' totem.pk %}" class="font-mono text-xs font-semibold text-[var(--kronus-primary-700)] hover:underline">{{ totem.identificador }}</a>
+              {% if totem.apelido %}<p class="text-xs text-[var(--kronus-gray-500)]">{{ totem.apelido }}</p>{% endif %}
+              {% if totem.grupo %}<p class="mt-0.5 inline-flex items-center gap-1 text-xs text-[var(--kronus-gray-400)]">{% icone "pasta" classe="h-3 w-3" %}{{ totem.grupo.nome }}</p>{% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <p class="text-[var(--kronus-gray-800)]">{{ totem.empresa.cliente.razao_social }}</p>
+              <p class="text-xs text-[var(--kronus-gray-500)]">{{ totem.empresa.nome_fantasia|default:totem.empresa.razao_social }}</p>
+            </td>
+            <td class="px-4 py-3 text-[var(--kronus-gray-600)]">{{ totem.local_instalacao|default:"—" }}</td>
+            <td class="px-4 py-3">
+              {% if not totem.ativo %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-[var(--kronus-gray-100)] px-2 py-0.5 text-xs font-medium text-[var(--kronus-gray-600)]">Inativo</span>
+              {% elif totem.online %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{% icone "antena" classe="h-3 w-3" %} Online</span>
+              {% else %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">{% icone "alerta" classe="h-3 w-3" %} Offline</span>
+                <p class="mt-0.5 text-xs text-[var(--kronus-gray-400)]">
+                  {% if totem.minutos_desde_heartbeat %}há {{ totem.minutos_desde_heartbeat }} min{% else %}nunca conectou{% endif %}
+                </p>
+              {% endif %}
+              {% if totem.bateria_percentual != None %}
+                <p class="mt-0.5 font-mono text-xs {% if totem.bateria_percentual < 20 %}text-red-600{% else %}text-[var(--kronus-gray-400)]{% endif %}">bat. {{ totem.bateria_percentual }}%</p>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs">
+              {% if totem.em_comodato %}
+                {% if totem.data_devolucao %}
+                  <span class="text-[var(--kronus-gray-500)]">devolvido {{ totem.data_devolucao|date:"d/m/y" }}</span>
+                {% else %}
+                  <span class="text-[var(--kronus-gold-700)]">desde {{ totem.data_instalacao|date:"d/m/y"|default:"—" }}</span>
+                {% endif %}
+              {% else %}
+                <span class="text-[var(--kronus-gray-400)]">próprio</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-right">
+              <a href="{% url 'master:totem_detalhe' totem.pk %}" class="btn btn-outline text-xs">Abrir</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">
+            Nenhum totem encontrado.
+            <a href="{% url 'master:totem_criar' %}" class="ml-1 text-[var(--kronus-primary-600)] hover:underline">Cadastrar o primeiro</a>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% include "components/pagination.html" %}
+{% endblock %}

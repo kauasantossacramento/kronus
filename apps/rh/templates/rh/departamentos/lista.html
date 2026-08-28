@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Departamentos</h1>
+  <a href="{% url 'rh:departamento_criar' %}" class="btn btn-primary">{% icone "mais" classe="h-4 w-4" %} Novo departamento</a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="card overflow-x-auto">
+  <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+    <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+      <tr>
+        <th class="px-5 py-3 font-medium">Nome</th>
+        <th class="px-5 py-3 font-medium">Responsável</th>
+        <th class="px-5 py-3 font-medium">Centro de custo</th>
+        <th class="px-5 py-3 font-medium">Colaboradores</th>
+        <th class="px-5 py-3 font-medium">Status</th>
+        <th class="px-5 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+      {% for d in departamentos %}
+        <tr class="hover:bg-[var(--kronus-gray-50)]">
+          <td class="px-5 py-3 font-medium text-[var(--kronus-gray-800)]">{{ d.nome }}</td>
+          <td class="px-5 py-3 text-[var(--kronus-gray-600)]">{{ d.responsavel|default:"—" }}</td>
+          <td class="px-5 py-3 font-mono text-xs">{{ d.centro_custo|default:"—" }}</td>
+          <td class="px-5 py-3 font-mono">{{ d.qtd }}</td>
+          <td class="px-5 py-3">
+            <span class="rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {% if d.ativo %}bg-emerald-50 text-emerald-700 ring-emerald-600/20{% else %}bg-slate-100 text-slate-600 ring-slate-500/20{% endif %}">{% if d.ativo %}Ativo{% else %}Inativo{% endif %}</span>
+          </td>
+          <td class="px-5 py-3 text-right"><a href="{% url 'rh:departamento_editar' d.pk %}" class="text-xs text-[var(--kronus-gray-500)] hover:text-[var(--kronus-primary-600)]">Editar</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="px-5 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum departamento cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="px-5 pb-4">{% include "components/pagination.html" %}</div>
+</div>
+{% endblock %}

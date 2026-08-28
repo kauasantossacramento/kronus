@@ -1,0 +1,208 @@
+{% load kronus_tags %}<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Espelho de Ponto — {{ colaborador.nome_exibicao }} — {{ mes }}/{{ ano }}</title>
+<style>
+  /* Espelho de ponto — Seção 8.5 do plano. A4 retrato. */
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm 18mm;
+    @bottom-center {
+      content: "Kronus · kronus.online — página " counter(page) " de " counter(pages);
+      font-family: Helvetica, sans-serif; font-size: 7pt; color: #94A3B8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 8pt; color: #0F172A; margin: 0; }
+
+  .topo { display: flex; justify-content: space-between; align-items: flex-start;
+          border-bottom: 2pt solid #1E3A5F; padding-bottom: 4mm; margin-bottom: 5mm; }
+  .marca { font-size: 17pt; font-weight: 700; letter-spacing: .15em;
+           text-transform: uppercase; color: #1E3A5F; line-height: 1; }
+  .marca-sub { font-size: 6.5pt; color: #64748B; letter-spacing: .06em; margin-top: 1mm; }
+  .titulo { text-align: right; }
+  .titulo h1 { font-size: 12pt; margin: 0; color: #0F172A; }
+  .titulo .periodo { font-size: 9pt; color: #475569; margin-top: 1mm; }
+  .titulo .selo { display: inline-block; margin-top: 2mm; padding: 1mm 2.5mm;
+                  background: #FFFBEB; border: .8pt solid #D4A017; border-radius: 1.5mm;
+                  font-size: 6.5pt; color: #92690A; letter-spacing: .05em; }
+
+  .identificacao { display: flex; gap: 6mm; margin-bottom: 5mm; }
+  .bloco { flex: 1; background: #F8FAFC; border-radius: 2mm; padding: 3mm 3.5mm; }
+  .bloco h2 { font-size: 7pt; text-transform: uppercase; letter-spacing: .08em;
+              color: #64748B; margin: 0 0 2mm; }
+  .bloco dl { margin: 0; }
+  .bloco .linha { display: flex; justify-content: space-between; padding: .5mm 0; }
+  .bloco dt { color: #64748B; font-size: 7.5pt; }
+  .bloco dd { margin: 0; font-weight: 700; font-size: 7.5pt; text-align: right; }
+
+  table.dias { width: 100%; border-collapse: collapse; }
+  table.dias th { background: #1E3A5F; color: #fff; font-size: 6.8pt; font-weight: 600;
+                  text-transform: uppercase; letter-spacing: .04em;
+                  padding: 1.8mm 1mm; text-align: center; }
+  table.dias th.esq, table.dias td.esq { text-align: left; }
+  table.dias td { padding: 1.4mm 1mm; text-align: center; border-bottom: .4pt solid #E2E8F0;
+                  font-size: 7.4pt; }
+  table.dias tbody tr:nth-child(even) { background: #F8FAFC; }
+  table.dias .mono { font-family: "JetBrains Mono", "Courier New", monospace;
+                     font-variant-numeric: tabular-nums; }
+  table.dias .fds { color: #94A3B8; }
+  .positivo { color: #047857; font-weight: 700; }
+  .negativo { color: #B91C1C; font-weight: 700; }
+  .neutro   { color: #475569; }
+
+  table.dias tfoot td { background: #E2E8F0; font-weight: 700; font-size: 7.8pt;
+                        border-top: 1.2pt solid #1E3A5F; padding: 2mm 1mm; }
+
+  .resumo { margin-top: 5mm; display: flex; gap: 4mm; }
+  .cartao { flex: 1; border: .8pt solid #E2E8F0; border-radius: 2mm; padding: 3mm; text-align: center; }
+  .cartao .rot { font-size: 6.5pt; text-transform: uppercase; letter-spacing: .06em; color: #64748B; }
+  .cartao .val { font-family: "JetBrains Mono", monospace; font-size: 12pt; font-weight: 700; margin-top: 1mm; }
+
+  .integridade { margin-top: 6mm; border: .8pt solid #D4A017; background: #FFFBEB;
+                 border-radius: 2mm; padding: 3mm 4mm; }
+  .integridade .rot { font-size: 6.5pt; text-transform: uppercase; letter-spacing: .08em; color: #92690A; }
+  .integridade .cod { font-family: "JetBrains Mono", monospace; font-size: 12pt;
+                      font-weight: 700; letter-spacing: .12em; margin-top: .5mm; }
+  .integridade .hash { font-family: "JetBrains Mono", monospace; font-size: 5.8pt;
+                       color: #92690A; word-break: break-all; margin-top: 1.5mm; }
+
+  .assinaturas { margin-top: 12mm; display: flex; gap: 14mm; }
+  .assinatura { flex: 1; text-align: center; }
+  .assinatura .linha { border-top: .8pt solid #0F172A; margin-bottom: 1.5mm; }
+  .assinatura .nome { font-size: 7.5pt; font-weight: 700; }
+  .assinatura .cargo { font-size: 6.5pt; color: #64748B; }
+
+  .rodape { margin-top: 8mm; padding-top: 2mm; border-top: .5pt solid #E2E8F0;
+            font-size: 6.2pt; color: #94A3B8; text-align: center; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+  {# ── Cabeçalho ───────────────────────────────────────────── #}
+  <div class="topo">
+    <div>
+      <div class="marca">Kronus</div>
+      <div class="marca-sub">Registrador Eletrônico de Ponto via Programa</div>
+    </div>
+    <div class="titulo">
+      <h1>Espelho de Ponto</h1>
+      <div class="periodo">{{ data_inicio|date:"d/m/Y" }} a {{ data_fim|date:"d/m/Y" }}</div>
+      <div class="selo">Portaria 671/2021 · MTP</div>
+    </div>
+  </div>
+
+  {# ── Identificação ───────────────────────────────────────── #}
+  <div class="identificacao">
+    <div class="bloco">
+      <h2>Empregador</h2>
+      <div class="linha"><dt>Razão social</dt><dd>{{ empresa.razao_social }}</dd></div>
+      <div class="linha"><dt>CNPJ</dt><dd>{{ empresa.cnpj_formatado }}</dd></div>
+      {% if empresa.cei_caepf %}<div class="linha"><dt>CEI/CAEPF</dt><dd>{{ empresa.cei_caepf }}</dd></div>{% endif %}
+      {% if empresa.cidade %}<div class="linha"><dt>Município</dt><dd>{{ empresa.cidade }}/{{ empresa.uf }}</dd></div>{% endif %}
+    </div>
+    <div class="bloco">
+      <h2>Empregado</h2>
+      <div class="linha"><dt>Nome</dt><dd>{{ colaborador.nome_exibicao }}</dd></div>
+      <div class="linha"><dt>CPF</dt><dd>{{ colaborador.cpf|cpf }}</dd></div>
+      {% if colaborador.pis_pasep %}<div class="linha"><dt>PIS/PASEP</dt><dd>{{ colaborador.pis_pasep }}</dd></div>{% endif %}
+      {% if colaborador.matricula %}<div class="linha"><dt>Matrícula</dt><dd>{{ colaborador.matricula }}</dd></div>{% endif %}
+      <div class="linha"><dt>Admissão</dt><dd>{{ colaborador.data_admissao|date:"d/m/Y" }}</dd></div>
+      {% if colaborador.cargo %}<div class="linha"><dt>Cargo</dt><dd>{{ colaborador.cargo }}</dd></div>{% endif %}
+      {% if colaborador.escala %}<div class="linha"><dt>Escala</dt><dd>{{ colaborador.escala.nome }}</dd></div>{% endif %}
+    </div>
+  </div>
+
+  {# ── Dia a dia ───────────────────────────────────────────── #}
+  <table class="dias">
+    <thead>
+      <tr>
+        <th class="esq">Dia</th>
+        <th>1ª ent.</th>
+        <th>1ª saída</th>
+        <th>2ª ent.</th>
+        <th>2ª saída</th>
+        <th>Trabalhado</th>
+        <th>Previsto</th>
+        <th>Extras</th>
+        <th>Noturnas</th>
+        <th>Saldo</th>
+        <th class="esq">Ocorrência</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for linha in linhas %}
+        <tr>
+          <td class="esq mono {% if not linha.banco or linha.banco.minutos_esperados == 0 %}fds{% endif %}">
+            {{ linha.data|date:"d/m" }} <span style="font-size:6.5pt">{{ linha.data|date:"D" }}</span>
+          </td>
+          {% for coluna in linha.colunas %}
+            <td class="mono">{{ coluna }}</td>
+          {% endfor %}
+          <td class="mono">{{ linha.trabalhado }}</td>
+          <td class="mono neutro">{{ linha.esperado }}</td>
+          <td class="mono">{{ linha.extras }}</td>
+          <td class="mono">{{ linha.noturnas }}</td>
+          <td class="mono {% if linha.banco.saldo_dia > 0 %}positivo{% elif linha.banco.saldo_dia < 0 %}negativo{% endif %}">{{ linha.saldo }}</td>
+          <td class="esq" style="font-size:6.8pt">
+            {% if linha.banco %}{{ linha.banco.get_status_display }}{% endif %}
+            {% if linha.excedentes %}<br><span style="color:#475569">+ {{ linha.excedentes|join:" · " }}</span>{% endif %}
+            {% if linha.banco.observacao %}<br><span style="color:#B45309">{{ linha.banco.observacao }}</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td class="esq" colspan="5">Totais do período</td>
+        <td class="mono">{{ totais.trabalhado }}</td>
+        <td class="mono">{{ totais.esperado }}</td>
+        <td class="mono">{{ totais.extras }}</td>
+        <td class="mono">{{ totais.noturnas }}</td>
+        <td class="mono">{{ totais.saldo_periodo }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  {# ── Resumo ──────────────────────────────────────────────── #}
+  <div class="resumo">
+    <div class="cartao"><div class="rot">Saldo anterior</div><div class="val">{{ totais.saldo_anterior }}</div></div>
+    <div class="cartao"><div class="rot">Saldo do período</div><div class="val">{{ totais.saldo_periodo }}</div></div>
+    <div class="cartao"><div class="rot">Saldo acumulado</div><div class="val">{{ totais.saldo_final }}</div></div>
+    <div class="cartao"><div class="rot">Faltas</div><div class="val">{{ resumo.dias_falta }}</div></div>
+    <div class="cartao"><div class="rot">Atestados</div><div class="val">{{ resumo.dias_atestado }}</div></div>
+  </div>
+
+  {# ── Integridade ─────────────────────────────────────────── #}
+  <div class="integridade">
+    <div class="rot">Código de verificação de integridade</div>
+    <div class="cod">{{ codigo_verificacao }}</div>
+    <div class="hash">SHA-256: {{ hash_documento }}</div>
+  </div>
+
+  {# ── Assinaturas ─────────────────────────────────────────── #}
+  <div class="assinaturas">
+    <div class="assinatura">
+      <div class="linha"></div>
+      <div class="nome">{{ colaborador.nome_exibicao }}</div>
+      <div class="cargo">Empregado · CPF {{ colaborador.cpf|cpf }}</div>
+    </div>
+    <div class="assinatura">
+      <div class="linha"></div>
+      <div class="nome">{{ empresa.razao_social }}</div>
+      <div class="cargo">Empregador · CNPJ {{ empresa.cnpj_formatado }}</div>
+    </div>
+  </div>
+
+  <div class="rodape">
+    Documento emitido em {{ emitido_em|date:"d/m/Y \à\s H:i:s" }} pelo Kronus —
+    Registrador Eletrônico de Ponto via Programa (REP-P).<br>
+    Cada marcação possui NSR sequencial e hash SHA-256 encadeado ao registro anterior,
+    conforme a Portaria 671/2021 do MTP.<br>
+    Desenvolvido por KS TEC Soluções de Tecnologia Ltda · kstec.online
+  </div>
+
+</body>
+</html>

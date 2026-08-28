@@ -1,0 +1,20 @@
+{% comment %}
+  Modal de confirmação para ações destrutivas.
+  Parâmetros: id, titulo, mensagem, url_acao, rotulo_confirmar, classe_confirmar.
+{% endcomment %}
+<div x-data="{ aberto: false }" @abrir-{{ id }}.window="aberto = true">
+  <template x-teleport="body">
+    <div x-show="aberto" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/60" @click="aberto = false"></div>
+      <div class="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <h3 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">{{ titulo }}</h3>
+        <p class="mt-2 text-sm text-[var(--kronus-gray-600)]">{{ mensagem }}</p>
+        <form method="post" action="{{ url_acao }}" class="mt-5 flex justify-end gap-2">
+          {% csrf_token %}
+          <button type="button" class="btn btn-outline" @click="aberto = false">Cancelar</button>
+          <button type="submit" class="btn {{ classe_confirmar|default:'btn-danger' }}">{{ rotulo_confirmar|default:"Confirmar" }}</button>
+        </form>
+      </div>
+    </div>
+  </template>
+</div>

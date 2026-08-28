@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Banco de horas</h1>
+  <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+    {{ inicio|date:"d/m/Y" }} a {{ fim|date:"d/m/Y" }} · {{ empresa_atual.nome_exibicao }}
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="grid gap-4 sm:grid-cols-3">
+  {% include "components/stats_card.html" with rotulo="Saldo consolidado" valor=saldo_total|hhmm icone_nome="banco_horas" cor=saldo_total|classe_saldo_cor rodape="Soma dos saldos acumulados" %}
+  {% include "components/stats_card.html" with rotulo="Com saldo positivo" valor=total_credores icone_nome="check_circulo" cor="sucesso" %}
+  {% include "components/stats_card.html" with rotulo="Com saldo negativo" valor=total_devedores icone_nome="alerta" cor="perigo" %}
+</div>
+
+<div class="card mt-6">
+  <form method="get" class="flex flex-wrap items-end gap-3 border-b border-[var(--kronus-gray-200)] p-4">
+    <div>
+      <label for="inicio" class="block text-xs font-medium text-[var(--kronus-gray-600)]">De</label>
+      <input type="date" name="inicio" id="inicio" value="{{ inicio|date:'Y-m-d' }}"
+             class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+    </div>
+    <div>
+      <label for="fim" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Até</label>
+      <input type="date" name="fim" id="fim" value="{{ fim|date:'Y-m-d' }}"
+             class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+    </div>
+    <div>
+      <label for="departamento" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Departamento</label>
+      <select name="departamento" id="departamento" class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+        <option value="">Todos</option>
+        {% for d in departamentos %}
+          <option value="{{ d.pk }}" {% if request.GET.departamento == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="ordem" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Ordenar</label>
+      <select name="ordem" id="ordem" class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+        <option value="">Nome</option>
+        <option value="saldo" {% if request.GET.ordem == 'saldo' %}selected{% endif %}>Mais devedores primeiro</option>
+        <option value="-saldo" {% if request.GET.ordem == '-saldo' %}selected{% endif %}>Mais credores primeiro</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-outline">Filtrar</button>
+  </form>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+        <tr>
+          <th class="px-4 py-3 font-medium">Colaborador</th>
+          <th class="px-4 py-3 text-right font-medium">Trabalhado</th>
+          <th class="px-4 py-3 text-right font-medium">Previsto</th>
+          <th class="px-4 py-3 text-right font-medium">Extras</th>
+          <th class="px-4 py-3 text-right font-medium">Noturnas</th>
+          <th class="px-4 py-3 text-right font-medium">Atrasos</th>
+          <th class="px-4 py-3 text-right font-medium">Saldo período</th>
+          <th class="px-4 py-3 text-right font-medium">Saldo acumulado</th>
+          <th class="px-4 py-3 text-center font-medium">Pendências</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for linha in linhas %}
+          <tr class="hover:bg-[var(--kronus-gray-50)]">
+            <td class="px-4 py-2.5">
+              <a href="{% url 'rh:colaborador_detalhe' linha.colaborador.pk %}" class="font-medium text-[var(--kronus-primary-600)] hover:underline">{{ linha.colaborador.nome_exibicao }}</a>
+              <p class="text-xs text-[var(--kronus-gray-400)]">{{ linha.colaborador.departamento|default:"—" }}</p>
+            </td>
+            <td class="px-4 py-2.5 text-right font-mono tabular-nums">{{ linha.trabalhado|hhmm_abs }}</td>
+            <td class="px-4 py-2.5 text-right font-mono tabular-nums text-[var(--kronus-gray-500)]">{{ linha.esperado|hhmm_abs }}</td>
+            <td class="px-4 py-2.5 text-right font-mono tabular-nums text-[var(--kronus-gold-600)]">{{ linha.extras|hhmm_abs }}</td>
+            <td class="px-4 py-2.5 text-right font-mono tabular-nums text-[var(--kronus-gray-500)]">{{ linha.noturnas|hhmm_abs }}</td>
+            <td class="px-4 py-2.5 text-right font-mono tabular-nums text-amber-600">{{ linha.atraso|hhmm_abs }}</td>
+            <td class="px-4 py-2.5 text-right font-mono tabular-nums {% classe_saldo linha.saldo_periodo %}">{{ linha.saldo_periodo|hhmm }}</td>
+            <td class="px-4 py-2.5 text-right font-mono font-bold tabular-nums {% classe_saldo linha.saldo_acumulado %}">{{ linha.saldo_acumulado|hhmm }}</td>
+            <td class="px-4 py-2.5 text-center">
+              <span class="flex justify-center gap-1.5">
+                {% if linha.faltas %}
+                  <span class="rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700" title="Faltas">{{ linha.faltas }}F</span>
+                {% endif %}
+                {% if linha.incompletos %}
+                  <span class="rounded bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700" title="Dias incompletos">{{ linha.incompletos }}I</span>
+                {% endif %}
+                {% if not linha.faltas and not linha.incompletos %}
+                  <span class="text-[var(--kronus-gray-300)]">—</span>
+                {% endif %}
+              </span>
+            </td>
+            <td class="px-4 py-2.5 text-right">
+              <form method="post" action="{% url 'rh:banco_horas_recalcular' linha.colaborador.pk %}?inicio={{ inicio|date:'Y-m-d' }}&fim={{ fim|date:'Y-m-d' }}">
+                {% csrf_token %}
+                <button type="submit" class="text-[var(--kronus-gray-400)] transition hover:text-[var(--kronus-primary-600)]" title="Recalcular período">
+                  {% icone "raio" classe="h-4 w-4" %}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="10" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum colaborador ativo.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="mt-4 flex items-start gap-2 text-xs text-[var(--kronus-gray-500)]">
+  {% icone "info" classe="mt-0.5 h-4 w-4 shrink-0" %}
+  <span>
+    Faixas de cor conforme a Seção 8.4 do plano: verde acima de zero, amarelo entre
+    −2h e zero, vermelho abaixo de −2h. O saldo é consolidado automaticamente às 23:59
+    e recalculado a cada nova marcação ou ajuste.
+  </span>
+</p>
+{% endblock %}

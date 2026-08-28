@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div class="flex items-center gap-4">
+    {% if colaborador.foto_perfil %}
+      <img src="{{ colaborador.foto_perfil.url }}" alt="" class="h-16 w-16 rounded-full object-cover ring-2 ring-white shadow">
+    {% else %}
+      <span class="grid h-16 w-16 place-items-center rounded-full bg-[var(--kronus-primary-600)] text-lg font-semibold text-white">{{ colaborador.iniciais }}</span>
+    {% endif %}
+    <div>
+      <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)]">{{ colaborador.nome_exibicao }}</h1>
+      <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+        {{ colaborador.cargo|default:"Sem cargo definido" }}{% if colaborador.departamento %} · {{ colaborador.departamento }}{% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'rh:colaborador_editar' colaborador.pk %}" class="btn btn-outline">Editar</a>
+    <a href="{% url 'ponto:espelho_colaborador' ano_atual mes_atual colaborador.pk %}" target="_blank" class="btn btn-outline">
+      {% icone "download" classe="h-4 w-4" %} Espelho do mês
+    </a>
+    <a href="{% url 'facial:cadastro' colaborador.pk %}" class="btn btn-gold">
+      {% icone "rosto" classe="h-4 w-4" %} Cadastro facial
+    </a>
+    <form method="post" action="{% url 'rh:colaborador_desligar' colaborador.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn {% if colaborador.ativo %}btn-danger{% else %}btn-primary{% endif %}">
+        {% if colaborador.ativo %}Desligar{% else %}Reativar{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="grid gap-6 lg:grid-cols-3">
+
+  {# ── Dados cadastrais ───────────────────────────────── #}
+  <div class="card p-6 lg:col-span-2">
+    <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Dados cadastrais</h2>
+    <dl class="mt-4 grid gap-4 sm:grid-cols-2">
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">CPF</dt><dd class="font-mono text-sm">{{ colaborador.cpf|cpf }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Data de nascimento</dt><dd class="font-mono text-sm">{{ colaborador.data_nascimento|date:"d/m/Y" }} ({{ colaborador.idade }} anos)</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Matrícula</dt><dd class="font-mono text-sm">{{ colaborador.matricula|default:"—" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">PIS/PASEP</dt><dd class="font-mono text-sm">{{ colaborador.pis_pasep|default:"—" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">E-mail</dt><dd class="text-sm">{{ colaborador.email|default:"—" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Telefone</dt><dd class="text-sm">{{ colaborador.telefone|default:"—" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Admissão</dt><dd class="font-mono text-sm">{{ colaborador.data_admissao|date:"d/m/Y" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Demissão</dt><dd class="font-mono text-sm">{{ colaborador.data_demissao|date:"d/m/Y"|default:"—" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">Escala</dt><dd class="text-sm">{{ colaborador.escala|default:"Não vinculada" }}</dd></div>
+      <div><dt class="text-xs text-[var(--kronus-gray-500)]">CTPS</dt><dd class="font-mono text-sm">{{ colaborador.ctps|default:"—" }}{% if colaborador.ctps_serie %} / {{ colaborador.ctps_serie }}{% endif %}</dd></div>
+    </dl>
+    {% if colaborador.observacoes %}
+      <div class="mt-5 border-t border-[var(--kronus-gray-200)] pt-4">
+        <dt class="text-xs text-[var(--kronus-gray-500)]">Observações</dt>
+        <dd class="mt-1 text-sm text-[var(--kronus-gray-700)]">{{ colaborador.observacoes|linebreaksbr }}</dd>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="space-y-6">
+    {# ── Biometria ────────────────────────────────────── #}
+    <div class="card p-5">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Biometria facial</h2>
+      {% if colaborador.face_registrada %}
+        <p class="mt-2 flex items-center gap-1.5 text-sm text-emerald-600">{% icone "check_circulo" classe="h-4 w-4" %} Face cadastrada</p>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-400)]">Atualizada em {{ colaborador.face_atualizada_em|date:"d/m/Y H:i" }}</p>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-400)]">{{ registros_faciais|length }} amostra{{ registros_faciais|length|pluralize }} ativa{{ registros_faciais|length|pluralize }}</p>
+      {% else %}
+        <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">Nenhuma face cadastrada.</p>
+      {% endif %}
+      <p class="mt-3 flex items-start gap-1.5 text-xs {% if colaborador.consentimento_biometrico %}text-emerald-600{% else %}text-amber-600{% endif %}">
+        {% if colaborador.consentimento_biometrico %}
+          {% icone "check" classe="mt-0.5 h-3.5 w-3.5 shrink-0" %}
+          <span>Consentimento LGPD registrado em {{ colaborador.consentimento_biometrico_em|date:"d/m/Y" }}</span>
+        {% else %}
+          {% icone "alerta" classe="mt-0.5 h-3.5 w-3.5 shrink-0" %}
+          <span>Consentimento biométrico (LGPD) pendente</span>
+        {% endif %}
+      </p>
+    </div>
+
+    {# ── Acesso ───────────────────────────────────────── #}
+    <div class="card p-5">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Acesso ao sistema</h2>
+      {% if colaborador.user %}
+        <p class="mt-2 text-sm text-[var(--kronus-gray-700)]">{{ colaborador.user.username }}</p>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-400)]">Último login: {{ colaborador.user.last_login|date:"d/m/Y H:i"|default:"nunca" }}</p>
+      {% else %}
+        <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">Sem credenciais web. Registra ponto apenas pelo totem.</p>
+      {% endif %}
+    </div>
+
+    {# ── Ponto do mês ─────────────────────────────────── #}
+    <div class="card p-5">
+      <div class="flex items-center justify-between">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Ponto do mês</h2>
+        <a href="{% url 'rh:banco_horas' %}" class="text-xs font-medium text-[var(--kronus-primary-600)] hover:underline">Painel</a>
+      </div>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Trabalhado</dt>
+          <dd class="font-mono font-semibold">{{ resumo_mes.minutos_trabalhados|hhmm_abs }}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Previsto</dt>
+          <dd class="font-mono">{{ resumo_mes.minutos_esperados|hhmm_abs }}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Horas extras</dt>
+          <dd class="font-mono text-[var(--kronus-gold-600)]">{{ resumo_mes.minutos_extras|hhmm_abs }}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Faltas</dt>
+          <dd class="font-mono">{{ resumo_mes.dias_falta }}</dd>
+        </div>
+        <div class="flex justify-between border-t border-[var(--kronus-gray-200)] pt-2">
+          <dt class="text-[var(--kronus-gray-500)]">Saldo acumulado</dt>
+          <dd class="font-mono font-bold {% classe_saldo resumo_mes.saldo_final %}">{{ resumo_mes.saldo_final|hhmm }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    {# ── Últimas marcações ────────────────────────────── #}
+    <div class="card">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Últimas marcações</h2>
+      </div>
+      <ul class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for registro in ultimos_registros %}
+          <li class="flex items-center justify-between px-5 py-2.5 text-sm">
+            <span class="text-[var(--kronus-gray-600)]">{{ registro.get_tipo_display }}</span>
+            <span class="font-mono text-xs tabular-nums text-[var(--kronus-gray-500)]">{{ registro.hora_local|date:"d/m H:i" }}</span>
+          </li>
+        {% empty %}
+          <li class="px-5 py-6 text-center text-xs text-[var(--kronus-gray-400)]">Nenhuma marcação registrada.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {# ── Atestados e justificativas ───────────────────── #}
+    <div class="card">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Atestados recentes</h2>
+      </div>
+      <ul class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for atestado in atestados %}
+          <li class="px-5 py-3 text-sm">
+            <p class="text-[var(--kronus-gray-700)]">{{ atestado.data_inicio|date:"d/m/Y" }} – {{ atestado.data_fim|date:"d/m/Y" }} ({{ atestado.dias }}d)</p>
+            <p class="text-xs text-[var(--kronus-gray-400)]">{{ atestado.get_status_display }}</p>
+          </li>
+        {% empty %}
+          <li class="px-5 py-6 text-center text-xs text-[var(--kronus-gray-400)]">Nenhum atestado registrado.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

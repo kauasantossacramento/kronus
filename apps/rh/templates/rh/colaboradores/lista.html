@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load kronus_tags kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Colaboradores</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">{{ empresa_atual.nome_exibicao }}</p>
+  </div>
+  <a href="{% url 'rh:colaborador_criar' %}" class="btn btn-primary">{% icone "mais" classe="h-4 w-4" %} Novo colaborador</a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="card">
+  <form method="get" class="flex flex-wrap items-end gap-3 border-b border-[var(--kronus-gray-200)] p-4">
+    <div class="min-w-[16rem] flex-1">
+      <label for="q" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Buscar</label>
+      <input type="search" name="q" id="q" value="{{ busca }}" placeholder="Nome, CPF, matrícula ou e-mail"
+             class="mt-1 block w-full rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-[var(--kronus-primary-500)]">
+    </div>
+    <div>
+      <label for="situacao" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Situação</label>
+      <select name="situacao" id="situacao" class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+        <option value="ativos" {% if situacao == 'ativos' %}selected{% endif %}>Ativos</option>
+        <option value="inativos" {% if situacao == 'inativos' %}selected{% endif %}>Desligados</option>
+        <option value="todos" {% if situacao == 'todos' %}selected{% endif %}>Todos</option>
+      </select>
+    </div>
+    <div>
+      <label for="departamento" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Departamento</label>
+      <select name="departamento" id="departamento" class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+        <option value="">Todos</option>
+        {% for d in departamentos %}<option value="{{ d.pk }}" {% if request.GET.departamento == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nome }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="face" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Face</label>
+      <select name="face" id="face" class="mt-1 rounded-lg border-0 px-3 py-2 text-sm shadow-sm ring-1 ring-inset ring-slate-300">
+        <option value="">Todas</option>
+        <option value="sim" {% if request.GET.face == 'sim' %}selected{% endif %}>Cadastrada</option>
+        <option value="nao" {% if request.GET.face == 'nao' %}selected{% endif %}>Pendente</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-outline">Filtrar</button>
+  </form>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+        <tr>
+          <th class="px-5 py-3 font-medium">Colaborador</th>
+          <th class="px-5 py-3 font-medium">CPF</th>
+          <th class="px-5 py-3 font-medium">Matrícula</th>
+          <th class="px-5 py-3 font-medium">Departamento</th>
+          <th class="px-5 py-3 font-medium">Escala</th>
+          <th class="px-5 py-3 font-medium">Face</th>
+          <th class="px-5 py-3 font-medium">Situação</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for colaborador in colaboradores %}
+          <tr class="hover:bg-[var(--kronus-gray-50)]">
+            <td class="px-5 py-3">
+              <div class="flex items-center gap-3">
+                {% if colaborador.foto_perfil %}
+                  <img src="{{ colaborador.foto_perfil.url }}" alt="" class="h-8 w-8 rounded-full object-cover">
+                {% else %}
+                  <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--kronus-primary-600)] text-[11px] font-semibold text-white">{{ colaborador.iniciais }}</span>
+                {% endif %}
+                <div class="min-w-0">
+                  <a href="{% url 'rh:colaborador_detalhe' colaborador.pk %}" class="block truncate font-medium text-[var(--kronus-primary-600)] hover:underline">{{ colaborador.nome_exibicao }}</a>
+                  <p class="truncate text-xs text-[var(--kronus-gray-400)]">{{ colaborador.cargo|default:"—" }}</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-5 py-3 font-mono text-xs">{{ colaborador.cpf|cpf }}</td>
+            <td class="px-5 py-3 font-mono text-xs">{{ colaborador.matricula|default:"—" }}</td>
+            <td class="px-5 py-3 text-[var(--kronus-gray-600)]">{{ colaborador.departamento|default:"—" }}</td>
+            <td class="px-5 py-3 text-[var(--kronus-gray-600)]">{{ colaborador.escala|default:"—" }}</td>
+            <td class="px-5 py-3">
+              {% if colaborador.face_registrada %}
+                <span class="inline-flex rounded-md bg-emerald-50 p-1 text-emerald-700 ring-1 ring-inset ring-emerald-600/20" title="Face cadastrada">{% icone "rosto" classe="h-4 w-4" %}</span>
+              {% else %}
+                <span class="inline-flex rounded-md bg-slate-100 p-1 text-slate-400 ring-1 ring-inset ring-slate-500/20" title="Sem cadastro facial">{% icone "rosto" classe="h-4 w-4" %}</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              <span class="rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {% if colaborador.ativo %}bg-emerald-50 text-emerald-700 ring-emerald-600/20{% else %}bg-slate-100 text-slate-600 ring-slate-500/20{% endif %}">
+                {% if colaborador.ativo %}Ativo{% else %}Desligado{% endif %}
+              </span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="px-5 py-12 text-center text-[var(--kronus-gray-400)]">
+            Nenhum colaborador encontrado.
+            <a href="{% url 'rh:colaborador_criar' %}" class="ml-1 text-[var(--kronus-primary-600)] hover:underline">Cadastrar</a>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="px-5 pb-4">{% include "components/pagination.html" %}</div>
+</div>
+{% endblock %}

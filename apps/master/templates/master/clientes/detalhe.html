@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">{{ cliente }}</h1>
+    <p class="mt-2 font-mono text-sm text-[var(--kronus-gray-500)]">{{ cliente.cnpj_formatado }}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'master:cliente_editar' cliente.pk %}" class="btn btn-outline">Editar</a>
+    <a href="{% url 'master:empresa_vincular' %}?cliente={{ cliente.pk }}" class="btn btn-outline">{% icone "mais" classe="h-4 w-4" %} Vincular empresa</a>
+    <form method="post" action="{% url 'master:cliente_suspender' cliente.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="motivo" value="Suspensão manual pelo Master">
+      <button type="submit" class="btn {% if cliente.suspenso %}btn-primary{% else %}btn-danger{% endif %}">
+        {% if cliente.suspenso %}Reativar{% else %}Suspender{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+{% if cliente.suspenso %}
+  <div class="mb-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+    {% icone "erro" classe="h-5 w-5 shrink-0" %} <span>Assinatura suspensa. {% if cliente.motivo_suspensao %}Motivo: {{ cliente.motivo_suspensao }}{% endif %}</span>
+  </div>
+{% endif %}
+
+{# ── Uso vs. limites do plano ─────────────────────────────── #}
+<div class="grid gap-4 sm:grid-cols-3">
+  {% for chave, par in uso.items %}
+    <div class="card p-5">
+      <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">{{ chave|capfirst }}</p>
+      <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-primary-600)]">{{ par.0 }}<span class="text-base text-[var(--kronus-gray-400)]">/{{ par.1 }}</span></p>
+      <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--kronus-gray-200)]">
+        <div class="h-full rounded-full bg-[var(--kronus-gold-500)]" style="width: {% widthratio par.0 par.1 100 %}%"></div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-3">
+  <div class="space-y-6 lg:col-span-2">
+
+    {# ── Empresas ─────────────────────────────────────────── #}
+    <div class="card">
+      <div class="flex items-center justify-between border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Empresas vinculadas</h2>
+        <span class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ empresas|length }}</span>
+      </div>
+      <ul class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for empresa in empresas %}
+          <li class="flex items-center justify-between px-5 py-3">
+            <div>
+              <p class="text-sm font-medium text-[var(--kronus-gray-800)]">{{ empresa.nome_exibicao }}</p>
+              <p class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ empresa.cnpj_formatado }} · {{ empresa.qtd_colaboradores }} colaborador{{ empresa.qtd_colaboradores|pluralize:"es" }}</p>
+            </div>
+            <a href="{% url 'master:empresa_editar' empresa.pk %}" class="text-xs font-medium text-[var(--kronus-gray-500)] hover:text-[var(--kronus-primary-600)]">Editar</a>
+          </li>
+        {% empty %}
+          <li class="px-5 py-8 text-center text-sm text-[var(--kronus-gray-400)]">Nenhuma empresa vinculada.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {# ── Totens ───────────────────────────────────────────── #}
+    <div class="card">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Totens</h2>
+      </div>
+      <ul class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for totem in totens %}
+          <li class="flex items-center justify-between px-5 py-3 text-sm">
+            <div>
+              <p class="font-medium text-[var(--kronus-gray-800)]">{{ totem }}</p>
+              <p class="text-xs text-[var(--kronus-gray-400)]">{{ totem.empresa.nome_exibicao }}{% if totem.em_comodato %} · comodato{% endif %}</p>
+            </div>
+            <span class="rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset
+              {% if totem.online %}bg-emerald-50 text-emerald-700 ring-emerald-600/20{% else %}bg-slate-100 text-slate-600 ring-slate-500/20{% endif %}">{{ totem.status }}</span>
+          </li>
+        {% empty %}
+          <li class="px-5 py-8 text-center text-sm text-[var(--kronus-gray-400)]">Nenhum totem cadastrado.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    {# ── Dados do contrato ────────────────────────────────── #}
+    <div class="card p-5">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Contrato</h2>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Plano</dt><dd class="font-medium">{{ cliente.plano }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Mensalidade</dt><dd class="font-mono">R$ {{ cliente.plano.preco_mensal|floatformat:2 }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Vencimento</dt><dd>dia {{ cliente.dia_vencimento }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Início</dt><dd class="font-mono text-xs">{{ cliente.data_inicio_contrato|date:"d/m/Y"|default:"—" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Responsável</dt><dd>{{ cliente.responsavel|default:"—" }}</dd></div>
+      </dl>
+    </div>
+
+    {# ── API key ──────────────────────────────────────────── #}
+    <div class="card p-5">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Chave de API</h2>
+      {% if cliente.api_key_ativa %}
+        <p class="mt-2 font-mono text-xs text-[var(--kronus-gray-600)]">{{ cliente.api_key_prefixo }}…</p>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-400)]">Gerada em {{ cliente.api_key_gerada_em|date:"d/m/Y H:i" }}</p>
+      {% else %}
+        <p class="mt-2 text-xs text-[var(--kronus-gray-400)]">Nenhuma chave ativa.</p>
+      {% endif %}
+      <form method="post" action="{% url 'master:cliente_api_key' cliente.pk %}" class="mt-4 flex gap-2">
+        {% csrf_token %}
+        <button type="submit" name="acao" value="gerar" class="btn btn-outline text-xs">
+          {% if cliente.api_key_ativa %}Regenerar{% else %}Gerar chave{% endif %}
+        </button>
+        {% if cliente.api_key_ativa %}
+          <button type="submit" name="acao" value="revogar" class="btn btn-danger text-xs">Revogar</button>
+        {% endif %}
+      </form>
+    </div>
+
+    {# ── Histórico de ações ───────────────────────────────── #}
+    <div class="card">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Histórico</h2>
+      </div>
+      <ul class="max-h-80 divide-y divide-[var(--kronus-gray-100)] overflow-y-auto">
+        {% for log in logs %}
+          <li class="px-5 py-2.5 text-xs">
+            <p class="font-medium text-[var(--kronus-gray-700)]">{{ log.get_acao_display }}</p>
+            <p class="text-[var(--kronus-gray-400)]">{{ log.created_at|date:"d/m/Y H:i" }} · {{ log.usuario|default:"sistema" }}</p>
+            {% if log.detalhes %}<p class="mt-0.5 text-[var(--kronus-gray-500)]">{{ log.detalhes }}</p>{% endif %}
+          </li>
+        {% empty %}
+          <li class="px-5 py-6 text-center text-xs text-[var(--kronus-gray-400)]">Sem registros.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

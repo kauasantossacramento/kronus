@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <nav class="mb-1 text-xs text-[var(--kronus-gray-400)]">
+    <a href="{% url 'master:totem_lista' %}" class="hover:underline">Parque de totens</a> /
+    <a href="{% url 'master:totem_detalhe' totem.pk %}" class="hover:underline">{{ totem.identificador }}</a> / Comodato
+  </nav>
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Contrato de comodato</h1>
+  <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+    {{ totem.empresa.cliente.razao_social }} · {{ totem.empresa.nome_fantasia|default:totem.empresa.razao_social }}
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-3xl space-y-6">
+
+  <div class="rounded-lg border border-[var(--kronus-gold-200)] bg-[var(--kronus-gold-50)] px-4 py-3 text-sm text-[var(--kronus-gold-800)]">
+    <p class="flex items-start gap-2">
+      {% icone "info" classe="mt-0.5 h-4 w-4 shrink-0" %}
+      <span>
+        O equipamento em comodato continua sendo <strong>propriedade da KS TEC</strong>. A data de
+        devolução, quando preenchida, encerra o contrato e desativa o totem — mas
+        <strong>nenhuma marcação é apagada</strong>: o AFD referencia o identificador do
+        dispositivo e precisa continuar reproduzível.
+      </span>
+    </p>
+  </div>
+
+  <div class="card p-6">
+    <form method="post" enctype="multipart/form-data" class="space-y-5">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {% for erro in form.non_field_errors %}<p>{{ erro }}</p>{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="flex items-center gap-2">
+        {{ form.em_comodato }}
+        <label for="{{ form.em_comodato.id_for_label }}" class="text-sm font-medium text-[var(--kronus-gray-700)]">{{ form.em_comodato.label }}</label>
+      </div>
+      {% if form.em_comodato.errors %}<p class="text-xs text-red-600">{{ form.em_comodato.errors.0 }}</p>{% endif %}
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        {% for campo in form %}
+          {% if campo.name != "em_comodato" %}
+            <div>
+              <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+              <div class="mt-1.5">{{ campo }}</div>
+              {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+              {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if totem.contrato_comodato %}
+        <p class="text-sm text-[var(--kronus-gray-600)]">
+          Contrato atual:
+          <a href="{{ totem.contrato_comodato.url }}" target="_blank" rel="noopener"
+             class="inline-flex items-center gap-1 text-[var(--kronus-primary-600)] hover:underline">
+            {% icone "documento" classe="h-4 w-4" %} abrir PDF
+          </a>
+        </p>
+      {% endif %}
+
+      <div class="flex justify-end gap-2 border-t border-[var(--kronus-gray-200)] pt-5">
+        <a href="{% url 'master:totem_detalhe' totem.pk %}" class="btn btn-outline">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Salvar comodato</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

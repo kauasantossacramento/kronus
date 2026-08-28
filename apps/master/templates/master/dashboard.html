@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load humanize kronus_icons %}
+
+{% block conteudo %}
+
+{# ── Linha 1: cards de resumo (Seção 6.7 do plano) ───────── #}
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+  {% include "components/stats_card.html" with rotulo="Clientes ativos" valor=total_clientes_ativos icone_nome="predio" rodape=total_clientes|stringformat:"s"|add:" no total" url="/master/clientes/" %}
+  {% include "components/stats_card.html" with rotulo="Empresas vinculadas" valor=total_empresas icone_nome="pasta" url="/master/empresas/" %}
+  {% include "components/stats_card.html" with rotulo="Colaboradores" valor=total_colaboradores icone_nome="usuarios" %}
+  {% include "components/stats_card.html" with rotulo="Totens ativos" valor=total_totens icone_nome="antena" cor="ouro" %}
+  {% include "components/stats_card.html" with rotulo="Receita mensal estimada" valor=receita_mensal|floatformat:2 icone_nome="cartao" cor="sucesso" rodape="Soma dos planos ativos" %}
+</div>
+
+{% if total_clientes_suspensos %}
+  <div class="mt-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    {% icone "alerta" classe="h-5 w-5 shrink-0" %}
+    <span><strong>{{ total_clientes_suspensos }}</strong> cliente{{ total_clientes_suspensos|pluralize }} com assinatura suspensa.</span>
+    <a href="{% url 'master:cliente_lista' %}?status=suspensos" class="ml-auto font-medium underline">Ver</a>
+  </div>
+{% endif %}
+
+<div class="mt-6 grid gap-6 lg:grid-cols-3">
+
+  {# ── Clientes recentes ─────────────────────────────────── #}
+  <div class="card lg:col-span-2">
+    <div class="flex items-center justify-between border-b border-[var(--kronus-gray-200)] px-5 py-4">
+      <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Clientes recentes</h2>
+      <a href="{% url 'master:cliente_lista' %}" class="inline-flex items-center gap-1 text-xs font-medium text-[var(--kronus-primary-600)] hover:underline">Ver todos {% icone "seta_direita" classe="h-3.5 w-3.5" %}</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+        <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+          <tr>
+            <th class="px-5 py-2.5 font-medium">Cliente</th>
+            <th class="px-5 py-2.5 font-medium">Plano</th>
+            <th class="px-5 py-2.5 font-medium">Status</th>
+            <th class="px-5 py-2.5 font-medium">Cadastro</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+          {% for cliente in clientes_recentes %}
+            <tr class="hover:bg-[var(--kronus-gray-50)]">
+              <td class="px-5 py-3">
+                <a href="{% url 'master:cliente_detalhe' cliente.pk %}" class="font-medium text-[var(--kronus-primary-600)] hover:underline">{{ cliente }}</a>
+                <p class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ cliente.cnpj_formatado }}</p>
+              </td>
+              <td class="px-5 py-3 text-[var(--kronus-gray-600)]">{{ cliente.plano }}</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset
+                  {% if cliente.suspenso %}bg-red-50 text-red-700 ring-red-600/20
+                  {% elif cliente.ativo %}bg-emerald-50 text-emerald-700 ring-emerald-600/20
+                  {% else %}bg-slate-100 text-slate-600 ring-slate-500/20{% endif %}">{{ cliente.status }}</span>
+              </td>
+              <td class="px-5 py-3 font-mono text-xs text-[var(--kronus-gray-500)]">{{ cliente.data_cadastro|date:"d/m/Y" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="px-5 py-10 text-center text-[var(--kronus-gray-400)]">Nenhum cliente cadastrado ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Planos e totens offline ───────────────────────────── #}
+  <div class="space-y-6">
+    <div class="card">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Distribuição por plano</h2>
+      </div>
+      <ul class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for plano in planos %}
+          <li class="flex items-center justify-between px-5 py-3 text-sm">
+            <span class="text-[var(--kronus-gray-700)]">{{ plano.nome }}</span>
+            <span class="font-mono font-semibold text-[var(--kronus-primary-600)]">{{ plano.qtd_clientes }}</span>
+          </li>
+        {% empty %}
+          <li class="px-5 py-6 text-center text-sm text-[var(--kronus-gray-400)]">
+            Nenhum plano cadastrado.
+            <a href="{% url 'master:plano_criar' %}" class="mt-2 block text-[var(--kronus-primary-600)] hover:underline">Criar o primeiro plano</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="border-b border-[var(--kronus-gray-200)] px-5 py-4">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Totens offline</h2>
+      </div>
+      <ul class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for totem in totens_offline %}
+          <li class="px-5 py-3 text-sm">
+            <p class="font-medium text-[var(--kronus-gray-800)]">{{ totem }}</p>
+            <p class="text-xs text-[var(--kronus-gray-500)]">{{ totem.empresa.nome_exibicao }}
+              {% if totem.minutos_desde_heartbeat %}· há {{ totem.minutos_desde_heartbeat }} min{% else %}· nunca conectou{% endif %}</p>
+          </li>
+        {% empty %}
+          <li class="px-5 py-6 text-center text-sm text-[var(--kronus-gray-400)]">Todos os totens estão online.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

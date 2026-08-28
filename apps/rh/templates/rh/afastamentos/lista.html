@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Afastamentos</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">Férias, licenças e afastamentos previdenciários.</p>
+  </div>
+  <a href="{% url 'rh:afastamento_criar' %}" class="btn btn-primary">
+    {% icone "mais" classe="h-4 w-4" %} Novo afastamento
+  </a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="card overflow-x-auto">
+  <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+    <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+      <tr>
+        <th class="px-4 py-3 font-medium">Colaborador</th>
+        <th class="px-4 py-3 font-medium">Tipo</th>
+        <th class="px-4 py-3 font-medium">Período</th>
+        <th class="px-4 py-3 text-center font-medium">Dias</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+      {% for a in afastamentos %}
+        <tr class="hover:bg-[var(--kronus-gray-50)]">
+          <td class="px-4 py-3">
+            <a href="{% url 'rh:colaborador_detalhe' a.colaborador_id %}" class="font-medium text-[var(--kronus-primary-600)] hover:underline">{{ a.colaborador.nome_exibicao }}</a>
+          </td>
+          <td class="px-4 py-3">{{ a.get_tipo_display }}</td>
+          <td class="px-4 py-3 font-mono text-xs">{{ a.data_inicio|date:"d/m/Y" }} – {{ a.data_fim|date:"d/m/Y" }}</td>
+          <td class="px-4 py-3 text-center font-mono">{{ a.dias }}</td>
+          <td class="px-4 py-3 text-right">
+            <span class="flex justify-end gap-2">
+              {% if a.documento %}
+                <a href="{{ a.documento.url }}" target="_blank" class="text-[var(--kronus-gray-400)] hover:text-[var(--kronus-primary-600)]" title="Documento">
+                  {% icone "documento" classe="h-4 w-4" %}
+                </a>
+              {% endif %}
+              <a href="{% url 'rh:afastamento_editar' a.pk %}" class="text-xs text-[var(--kronus-gray-500)] hover:text-[var(--kronus-primary-600)]">Editar</a>
+            </span>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum afastamento registrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="px-5 pb-4">{% include "components/pagination.html" %}</div>
+</div>
+{% endblock %}

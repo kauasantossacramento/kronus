@@ -1,0 +1,43 @@
+{% load static kronus_icons %}<!DOCTYPE html>
+{% comment %}
+Base das páginas públicas que não são a landing — hoje o guia da API.
+
+Deliberadamente separada de `base.html`: aquela carrega sidebar, topbar e
+contexto de tenant, tudo inútil (e quebrado) para quem chega sem sessão.
+Aqui só o cabeçalho da marca, o conteúdo e o rodapé.
+{% endcomment %}
+<html lang="pt-BR" class="h-full scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Kronus{% endblock %}</title>
+  <meta name="description" content="{% block descricao %}{{ KRONUS.META_DESCRIPTION }}{% endblock %}">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  {% include "components/_estilos.html" %}
+</head>
+<body class="min-h-full bg-white font-sans text-[var(--kronus-gray-800)] antialiased">
+
+  <header class="sticky top-0 z-40 border-b border-[var(--kronus-gray-200)] bg-white/90 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+      <a href="{% url 'landing:index' %}" class="shrink-0">
+        {% include "components/logo.html" with variante="horizontal" tom="cor" altura="h-8" %}
+      </a>
+      <nav class="flex items-center gap-3 text-sm">
+        <a href="{% url 'api:swagger' %}" class="hidden text-[var(--kronus-gray-600)] hover:text-[var(--kronus-primary-600)] sm:inline">Referência</a>
+        <a href="{% url 'accounts:login' %}" class="btn btn-outline text-xs">Entrar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    {% block conteudo %}{% endblock %}
+  </main>
+
+  {% include "components/footer_kstec.html" %}
+</body>
+</html>
