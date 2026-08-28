@@ -21,8 +21,11 @@ login errado responde igual em qualquer empresa.
 import logging
 
 from django.contrib.auth import views as auth_views
+from django.http import HttpResponse
+from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.views.decorators.cache import never_cache
 
 from apps.clientes.models import Empresa
 
@@ -112,3 +115,26 @@ def manifesto_da_empresa(request, slug):
             },
         ],
     })
+
+
+@never_cache
+def service_worker(request):
+    """
+    Serve `/sw.js` no escopo raiz, com a versao do deploy embutida.
+
+    A versao entra na chave do cache: sem ela o `activate` compara
+    'kronus-app-v1' com 'kronus-app-v1', nao apaga nada, e o app
+    instalado continua servindo o CSS do deploy anterior — que foi
+    exatamente o relato de "o PWA nao atualiza".
+    """
+    from apps.core.versao import versao_dos_estaticos
+
+    corpo = render_to_string(
+        "clientes/sw.js",
+        {"versao_estaticos": versao_dos_estaticos()},
+        request=request,
+    )
+    resposta = HttpResponse(corpo, content_type="application/javascript")
+    resposta["Service-Worker-Allowed"] = "/"
+    resposta["Cache-Control"] = "no-cache"
+    return resposta

@@ -10,7 +10,7 @@
  * `/api/v1/totem/`. Um "sucesso" vindo do cache faria o colaborador
  * acreditar que bateu o ponto quando nada foi gravado.
  */
-const VERSAO = 'kronus-totem-v1';
+const VERSAO = 'kronus-totem-{{ versao_estaticos|default:"v1" }}';
 const CACHE_ESTATICO = VERSAO + '-estatico';
 
 const ASSETS = [

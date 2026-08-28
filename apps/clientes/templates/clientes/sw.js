@@ -11,9 +11,13 @@
  */
 'use strict';
 
-var VERSAO = 'kronus-app-v1';
+var VERSAO = 'kronus-app-{{ versao_estaticos|default:"v1" }}';
+// URLs com carimbo de versao: sem ele o fetch aqui dentro bate no
+// cache HTTP do navegador (que o Nginx marcou como `immutable`) e o
+// Service Worker acabaria guardando justamente o arquivo velho que
+// estamos tentando substituir.
 var ESSENCIAIS = [
-  '/static/css/main.css',
+  '/static/css/main.css?v={{ versao_estaticos|default:"dev" }}',
   '/static/img/favicon.svg'
 ];
 

@@ -1,5 +1,5 @@
 {% extends "base_totem.html" %}
-{% load static %}
+{% load static kronus_tags %}
 
 {% block titulo %}{{ empresa.nome_exibicao }} · Kronus{% endblock %}
 
@@ -192,12 +192,12 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'totem/js/camera-manager.js' %}"></script>
-<script src="{% static 'totem/js/face-detector.js' %}"></script>
-<script src="{% static 'totem/js/offline-handler.js' %}"></script>
-<script src="{% static 'totem/js/personalizacao.js' %}"></script>
-<script src="{% static 'totem/js/ui-controller.js' %}"></script>
-<script src="{% static 'totem/js/totem-app.js' %}"></script>
+<script src="{% estatico 'totem/js/camera-manager.js' %}"></script>
+<script src="{% estatico 'totem/js/face-detector.js' %}"></script>
+<script src="{% estatico 'totem/js/offline-handler.js' %}"></script>
+<script src="{% estatico 'totem/js/personalizacao.js' %}"></script>
+<script src="{% estatico 'totem/js/ui-controller.js' %}"></script>
+<script src="{% estatico 'totem/js/totem-app.js' %}"></script>
 <script>
   (function () {
     // O Service Worker é opcional: sem ele o totem funciona, só perde o

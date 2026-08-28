@@ -90,7 +90,15 @@ def service_worker(request):
     de `/static/`, ele não poderia interceptar `/totem/<token>/` — daí
     esta view, que o entrega no escopo certo.
     """
-    corpo = render_to_string("totem/sw.js", request=request)
+    from apps.core.versao import versao_dos_estaticos
+    # A chave do cache precisa mudar a cada deploy: com uma string
+    # fixa o `activate` nunca apaga nada e o totem fica com os
+    # arquivos do deploy anterior.
+    corpo = render_to_string(
+        "totem/sw.js",
+        {"versao_estaticos": versao_dos_estaticos()},
+        request=request,
+    )
     resposta = HttpResponse(corpo, content_type="application/javascript")
     resposta["Service-Worker-Allowed"] = "/totem/"
     resposta["Cache-Control"] = "no-cache"

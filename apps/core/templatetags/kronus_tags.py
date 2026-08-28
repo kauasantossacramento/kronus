@@ -168,3 +168,22 @@ def query_atual(context, **kwargs):
         else:
             params[chave] = valor
     return params.urlencode()
+
+
+# ==============================================================
+# Estaticos com carimbo de versao
+# ==============================================================
+@register.simple_tag(name="estatico")
+def estatico(caminho):
+    """
+    Como `{% static %}`, mas com `?v=<carimbo do deploy>` no fim.
+
+    Usar em CSS e JS servidos de URL fixa. Sem o carimbo, o
+    `Cache-Control: immutable` do Nginx prende o navegador na versao
+    antiga por trinta dias — ver `apps.core.versao`.
+    """
+    from django.templatetags.static import static
+
+    from apps.core.versao import versao_dos_estaticos
+
+    return f"{static(caminho)}?v={versao_dos_estaticos()}"

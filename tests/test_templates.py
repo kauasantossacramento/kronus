@@ -7,7 +7,7 @@ pagina responde 200 do mesmo jeito — o defeito e o que aparece nela.
 import pathlib
 import re
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 
@@ -92,3 +92,37 @@ class VocabularioTests(SimpleTestCase):
             vazando, [],
             "Texto interno chegando ao usuario final:\n  " + "\n  ".join(vazando),
         )
+
+
+class CarimboDeVersaoTests(TestCase):
+    """
+    O CSS e servido de uma URL fixa com `Cache-Control: immutable`. Sem o
+    carimbo `?v=`, o navegador guarda o arquivo por trinta dias e nao
+    revalida — foi o que fez o site aparecer sem estilo e o PWA parar de
+    atualizar depois de um deploy.
+    """
+
+    def test_css_sai_com_carimbo_de_versao(self):
+        from django.template import Context, Template
+
+        html = Template(
+            "{% load kronus_tags %}{% estatico 'css/main.css' %}"
+        ).render(Context({}))
+        self.assertIn("?v=", html, "o CSS precisa sair com carimbo de versao")
+
+    def test_carimbo_e_estavel_dentro_do_mesmo_deploy(self):
+        from apps.core.versao import versao_dos_estaticos
+
+        self.assertEqual(versao_dos_estaticos(), versao_dos_estaticos())
+
+    def test_service_worker_carrega_a_versao_do_deploy(self):
+        from apps.core.versao import versao_dos_estaticos
+
+        resposta = self.client.get("/sw.js")
+        self.assertEqual(resposta.status_code, 200)
+        corpo = resposta.content.decode()
+        self.assertIn(versao_dos_estaticos(), corpo,
+                      "a chave de cache do SW precisa mudar a cada deploy")
+        # `@never_cache` acrescenta no-store/private por cima; o que
+        # importa e que o proprio SW nunca seja servido do cache.
+        self.assertIn("no-cache", resposta["Cache-Control"])

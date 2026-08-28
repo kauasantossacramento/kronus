@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static kronus_icons %}
+{% load static kronus_icons kronus_tags %}
 
 {% block conteudo %}
 <div class="card max-w-4xl p-6">
@@ -46,5 +46,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/captura-foto.js' %}"></script>
+<script src="{% estatico 'js/captura-foto.js' %}"></script>
 {% endblock %}
