@@ -1,0 +1,147 @@
+{% load static kronus_icons %}<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ empresa_portal.nome_exibicao }} — Ponto</title>
+  <meta name="description" content="Registro de ponto de {{ empresa_portal.nome_exibicao }}">
+
+  {# Instalável como app da empresa: ícone e cor são dela. #}
+  <link rel="manifest" href="{% url 'clientes:manifesto' empresa_portal.slug %}">
+  <meta name="theme-color" content="{{ empresa_portal.cor_primaria }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="{{ empresa_portal.nome_exibicao|truncatechars:12 }}">
+  {% if empresa_portal.logo %}
+    <link rel="apple-touch-icon" href="{{ empresa_portal.logo.url }}">
+    <link rel="icon" href="{{ empresa_portal.logo.url }}">
+  {% else %}
+    <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  {% endif %}
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  {% include "components/_estilos.html" %}
+
+  <style>
+    /* As cores da empresa valem já no primeiro paint — esperar o JS
+       faria a tela piscar na cor do Kronus antes de virar a dela. */
+    :root {
+      --kronus-primary-500: {{ empresa_portal.cor_primaria }};
+      --kronus-primary-600: {{ empresa_portal.cor_primaria }};
+      --kronus-gold-500: {{ empresa_portal.cor_secundaria }};
+    }
+    {% if empresa_portal.logo_css %}
+      [data-kronus-logo], [data-kronus-logo] img { {{ empresa_portal.logo_css }} }
+    {% endif %}
+  </style>
+</head>
+<body class="min-h-full bg-[var(--kronus-gray-50)] font-sans antialiased">
+
+<div class="flex min-h-screen flex-col">
+  <main class="flex flex-1 items-center justify-center px-4 py-10">
+    <div class="w-full max-w-sm">
+
+      <div class="mb-8 text-center" data-kronus-logo>
+        {% if empresa_portal.logo %}
+          <img src="{{ empresa_portal.logo.url }}" alt="{{ empresa_portal.nome_exibicao }}"
+               class="mx-auto max-h-20 w-auto">
+        {% else %}
+          <div class="mx-auto grid h-16 w-16 place-items-center rounded-2xl"
+               style="background: {{ empresa_portal.cor_primaria }}">
+            {% icone "ampulheta" classe="h-8 w-8 text-white" %}
+          </div>
+        {% endif %}
+        <h1 class="mt-4 font-display text-xl font-semibold text-[var(--kronus-gray-900)]">
+          {{ empresa_portal.nome_exibicao }}
+        </h1>
+        <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">Registro de ponto</p>
+      </div>
+
+      <div class="card p-6">
+        {% if form.errors %}
+          <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {# Mensagem única para qualquer falha: dizer "usuário não existe" revelaria quem trabalha aqui a quem testa CPFs. #}
+            Não foi possível entrar. Confira os dados e tente novamente.
+          </div>
+        {% endif %}
+
+        <form method="post" class="space-y-4">
+          {% csrf_token %}
+          <div>
+            <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">
+              E-mail ou CPF
+            </label>
+            <input type="text" name="username" id="{{ form.username.id_for_label }}"
+                   autocomplete="username" required autofocus inputmode="email"
+                   class="mt-1.5 block w-full rounded-lg border-0 py-3 px-4 text-base shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+          </div>
+          <div>
+            <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">
+              Senha
+            </label>
+            <input type="password" name="password" id="{{ form.password.id_for_label }}"
+                   autocomplete="current-password" required
+                   class="mt-1.5 block w-full rounded-lg border-0 py-3 px-4 text-base shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+          </div>
+
+          <input type="hidden" name="next" value="{{ next }}">
+          <button type="submit" class="btn btn-primary w-full py-3 text-base">Entrar</button>
+        </form>
+
+        <div class="mt-4 text-center">
+          <a href="{% url 'accounts:password_reset' %}"
+             class="text-sm text-[var(--kronus-primary-600)] hover:underline">Esqueci minha senha</a>
+        </div>
+      </div>
+
+      <p id="dica-instalar" hidden
+         class="mt-4 rounded-lg border border-[var(--kronus-gray-200)] bg-white px-4 py-3 text-center text-xs text-[var(--kronus-gray-600)]">
+        Adicione à tela inicial para abrir como aplicativo.
+        <button id="instalar" class="mt-2 block w-full rounded-lg py-2 text-sm font-medium text-white"
+                style="background: {{ empresa_portal.cor_primaria }}">Instalar</button>
+      </p>
+    </div>
+  </main>
+
+  <footer class="py-6 text-center text-xs text-[var(--kronus-gray-400)]">
+    {{ empresa_portal.cliente.razao_social }}<br>
+    <span class="text-[var(--kronus-gray-300)]">Kronus · ponto eletrônico</span>
+  </footer>
+</div>
+
+<script>
+  // Guarda o evento de instalação para oferecer o botão no momento
+  // certo. O navegador só o dispara quando o app é instalável; mostrar
+  // um botão antes disso resulta num clique que não faz nada.
+  (function () {
+    var evento = null;
+    var dica = document.getElementById('dica-instalar');
+    var botao = document.getElementById('instalar');
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      evento = e;
+      if (dica) dica.hidden = false;
+    });
+
+    if (botao) {
+      botao.addEventListener('click', function () {
+        if (!evento) return;
+        evento.prompt();
+        evento.userChoice.then(function () {
+          evento = null;
+          if (dica) dica.hidden = true;
+        });
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('{% url "clientes:service_worker" %}')
+        .catch(function (erro) { console.warn('[Kronus] SW:', erro); });
+    }
+  })();
+</script>
+</body>
+</html>

@@ -8,6 +8,14 @@
   <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
 {% endblock %}
 
+{% block cabecalho_extra %}
+  <link rel="manifest" href="{% url 'totem:manifesto' totem.token_acesso %}">
+  <meta name="theme-color" content="{{ empresa.cor_primaria }}">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+{% endblock %}
+
 {% block conteudo %}
 {% if empresa.logo_css %}
   <style>

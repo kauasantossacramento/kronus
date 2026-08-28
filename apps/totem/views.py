@@ -134,3 +134,47 @@ def diagnostico(request, token):
             "tipos_evento": dict(EventoTotem.Tipo.choices),
         },
     )
+
+
+@never_cache
+def manifesto(request, token):
+    """
+    Manifesto PWA do totem.
+
+    **`display: fullscreen`**, ao contrário do app do colaborador. Aqui o
+    aparelho é dedicado: fica preso num suporte na portaria, e a barra de
+    status só oferece um caminho para alguém sair do quiosque. Esconder é
+    o comportamento certo.
+
+    `orientation: portrait` porque o enquadramento do rosto pressupõe
+    tablet em pé; girar produziria recorte lateral e embedding ruim.
+    """
+    from django.http import JsonResponse
+
+    totem = get_object_or_404(
+        Totem.objects.select_related("empresa"), token_acesso=token, ativo=True
+    )
+    empresa = totem.empresa
+    icone = empresa.logo.url if empresa.logo else "/static/img/favicon.svg"
+
+    return JsonResponse({
+        "name": f"Ponto — {empresa.nome_exibicao}",
+        "short_name": "Ponto",
+        "description": f"Totem de registro de ponto de {empresa.nome_exibicao}",
+        "start_url": totem.url_kiosk,
+        "scope": totem.url_kiosk,
+        "display": "fullscreen",
+        # `display_override` pede o modo de janela mais imersivo que o
+        # navegador oferecer, caindo para os seguintes quando não houver.
+        "display_override": ["window-controls-overlay", "fullscreen", "standalone"],
+        "orientation": "portrait",
+        "background_color": empresa.cor_primaria,
+        "theme_color": empresa.cor_primaria,
+        "lang": "pt-BR",
+        "categories": ["business", "productivity"],
+        "prefer_related_applications": False,
+        "icons": [
+            {"src": icone, "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": icone, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+    })

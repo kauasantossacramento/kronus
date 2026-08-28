@@ -42,6 +42,10 @@ urlpatterns = [
     ),
     path("notificacoes/", include("apps.notificacoes.urls", namespace="notificacoes")),
     path("api/v1/", include("apps.api.urls", namespace="api")),
+    # POR ULTIMO: o `<slug>` captura qualquer caminho de um segmento, e
+    # antes das demais rotas uma empresa chamada "relatorios" sequestraria
+    # /relatorios/.
+    path("", include("apps.clientes.urls", namespace="clientes")),
 ]
 
 if settings.DEBUG:

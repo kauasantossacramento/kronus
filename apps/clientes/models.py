@@ -249,7 +249,21 @@ class Empresa(BaseModel):
     cidade = models.CharField("Cidade", max_length=100, blank=True)
     uf = models.CharField("UF", max_length=2, blank=True)
 
-    # -- Personalizacao white-label (Secao 3.6) ----------------
+    # -- Identidade na web -------------------------------------
+    slug = models.SlugField(
+        "Endereço da empresa",
+        max_length=60,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Usado em kronus.online/<slug>. Deixe vazio para acesso apenas "
+            "pela página geral de login."
+        ),
+    )
+
+    # -- Personalizacao white-label ----------------------------
     logo = models.ImageField("Logo", upload_to="logos/", null=True, blank=True)
     cor_primaria = models.CharField(
         "Cor primária",
@@ -408,6 +422,27 @@ class Empresa(BaseModel):
         ordering = ("razao_social",)
         indexes = [models.Index(fields=["cliente", "ativo"])]
 
+    def gerar_slug(self):
+        """
+        Deriva um slug do nome fantasia ou da razao social.
+
+        Chamado no primeiro save de uma empresa sem slug. Colisao ganha
+        sufixo numerico: dois "Aurora" em clientes diferentes precisam de
+        enderecos distintos, e falhar aqui deixaria a empresa sem acesso
+        personalizado por um detalhe de cadastro.
+        """
+        from django.utils.text import slugify
+
+        base = slugify(self.nome_fantasia or self.razao_social)[:52] or "empresa"
+        candidato, sufixo = base, 1
+        while (
+            type(self).objects.filter(slug=candidato).exclude(pk=self.pk).exists()
+        ):
+            sufixo += 1
+            candidato = f"{base}-{sufixo}"[:60]
+        return candidato
+
+
     def __str__(self):
         return self.nome_exibicao
 
@@ -415,6 +450,8 @@ class Empresa(BaseModel):
         self.cnpj = apenas_digitos(self.cnpj)
         if not self.salt_registro:
             self.salt_registro = gerar_token(24)
+        if not self.slug:
+            self.slug = self.gerar_slug()
         criando = self._state.adding
         super().save(*args, **kwargs)
         if criando:
