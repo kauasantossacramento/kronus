@@ -217,6 +217,14 @@ AJUDA = {
 }
 
 
+# O restante do conteudo vive em `ajuda_telas.py`. A separacao e por
+# tamanho: o texto cresce a cada tela documentada, e um arquivo unico
+# esconderia o mecanismo no meio do conteudo.
+from apps.core.ajuda_telas import TELAS as _DEMAIS  # noqa: E402
+
+AJUDA.update(_DEMAIS)
+
+
 #: Ajuda usada quando a tela ainda nao tem texto proprio.
 #:
 #: Existir e melhor do que o botao sumir em algumas telas: um botao que

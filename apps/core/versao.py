@@ -28,27 +28,42 @@ from django.conf import settings
 # o valor acompanha o deploy sem custo de I/O por requisicao.
 _carimbo: str | None = None
 
-# Arquivos que definem "a aparencia do sistema". Basta um deles mudar
-# para o carimbo mudar — nao ha necessidade de varrer todo o static/.
-_REFERENCIAS = (
-    "css/main.css",
-    "css/kronus-design-system.css",
-)
+# Extensoes que o carimbo acompanha.
+#
+# A primeira versao listava dois arquivos a mao — `main.css` e o design
+# system. Funcionou ate mexermos no CSS do totem: ele nao estava na
+# lista, o carimbo nao mudou, e o navegador seguiu servindo a folha
+# antiga. O sintoma foi um ajuste de tamanho de fonte que "nao fazia
+# efeito", sem nada errado no codigo.
+#
+# Varrer tudo custa alguns milissegundos, uma vez por processo, e nao
+# depende de alguem lembrar de acrescentar o arquivo novo.
+_EXTENSOES = (".css", ".js")
 
 
 def _origens() -> list[Path]:
-    raizes = [Path(settings.STATIC_ROOT)] if getattr(settings, "STATIC_ROOT", None) else []
+    raizes = []
+    if getattr(settings, "STATIC_ROOT", None):
+        raizes.append(Path(settings.STATIC_ROOT))
     raizes += [Path(d) for d in getattr(settings, "STATICFILES_DIRS", [])]
-    return [raiz / rel for raiz in raizes for rel in _REFERENCIAS]
+
+    arquivos = []
+    for raiz in raizes:
+        if not raiz.is_dir():
+            continue
+        for caminho in raiz.rglob("*"):
+            if caminho.suffix.lower() in _EXTENSOES and caminho.is_file():
+                arquivos.append(caminho)
+    return arquivos
 
 
 def versao_dos_estaticos() -> str:
     """
     Identificador curto e estavel do conjunto de estaticos publicado.
 
-    Se nenhum arquivo de referencia existir (checkout sem build de CSS,
-    por exemplo), devolve um valor fixo em vez de estourar: uma pagina
-    sem cache-busting e um problema menor do que uma pagina que nao
+    Se nenhum arquivo for encontrado (checkout sem build de CSS, por
+    exemplo), devolve um valor fixo em vez de estourar: uma pagina sem
+    cache-busting e um problema menor do que uma pagina que nao
     renderiza.
     """
     global _carimbo
@@ -57,7 +72,9 @@ def versao_dos_estaticos() -> str:
 
     digestor = hashlib.sha256()
     encontrou = False
-    for caminho in _origens():
+    # Ordenado: a ordem do sistema de arquivos varia entre maquinas, e um
+    # carimbo diferente por servidor invalidaria o cache sem motivo.
+    for caminho in sorted(_origens()):
         try:
             info = caminho.stat()
         except OSError:

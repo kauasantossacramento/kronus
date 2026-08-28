@@ -78,6 +78,11 @@
       {% else %}
         <span></span>
       {% endif %}
+      <label class="flex cursor-pointer items-center gap-2 text-xs text-[var(--kronus-gray-600)]">
+        <input type="checkbox" id="ajuda-nao-mostrar"
+               class="h-4 w-4 rounded border-[var(--kronus-gray-300)] text-[var(--kronus-primary-600)]">
+        Não mostrar novamente
+      </label>
       <button type="button" id="ajuda-ok" class="btn btn-primary text-sm">Entendi</button>
     </div>
   </div>
@@ -101,6 +106,11 @@
     </p>
     <p id="ajuda-tour-texto" class="mt-2 text-sm leading-relaxed text-[var(--kronus-gray-800)]"></p>
     <div class="mt-4 flex items-center justify-between gap-2">
+      <label class="flex cursor-pointer items-center gap-2 text-xs text-[var(--kronus-gray-500)]">
+        <input type="checkbox" id="ajuda-tour-nao-mostrar"
+               class="h-3.5 w-3.5 rounded border-[var(--kronus-gray-300)]">
+        Não mostrar mais
+      </label>
       <button type="button" id="ajuda-tour-sair"
               class="text-xs text-[var(--kronus-gray-500)] hover:underline">Pular</button>
       <div class="flex gap-2">
@@ -135,11 +145,16 @@
   }
 
   // ── Modal ──────────────────────────────────────────────────
+  //
+  // Fechar **nao** silencia a ajuda: quem fechou pode ter so lido. O que
+  // silencia e marcar a caixa — decisao explicita, e nao consequencia de
+  // um clique que a pessoa deu para voltar ao trabalho.
   function abrir() { modal.hidden = false; document.body.style.overflow = 'hidden'; }
   function fechar() {
     modal.hidden = true;
     document.body.style.overflow = '';
-    lembrar(CHAVE_VISTO);
+    var caixa = document.getElementById('ajuda-nao-mostrar');
+    if (caixa && caixa.checked) lembrar(CHAVE_VISTO);
   }
 
   botao.addEventListener('click', abrir);
@@ -184,7 +199,8 @@
   }
 
   function mostrar(i) {
-    if (i < 0 || i >= passos.length) return sairDoTour();
+    if (i >= passos.length) return sairDoTour(true);
+    if (i < 0) return sairDoTour(false);
     indice = i;
     document.getElementById('ajuda-tour-atual').textContent = i + 1;
     document.getElementById('ajuda-tour-total').textContent = passos.length;
@@ -203,10 +219,13 @@
     mostrar(0);
   }
 
-  function sairDoTour() {
+  function sairDoTour(concluiu) {
     camada.hidden = true;
     document.body.style.overflow = '';
-    lembrar(CHAVE_VISTO);
+    var caixa = document.getElementById('ajuda-tour-nao-mostrar');
+    // Chegar ao fim do roteiro conta como visto: repetir para quem foi
+    // ate o ultimo passo seria insistir com quem ja prestou atencao.
+    if (concluiu || (caixa && caixa.checked)) lembrar(CHAVE_VISTO);
   }
 
   var abrirTour = document.getElementById('ajuda-tour');
@@ -215,7 +234,8 @@
     .addEventListener('click', function () { mostrar(indice + 1); });
   document.getElementById('ajuda-tour-voltar')
     .addEventListener('click', function () { mostrar(indice - 1); });
-  document.getElementById('ajuda-tour-sair').addEventListener('click', sairDoTour);
+  document.getElementById('ajuda-tour-sair')
+    .addEventListener('click', function () { sairDoTour(false); });
   window.addEventListener('resize', function () {
     if (!camada.hidden) posicionar(passos[indice]);
   });

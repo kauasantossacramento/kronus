@@ -521,10 +521,17 @@
   try { querTelaCheia = localStorage.getItem(CHAVE_FS) === '1'; } catch (e) {}
 
   if (querTelaCheia) {
-    document.addEventListener('click', function religar() {
+    // Recarregar a pagina sai da tela cheia — o navegador nao deixa
+    // voltar sozinho, porque exige gesto do usuario. Entao o primeiro
+    // toque em qualquer lugar religa: num totem, o proximo toque
+    // acontece em segundos, e a pessoa nem percebe que houve um passo.
+    var religar = function () {
       if (emTelaCheia()) return;
-      pedirTelaCheia().catch(function () {});
-    }, { passive: true });
+      pedirTelaCheia().then(ajustarAtalho).catch(function () {});
+    };
+    ['click', 'touchend', 'keydown'].forEach(function (evento) {
+      document.addEventListener(evento, religar, { passive: true });
+    });
   }
 
   // -- Atalho permanente ------------------------------------------
