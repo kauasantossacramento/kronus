@@ -456,8 +456,114 @@
   </div>
 </div>
 
+{% comment %}
+  ═══════ Tela cheia ═══════
+
+  Em script proprio, e nao junto do convite de instalacao, por uma razao
+  concreta: o convite se dispensa em definitivo, e a tela cheia nao pode.
+  Enquanto os dois moravam na mesma funcao, recusar o convite abortava a
+  funcao inteira antes de o atalho existir — e o totem ficava sem
+  nenhuma volta para a tela cheia, exatamente onde ela mais importa.
+{% endcomment %}
 <script>
-(function () {
+(function (global) {
+  'use strict';
+
+  var CHAVE_FS = 'kronus-totem-fullscreen';
+
+  function pedir() {
+    var alvo = document.documentElement;
+    var metodo = alvo.requestFullscreen
+      || alvo.webkitRequestFullscreen
+      || alvo.mozRequestFullScreen
+      || alvo.msRequestFullscreen;
+    if (!metodo) return Promise.reject(new Error('sem suporte'));
+    try {
+      var r = metodo.call(alvo);
+      return r && r.then ? r : Promise.resolve();
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+
+  function ativa() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement
+      || document.mozFullScreenElement || document.msFullscreenElement);
+  }
+
+  function suporta() {
+    return !!(document.documentElement.requestFullscreen
+      || document.documentElement.webkitRequestFullscreen);
+  }
+
+  //: Instalado como aplicativo, a barra do navegador ja nao existe: o
+  //: atalho seria um botao oferecendo o que a tela ja tem.
+  function comoAplicativo() {
+    return window.matchMedia('(display-mode: fullscreen)').matches
+      || window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+  }
+
+  function lembrar() {
+    try { localStorage.setItem(CHAVE_FS, '1'); } catch (e) {}
+  }
+
+  function preferida() {
+    try { return localStorage.getItem(CHAVE_FS) === '1'; } catch (e) { return false; }
+  }
+
+  // -- Atalho permanente ------------------------------------------
+  var atalho = document.getElementById('totem-fs-atalho');
+
+  function ajustar() {
+    if (!atalho) return;
+    atalho.hidden = comoAplicativo() || !suporta() || ativa();
+  }
+
+  if (atalho) {
+    atalho.addEventListener('click', function () {
+      pedir().then(function () {
+        lembrar();
+        ajustar();
+      }).catch(function () {
+        atalho.textContent = 'Tela cheia indisponível';
+        setTimeout(function () { atalho.hidden = true; }, 2500);
+      });
+    });
+  }
+
+  ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange',
+   'MSFullscreenChange'].forEach(function (evento) {
+    document.addEventListener(evento, ajustar);
+  });
+  ajustar();
+
+  // -- Retomada apos recarregar -----------------------------------
+  //
+  // Recarregar sai da tela cheia e o navegador nao deixa voltar
+  // sozinho: `requestFullscreen()` fora de um gesto do usuario e
+  // recusado, por regra do proprio navegador, e nao ha como contornar.
+  // O que da para fazer e nao exigir um gesto *dedicado* — o proximo
+  // toque em qualquer lugar religa, e num totem esse toque acontece em
+  // segundos.
+  if (preferida()) {
+    var religar = function () {
+      if (ativa() || comoAplicativo()) return;
+      pedir().then(ajustar).catch(function () {});
+    };
+    ['click', 'touchend', 'keydown'].forEach(function (evento) {
+      document.addEventListener(evento, religar, { passive: true });
+    });
+  }
+
+  global.KronusTelaCheia = {
+    pedir: pedir, ativa: ativa, suporta: suporta,
+    lembrar: lembrar, ajustar: ajustar
+  };
+})(window);
+</script>
+<script>
+(function (global) {
   'use strict';
   var CHAVE = 'kronus-totem-instalar-recusado';
   var caixa = document.getElementById('totem-instalar');
@@ -515,42 +621,18 @@
 
   window.addEventListener('appinstalled', function () { fechar(true); });
 
-  // -- Tela cheia pela API do navegador --------------------------
+  // -- Tela cheia como reserva -----------------------------------
   //
   // Saida para o aparelho que nao instala PWA — o caso do tablet de
   // baixo custo com Chrome antigo. E o mesmo mecanismo que o YouTube
-  // usa: esconde a barra de endereco sem instalar nada.
-  //
-  // Exige gesto do usuario: `requestFullscreen()` chamado no load e
-  // recusado pelo navegador, entao o botao existe por necessidade, nao
-  // por escolha de interface.
-  var CHAVE_FS = 'kronus-totem-fullscreen';
-
-  function pedirTelaCheia() {
-    var alvo = document.documentElement;
-    var pedir = alvo.requestFullscreen
-      || alvo.webkitRequestFullscreen
-      || alvo.mozRequestFullScreen
-      || alvo.msRequestFullscreen;
-    if (!pedir) return Promise.reject(new Error('sem suporte'));
-    try {
-      var r = pedir.call(alvo, { navigationUI: 'hide' });
-      return r && r.then ? r : Promise.resolve();
-    } catch (e) {
-      return Promise.reject(e);
-    }
-  }
-
-  function emTelaCheia() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement
-      || document.mozFullScreenElement || document.msFullscreenElement);
-  }
-
+  // usa: esconde a barra de endereco sem instalar nada. O mecanismo
+  // vive no script anterior; aqui so o convite o aciona.
   var botaoFS = document.getElementById('totem-fullscreen-botao');
   if (botaoFS) {
     botaoFS.addEventListener('click', function () {
-      pedirTelaCheia().then(function () {
-        try { localStorage.setItem(CHAVE_FS, '1'); } catch (e) {}
+      global.KronusTelaCheia.pedir().then(function () {
+        global.KronusTelaCheia.lembrar();
+        global.KronusTelaCheia.ajustar();
         fechar(false);
       }).catch(function () {
         botaoFS.textContent = 'Este navegador não permite tela cheia';
@@ -561,56 +643,6 @@
 
   var depoisFS = document.getElementById('totem-fullscreen-depois');
   if (depoisFS) depoisFS.addEventListener('click', function () { fechar(true); });
-
-  // Sair da tela cheia acontece por engano — botao voltar, gesto do
-  // sistema, notificacao. Num totem de portaria ninguem vai reativar
-  // manualmente, entao o proximo toque na tela religa.
-  var querTelaCheia = false;
-  try { querTelaCheia = localStorage.getItem(CHAVE_FS) === '1'; } catch (e) {}
-
-  if (querTelaCheia) {
-    // Recarregar a pagina sai da tela cheia — o navegador nao deixa
-    // voltar sozinho, porque exige gesto do usuario. Entao o primeiro
-    // toque em qualquer lugar religa: num totem, o proximo toque
-    // acontece em segundos, e a pessoa nem percebe que houve um passo.
-    var religar = function () {
-      if (emTelaCheia()) return;
-      pedirTelaCheia().then(ajustarAtalho).catch(function () {});
-    };
-    ['click', 'touchend', 'keydown'].forEach(function (evento) {
-      document.addEventListener(evento, religar, { passive: true });
-    });
-  }
-
-  // -- Atalho permanente ------------------------------------------
-  var atalho = document.getElementById('totem-fs-atalho');
-
-  function ajustarAtalho() {
-    if (!atalho) return;
-    // Só faz sentido oferecer o que ainda não está ativo. E só aparece
-    // onde o navegador sabe fazer: mostrar um botão que não funciona é
-    // pior do que não mostrar.
-    var suporta = !!(document.documentElement.requestFullscreen
-      || document.documentElement.webkitRequestFullscreen);
-    atalho.hidden = !suporta || emTelaCheia();
-  }
-
-  if (atalho) {
-    atalho.addEventListener('click', function () {
-      pedirTelaCheia().then(function () {
-        try { localStorage.setItem(CHAVE_FS, '1'); } catch (e) {}
-        ajustarAtalho();
-      }).catch(function () {
-        atalho.textContent = 'Tela cheia indisponível';
-        setTimeout(function () { atalho.hidden = true; }, 2500);
-      });
-    });
-
-    ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (evento) {
-      document.addEventListener(evento, ajustarAtalho);
-    });
-    ajustarAtalho();
-  }
 
   // -- iPad e iPhone ---------------------------------------------
   // Nenhum evento e disparado: o convite depende de reconhecer o
@@ -642,6 +674,6 @@
       abrir('totem-instalar-fullscreen');
     }
   }, 6000);
-})();
+})(window);
 </script>
 {% endblock %}

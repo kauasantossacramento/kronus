@@ -110,12 +110,8 @@ class ConviteDeInstalacaoTests(TestCase):
         self.assertIn("display-mode: standalone", self.fonte)
 
 
-class InstalacaoDoTotemTests(TestCase):
-    """
-    O totem e o aparelho onde a instalacao mais importa: sem ela a tela
-    fica com barra de navegador, e barra de navegador convida o
-    colaborador a sair da pagina.
-    """
+class PaginaDoTotem(TestCase):
+    """Monta um totem e guarda o HTML da sua pagina."""
 
     def setUp(self):
         from apps.clientes.models import Cliente, Empresa
@@ -134,6 +130,14 @@ class InstalacaoDoTotemTests(TestCase):
         self.pagina = self.client.get(
             f"/totem/{self.totem.token_acesso}/"
         ).content.decode()
+
+
+class InstalacaoDoTotemTests(PaginaDoTotem):
+    """
+    O totem e o aparelho onde a instalacao mais importa: sem ela a tela
+    fica com barra de navegador, e barra de navegador convida o
+    colaborador a sair da pagina.
+    """
 
     def test_o_convite_esta_na_pagina(self):
         self.assertIn("totem-instalar", self.pagina)
@@ -183,3 +187,55 @@ class InstalacaoDoTotemTests(TestCase):
             RAIZ / "apps" / "totem" / "static" / "totem" / "css" / "totem.css"
         ).read_text(encoding="utf-8")
         self.assertIn(".totem-instalar [hidden]", css)
+
+
+class AtalhoDeTelaCheiaTests(PaginaDoTotem):
+    """
+    O atalho de tela cheia nao pode depender do convite de instalacao.
+
+    Ja dependeu: os dois moravam na mesma funcao, e o `return` que
+    encerrava o convite recusado abortava a funcao antes de o atalho
+    existir. Quem clicasse "Depois" uma vez ficava sem nenhuma volta para
+    a tela cheia — e num totem de portaria a tela cheia sai por engano o
+    tempo todo, entao o caminho de volta e justamente o que nao pode
+    sumir.
+    """
+
+    def _scripts(self):
+        import re
+        return re.findall(r"<script>(.*?)</script>", self.pagina, re.S)
+
+    def _script_do_atalho(self):
+        for corpo in self._scripts():
+            if "totem-fs-atalho" in corpo:
+                return corpo
+        self.fail("nenhum script cuida do atalho de tela cheia")
+
+    def test_o_botao_existe_na_pagina(self):
+        self.assertIn('id="totem-fs-atalho"', self.pagina)
+
+    def test_o_atalho_nao_vive_no_script_do_convite(self):
+        corpo = self._script_do_atalho()
+        self.assertNotIn(
+            "kronus-totem-instalar-recusado", corpo,
+            "o atalho voltou para dentro do script do convite: recusar o "
+            "convite volta a deixar o totem sem tela cheia",
+        )
+
+    def test_o_convite_usa_o_mecanismo_compartilhado(self):
+        # O convite pode acionar a tela cheia, mas nao pode ser dono dela.
+        for corpo in self._scripts():
+            if "kronus-totem-instalar-recusado" in corpo:
+                self.assertIn("KronusTelaCheia", corpo)
+                return
+        self.fail("script do convite nao encontrado")
+
+    def test_o_mecanismo_e_definido_antes_de_quem_o_usa(self):
+        define = self.pagina.index("global.KronusTelaCheia =")
+        usa = self.pagina.index("KronusTelaCheia.pedir()")
+        self.assertLess(define, usa)
+
+    def test_lembra_a_preferencia_para_religar_apos_recarregar(self):
+        corpo = self._script_do_atalho()
+        self.assertIn("kronus-totem-fullscreen", corpo)
+        self.assertIn("touchend", corpo)
