@@ -521,10 +521,11 @@ class AFDGenerator:
             "cpf": self._cpf(registro.colaborador.cpf),
             "data_hora_gravacao": self._iso(registro.created_at),
             "coletor": COLETOR_POR_METODO.get(registro.metodo, COLETOR["outro"]),
-            # O Kronus grava a marcação no servidor em tempo real; o
-            # totem não acumula batidas offline (o registro exige NSR e
-            # hash do servidor). Daí sempre "0".
-            "offline": "0",
+            # Declara o que de fato aconteceu. A marcação normal nasce
+            # on-line; a que veio da fila do totem, não — e dizer "0"
+            # nela seria declarar ao fiscal uma origem que não é a
+            # verdadeira.
+            "offline": "1" if registro.registrado_offline else "0",
         }
         valores["hash"] = hash_afd(
             hash_anterior=self._hash_anterior, **valores

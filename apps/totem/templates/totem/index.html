@@ -215,6 +215,7 @@
 <script src="{% estatico 'totem/js/camera-manager.js' %}"></script>
 <script src="{% estatico 'totem/js/face-detector.js' %}"></script>
 <script src="{% estatico 'totem/js/offline-handler.js' %}"></script>
+<script src="{% estatico 'totem/js/fila-offline.js' %}"></script>
 <script src="{% estatico 'totem/js/personalizacao.js' %}"></script>
 <script src="{% estatico 'totem/js/ui-controller.js' %}"></script>
 <script src="{% estatico 'totem/js/totem-app.js' %}"></script>
@@ -230,6 +231,44 @@
 
     var q = function (sel) { return document.querySelector(sel); };
     var qa = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+
+    // ── Fila sem conexão ──────────────────────────────────────
+    (function () {
+      var aviso = document.getElementById('totem-fila');
+      var quantas = document.getElementById('totem-fila-quantas');
+
+      KronusFilaOffline.configurar({
+        urlSincronizar: '/api/v1/totem/sincronizar/',
+        urlColaboradores: '/api/v1/totem/colaboradores-offline/',
+        token: '{{ totem.token_acesso }}',
+        aoMudar: function (pendentes) {
+          if (!aviso) return;
+          quantas.textContent = pendentes;
+          aviso.hidden = pendentes === 0;
+        }
+      });
+
+      function tentarEnviar() {
+        if (!navigator.onLine) return;
+        KronusFilaOffline.sincronizar();
+      }
+
+      // Três gatilhos, porque nenhum sozinho é confiável: o evento
+      // `online` não dispara em toda troca de rede, e o intervalo sozinho
+      // demoraria a reagir quando a conexão volta.
+      window.addEventListener('online', tentarEnviar);
+      setInterval(tentarEnviar, 60000);
+      tentarEnviar();
+
+      // A lista de colaboradores é atualizada ao abrir e a cada seis
+      // horas. Sem isso, quem foi admitido ontem não conseguiria bater o
+      // ponto na primeira queda de conexão.
+      function atualizarLista() {
+        if (navigator.onLine) KronusFilaOffline.atualizarColaboradores();
+      }
+      atualizarLista();
+      setInterval(atualizarLista, 6 * 60 * 60 * 1000);
+    })();
 
     KronusTotem.iniciar({
       token: '{{ totem.token_acesso }}',
@@ -336,6 +375,15 @@
   aparece quando não se está em tela cheia, e nunca é dispensado em
   definitivo.
 {% endcomment %}
+{% comment %}
+  Enquanto houver marcação na fila, o totem diz — e diz quantas. Uma fila
+  que espera em silêncio é uma fila que ninguém percebe estar parada, e o
+  operador só descobre quando o RH reclama do mês fechado errado.
+{% endcomment %}
+<div id="totem-fila" class="totem-fila" hidden>
+  <span id="totem-fila-quantas">0</span> marcação(ões) aguardando conexão
+</div>
+
 <button type="button" id="totem-fs-atalho" class="totem-fs-atalho" hidden>
   {% icone "totem" classe="h-4 w-4" %} Tela cheia
 </button>

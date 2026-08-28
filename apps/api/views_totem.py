@@ -403,3 +403,128 @@ def heartbeat(request):
 def config(request):
     """Configuração buscada pelo totem ao iniciar (Seção 7.3)."""
     return Response({"ok": True, **ConfigTotemSerializer(request.totem).data})
+
+
+# ══════════════════════════════════════════════════════════════
+# Modo sem conexão
+# ══════════════════════════════════════════════════════════════
+@extend_schema(
+    tags=["Totem"],
+    summary="Colaboradores para uso sem conexão",
+    description=(
+        "Lista que o totem guarda localmente para identificar quem bate o "
+        "ponto quando a conexão cai. **Não traz CPF em claro**: o coletor "
+        "recebe um resumo criptográfico e compara com o que for digitado."
+    ),
+)
+@api_view(["GET"])
+@authentication_classes([TotemAuthentication])
+@permission_classes([TotemAutenticado])
+def colaboradores_offline(request):
+    """
+    Cache de identificacao para o modo sem conexao.
+
+    **Por que nao mandar o CPF.** A lista fica num tablet de portaria, que
+    e roubavel e compartilhado. Mandar CPF em claro seria despejar a base
+    de documentos da empresa num aparelho sem custodia. O coletor recebe
+    um HMAC de CPF+nascimento, calculado com uma chave derivada do token
+    do totem: ele consegue **verificar** quem digitou, e nao consegue
+    **listar** ninguem.
+
+    Rotacionar o token do totem invalida a lista inteira, que e o
+    comportamento desejado quando um equipamento e perdido.
+    """
+    from apps.rh.models import Colaborador
+    from apps.totem.identificacao import (
+        ITERACOES,
+        resumo_de_identificacao,
+        sal_do_totem,
+    )
+
+    totem = request.auth
+    empresas = list(totem.empresas_atendidas().values_list("pk", flat=True))
+    colaboradores = (
+        Colaborador.objects.filter(
+            empresa_id__in=empresas,
+            ativo=True,
+            deleted_at__isnull=True,
+        )
+        # Sem `.only()`: combinado com o queryset proprio do Colaborador,
+        # ele faz o construtor de consultas do Django recursar ate
+        # estourar. A economia seria de alguns campos numa lista de
+        # dezenas de linhas — nao vale o risco.
+        .order_by("nome_completo")
+    )
+
+    lista = [
+        {
+            "id": c.pk,
+            "nome": c.nome_completo,
+            "identificacao": resumo_de_identificacao(
+                totem, c.cpf, c.data_nascimento
+            ),
+        }
+        for c in colaboradores
+        if c.data_nascimento
+    ]
+
+    return Response({
+        "colaboradores": lista,
+        # O sal e as iteracoes viajam junto: o coletor precisa deles para
+        # refazer a derivacao do que for digitado. Nao sao segredo — quem
+        # protege e o custo de cada derivacao.
+        "sal": sal_do_totem(totem),
+        "iteracoes": ITERACOES,
+        "gerado_em": timezone.now().isoformat(),
+        "total": len(lista),
+    })
+
+
+@extend_schema(
+    tags=["Totem"],
+    summary="Enviar marcações registradas sem conexão",
+    description=(
+        "Recebe a fila do totem. Idempotente pelo identificador de cada "
+        "marcação: reenviar não duplica."
+    ),
+)
+@api_view(["POST"])
+@authentication_classes([TotemAuthentication])
+@permission_classes([TotemAutenticado])
+def sincronizar_offline(request):
+    """
+    Grava a fila acumulada pelo coletor.
+
+    Responde o destino de **cada** item. O totem só apaga da fila o que
+    voltar como aceita ou duplicada: apagar em silêncio uma recusada
+    perderia o registro de trabalho de alguém.
+    """
+    from apps.ponto.sincronizacao import sincronizar
+
+    totem = request.auth
+    itens = request.data.get("marcacoes") or []
+    # Estes dois sao erros de requisicao, e nao resultados de negocio —
+    # por isso 400, e nao o 200 que o totem usa para "nao identificado".
+    if not isinstance(itens, list):
+        return _resposta_erro(
+            "formato_invalido", "Formato inesperado.",
+            http=status.HTTP_400_BAD_REQUEST,
+        )
+    if len(itens) > 500:
+        # Um lote gigante e sinal de problema, nao de uso. Recusar em
+        # bloco evita segurar a transacao por minutos.
+        return _resposta_erro(
+            "lote_grande", "Envie no máximo 500 marcações por vez.",
+            http=status.HTTP_400_BAD_REQUEST,
+        )
+
+    resultados = sincronizar(totem, itens)
+
+    if resultados:
+        _registrar_evento(
+            totem,
+            EventoTotem.Tipo.ONLINE,
+            f"Sincronizadas {len(resultados)} marcação(ões) da fila offline.",
+        )
+
+    return Response({"ok": True, "resultados": resultados})

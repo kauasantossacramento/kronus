@@ -233,6 +233,28 @@ class RegistroPonto(TenantBaseModel):
     )
 
     # -- Portaria 671 ------------------------------------------
+    #: Marcacao feita com o coletor sem conexao, enviada depois.
+    #:
+    #: Anexo IX, requisitos 4 e 5: a marcacao deve vir de coletor
+    #: on-line, podendo **excepcionalmente** estar off-line — e nesse
+    #: caso ser enviada assim que a conexao voltar. O AFD tem campo
+    #: proprio para isso (registro tipo 7, posicao 73), e declara-lo
+    #: errado seria declarar que a batida foi on-line quando nao foi.
+    registrado_offline = models.BooleanField(
+        "Registrado sem conexão", default=False, db_index=True
+    )
+
+    #: Identificador gerado pelo coletor, unico por marcacao.
+    #:
+    #: E o que torna o reenvio seguro: se a resposta do servidor se
+    #: perder na volta, o coletor manda de novo — e sem esta chave a
+    #: mesma batida entraria duas vezes, com dois NSR, quebrando a
+    #: sequencia que a Portaria exige.
+    uuid_offline = models.CharField(
+        "Identificador do coletor", max_length=36,
+        null=True, blank=True, unique=True, db_index=True,
+    )
+
     nsr = models.PositiveBigIntegerField("NSR", db_index=True)
     hash_registro = models.CharField("Hash SHA-256", max_length=64, db_index=True)
     hash_anterior = models.CharField("Hash do registro anterior", max_length=64, blank=True)

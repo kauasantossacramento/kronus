@@ -125,21 +125,46 @@ conforme.
 
 ## Requisito 5 — Registro off-line enviado ao voltar on-line
 
-**Estado: ✅ atendido por não se aplicar — mas há um problema comercial**
+**Estado: ✅ atendido**
 
-Não existe registro off-line: quando a conexão cai, o totem exibe a tela
-de indisponibilidade (`apps/totem/templates/totem/offline.html`) e
-**não aceita marcação**. Sem registro off-line, não há o que sincronizar.
+O totem registra a marcação localmente quando a conexão cai e a envia
+assim que ela volta.
 
-O Service Worker do totem recusa deliberadamente servir qualquer resposta
-de `/api/` a partir do cache — um "sucesso" vindo do cache faria o
-colaborador acreditar que bateu o ponto sem ter batido.
+| Peça | Onde |
+|---|---|
+| Fila no coletor | `apps/totem/static/totem/js/fila-offline.js` |
+| Recepção no servidor | `apps/ponto/sincronizacao.py` |
+| Endpoints | `/api/v1/totem/colaboradores-offline/` e `/api/v1/totem/sincronizar/` |
 
-> ⚠️ **Problema à parte, não de conformidade:** o modelo `Plano` tem o
-> campo `tem_offline` — "Modo offline do totem" — exibido como recurso do
-> plano em `apps/master/models.py:60`. **Esse recurso não existe.**
-> Vender um plano que o anuncia é problema contratual. Ou se implementa a
-> fila off-line, ou se remove o campo.
+**Três garantias que o desenho oferece:**
+
+1. **A marcação é gravada antes de qualquer tentativa de envio.** Gravar
+   depois perderia a batida se o aparelho desligasse no meio.
+2. **Nada sai da fila sem confirmação do servidor.** Recusa fica na fila,
+   marcada e visível — apagar em silêncio perderia o registro de que
+   alguém trabalhou.
+3. **Reenvio não duplica.** Cada marcação carrega um identificador
+   próprio, com restrição de unicidade *na tabela* — verificar antes de
+   inserir perderia a corrida entre dois envios simultâneos.
+
+**Hora da marcação e hora da gravação são registradas separadamente**, e
+o AFD declara `offline = 1` nesses registros. Usar a hora da chegada
+seria registrar que a pessoa bateu o ponto quando a internet voltou; e
+declarar "0" seria informar ao fiscal uma origem que não é a verdadeira.
+
+**Identificação sem conexão sem expor CPF.** A lista que fica no tablet
+não traz CPF em claro — traz uma derivação PBKDF2 com sal por
+equipamento. Conferir uma digitação custa uma derivação; varrer o espaço
+de CPFs custaria isso vezes um bilhão. Rotacionar o token do totem
+invalida a lista inteira, que é o comportamento desejado quando um
+equipamento é perdido.
+
+**Verificação de ponta a ponta.** `ferramentas/prova_offline.py` sobe o
+servidor, abre o navegador, derruba a rede, registra a marcação,
+**recarrega a página**, restaura a rede e confere no banco. Não é mock: a
+promessa é forte demais para ser verificada simulando o `fetch`. Rodada
+em 28/08/2026, com o resultado esperado — batida gravada, marcada como
+offline, sem duplicata no reenvio.
 
 ---
 
@@ -315,20 +340,13 @@ verificável.** Os quatro restantes se dividem em dois grupos:
 | # | O que era | O que foi feito |
 |---|---|---|
 | 2 | Sem verificação do desvio | Medição por consulta NTP direta, de hora em hora, com alerta ao Master acima de 5s |
-
-### Pendente, mas não é conformidade
-
-| Item | O que fazer | Natureza |
-|---|---|---|
-| `tem_offline` anunciado sem existir | Implementar a fila ou remover o campo do plano | Contratual |
+| 5 | Sem registro off-line, e o plano anunciava o recurso | Fila no coletor, envio ao reconectar, verificação ponta a ponta |
 
 ### Ordem sugerida
 
-1. **Decidir sobre `tem_offline`** — não é conformidade, é o que se
-   promete em contrato.
-2. **Registrar o programa no INPI** (art. 91) — ver
+1. **Registrar o programa no INPI** (art. 91) — ver
    [`registro-inpi.md`](registro-inpi.md).
-3. **Resolver a infraestrutura** — enquanto a VPS for única, os
+2. **Resolver a infraestrutura** — enquanto a VPS for única, os
    requisitos 6 e 13 não são atendidos. Duas saídas honestas:
    - migrar para infraestrutura redundante antes de assinar; ou
    - assinar declarando a limitação, e assumir o risco de a fiscalização

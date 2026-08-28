@@ -39,6 +39,10 @@ totem_patterns = [
     path("punch-cpf/", views_totem.punch_cpf, name="totem_punch_cpf"),
     path("heartbeat/", views_totem.heartbeat, name="totem_heartbeat"),
     path("config/", views_totem.config, name="totem_config"),
+    path("colaboradores-offline/", views_totem.colaboradores_offline,
+         name="totem_colaboradores_offline"),
+    path("sincronizar/", views_totem.sincronizar_offline,
+         name="totem_sincronizar"),
 ]
 
 relatorio_patterns = [

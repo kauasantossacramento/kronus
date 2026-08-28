@@ -737,3 +737,22 @@ html, body {
   border-color: rgba(255, 255, 255, .35);
 }
 .totem-fs-atalho[hidden] { display: none !important; }
+
+/* Aviso de marcações aguardando envio.
+
+   Uma fila que espera em silêncio é uma fila que ninguém percebe estar
+   parada: o operador só descobriria quando o RH reclamasse do mês
+   fechado errado. Fica no topo, discreto mas presente. */
+.totem-fila {
+  position: fixed;
+  top: calc(.75rem + env(safe-area-inset-top, 0px));
+  left: .75rem;
+  z-index: 55;
+  padding: .45rem .7rem;
+  border-radius: .5rem;
+  background: rgba(245, 158, 11, .18);
+  border: 1px solid rgba(245, 158, 11, .45);
+  color: var(--totem-warning);
+  font-size: .75rem;
+}
+.totem-fila[hidden] { display: none !important; }
