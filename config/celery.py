@@ -26,6 +26,14 @@ app.conf.worker_prefetch_multiplier = 1
 # Agenda (Celery Beat)
 # ==============================================================
 app.conf.beat_schedule = {
+    # Anexo IX, requisito 2: o relogio precisa **manter** o sincronismo,
+    # nao apenas te-lo configurado. Sem esta verificacao, uma deriva
+    # passaria semanas despercebida, com as batidas sendo gravadas
+    # normalmente — com a hora errada.
+    "verificar-relogio": {
+        "task": "apps.ponto.tasks.verificar_relogio",
+        "schedule": crontab(minute=13),
+    },
     # Cadastro facial envelhece em semanas — barba, armacao nova, cabelo.
     # Enquanto a distancia fica abaixo do limiar ninguem percebe; o
     # primeiro sinal costuma ser a reclamacao na fila do totem.

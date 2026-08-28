@@ -139,3 +139,61 @@ def limpar_registros_antigos_de_tentativa(dias: int = 90):
         tentativa.save(update_fields=["imagem", "updated_at"])
         total += 1
     return {"imagens_removidas": total}
+
+
+@shared_task(name="apps.ponto.tasks.verificar_relogio")
+def verificar_relogio():
+    """
+    Confere o sincronismo com a Hora Legal Brasileira e alerta o Master.
+
+    Anexo IX, requisito 2. Configurar o NTP atende metade do requisito; a
+    outra metade e perceber quando ele para. Sem esta verificacao, o
+    relogio pode derivar por semanas com as batidas sendo gravadas
+    normalmente — com hora errada.
+    """
+    from apps.notificacoes.models import Notificacao
+    from apps.notificacoes.services import criar, usuarios_master
+    from apps.ponto.relogio import (
+        DESVIO_ALERTA_SEGUNDOS,
+        DESVIO_LEGAL_SEGUNDOS,
+        estado_do_relogio,
+    )
+
+    estado = estado_do_relogio()
+
+    if estado["dentro_do_limite"]:
+        logger.debug(
+            "Relogio sincronizado com %s, desvio %.3fs.",
+            estado["servidor"], estado["desvio_segundos"],
+        )
+        return estado
+
+    if estado["desvio_segundos"] is not None:
+        titulo = "Relógio fora do sincronismo com a Hora Legal Brasileira"
+        mensagem = (
+            f"Desvio de {estado['desvio_segundos']:.1f}s "
+            f"(alerta acima de {DESVIO_ALERTA_SEGUNDOS:.0f}s; "
+            f"limite legal {DESVIO_LEGAL_SEGUNDOS:.0f}s). "
+            f"Fonte: {estado['servidor'] or 'desconhecida'}. "
+            "As marcações continuam sendo gravadas — com a hora errada."
+        )
+        nivel = Notificacao.Nivel.ALERTA
+    else:
+        titulo = "Não foi possível verificar o sincronismo do relógio"
+        mensagem = (
+            f"{estado['erro']}. O Anexo IX exige manter o relógio "
+            "sincronizado com o Observatório Nacional; sem a verificação, "
+            "uma deriva passaria despercebida."
+        )
+        nivel = Notificacao.Nivel.INFO
+
+    logger.warning("Relogio: %s — %s", titulo, mensagem)
+    for master in usuarios_master():
+        criar(
+            destinatario=master,
+            evento=Notificacao.Evento.SISTEMA,
+            titulo=titulo,
+            mensagem=mensagem,
+            nivel=nivel,
+        )
+    return estado

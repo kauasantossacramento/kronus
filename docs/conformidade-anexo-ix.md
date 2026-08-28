@@ -1,0 +1,322 @@
+# Conformidade com o Anexo IX — Levantamento
+
+> **Para que serve.** O art. 91 da Portaria MTP 671/2021 exige que o REP-P
+> atenda ao art. 78 e aos requisitos do Anexo IX. O Atestado Técnico
+> (art. 89) declara esse atendimento sob responsabilidade civil e
+> criminal. Este documento é a apuração que sustenta — ou impede — aquela
+> assinatura.
+>
+> **Data da apuração:** 28/08/2026
+> **Versão apurada:** ramo `main`, deploy em produção de 28/08/2026
+> **Quem apurou:** levantamento automatizado sobre o código-fonte, com
+> verificação de cada item no arquivo e linha indicados.
+
+---
+
+## Resumo
+
+| | Requisitos |
+|---|---|
+| ✅ Atendido | 9 |
+| ⚠️ Atendido com ressalva | 2 |
+| ❌ Não atendido | 2 |
+| **Total** | **13** |
+
+**Os dois itens não atendidos são de infraestrutura, não de software** —
+requisitos 6 e 13, ambos sobre redundância e alta disponibilidade. A VPS
+atual é uma máquina única. Isso está coerente com a decisão registrada de
+que ela é provisória, para validar o serviço; mas **enquanto for assim, o
+Atestado Técnico não pode ser assinado sem ressalva**.
+
+---
+
+## Requisito 1 — Identificação da organização e do trabalhador
+
+**Estado: ✅ atendido**
+
+| Elemento | Onde |
+|---|---|
+| Organização: CNPJ ou CPF, razão social, CEI/CAEPF/CNO | `apps/clientes/models.py` — `Empresa.cnpj`, `razao_social`, `cei_caepf` |
+| Tipo do identificador (1=CNPJ, 2=CPF) | `Empresa.tipo_identificador_afd` |
+| Trabalhador: CPF e nome | `apps/rh/models.py` — `Colaborador.cpf`, `nome_completo` |
+
+Evidência automatizada: `tests/test_empregador_pf.py` verifica que o tipo
+do identificador acompanha o documento e chega correto ao AFD e ao AEJ.
+
+---
+
+## Requisito 2 — Sincronismo com a Hora Legal Brasileira (máx. 30s)
+
+**Estado: ⚠️ atendido com ressalva**
+
+O servidor sincroniza com os servidores estrato 1 do NTP.br
+(`a.st1.ntp.br` a `d.st1.ntp.br`), ligados diretamente aos relógios
+atômicos do Observatório Nacional.
+
+- Configuração: `/etc/systemd/timesyncd.conf.d/hlb.conf` na VPS
+- Justificativa registrada em `apps/ponto/services.py`, linhas 35–45
+
+**Ressalva.** A fonte está correta e a precisão típica do NTP é de
+milissegundos — muito abaixo dos 30 segundos exigidos. Mas **não existe
+verificação automática do desvio**. Se o `systemd-timesyncd` parar, o
+relógio começa a derivar e nada no sistema acusa. A norma exige manter o
+sincronismo, não apenas configurá-lo.
+
+**O que falta:** uma verificação periódica que leia o desvio real
+(`timedatectl show-timesync`) e alerte acima de um limite conservador
+(sugestão: 5 segundos), registrando o resultado para apresentação à
+fiscalização.
+
+---
+
+## Requisito 3 — Coletor exibe relógio não-analógico com hora, minuto e segundo
+
+**Estado: ✅ atendido**
+
+O totem exibe relógio digital atualizado a cada segundo.
+
+- `apps/totem/templates/totem/index.html` — elemento `data-relogio`
+- `apps/totem/static/totem/js/ui-controller.js`, linha 75 —
+  `toLocaleTimeString('pt-BR')`, que inclui segundos
+
+A topbar do painel web também traz relógio digital com segundos
+(`templates/components/topbar.html`).
+
+---
+
+## Requisito 4 — Marcações oriundas de coletor on-line
+
+**Estado: ✅ atendido**
+
+Toda marcação passa por `RegistroPontoService.registrar`
+(`apps/ponto/services.py`), executada no servidor. O coletor não grava
+nada localmente: ele envia e aguarda a confirmação.
+
+O texto da norma permite o modo off-line como exceção — não o exige.
+Operar exclusivamente on-line é a leitura mais restritiva e, portanto,
+conforme.
+
+---
+
+## Requisito 5 — Registro off-line enviado ao voltar on-line
+
+**Estado: ✅ atendido por não se aplicar — mas há um problema comercial**
+
+Não existe registro off-line: quando a conexão cai, o totem exibe a tela
+de indisponibilidade (`apps/totem/templates/totem/offline.html`) e
+**não aceita marcação**. Sem registro off-line, não há o que sincronizar.
+
+O Service Worker do totem recusa deliberadamente servir qualquer resposta
+de `/api/` a partir do cache — um "sucesso" vindo do cache faria o
+colaborador acreditar que bateu o ponto sem ter batido.
+
+> ⚠️ **Problema à parte, não de conformidade:** o modelo `Plano` tem o
+> campo `tem_offline` — "Modo offline do totem" — exibido como recurso do
+> plano em `apps/master/models.py:60`. **Esse recurso não existe.**
+> Vender um plano que o anuncia é problema contratual. Ou se implementa a
+> fila off-line, ou se remove o campo.
+
+---
+
+## Requisito 6 — ARP com redundância, alta disponibilidade e confiabilidade
+
+**Estado: ❌ não atendido (infraestrutura) / ✅ atendido (conteúdo)**
+
+O requisito tem duas partes. O **conteúdo** exigido está todo gravado; a
+**característica da infraestrutura** não.
+
+### 6.1 — Inclusão/alteração de dados do empregador
+✅ `LogAcesso` grava ação, usuário, data/hora, objeto e IP
+(`apps/core/models.py`, `Acao.CRIACAO` / `ALTERACAO` / `CONFIG`).
+
+### 6.2 — Ajuste do relógio
+⚠️ **Não aplicável na forma descrita.** O texto pressupõe um relógio
+ajustado por pessoa, como no REP-C. Aqui o relógio é do sistema
+operacional e se ajusta por NTP, sem intervenção humana — não há
+"responsável pelo ajuste" a registrar. Vale declarar isso expressamente
+no Atestado, em vez de deixar o campo silenciosamente vazio.
+
+### 6.3 — Inserção, alteração e exclusão de empregado
+✅ `LogAcesso` com `Acao.CRIACAO` / `ALTERACAO` / `EXCLUSAO`, registrando
+usuário, data/hora e objeto.
+
+### 6.4 — Eventos sensíveis
+✅ `EventoTotem` (`apps/totem/models.py`) registra os eventos do
+equipamento com código próprio: online, offline, reconhecimento bem
+sucedido e malsucedido, registro por CPF, erro do aplicativo e ações
+administrativas.
+
+### 6.5 — Marcação de ponto
+✅ Todos os campos exigidos, em `apps/ponto/models.py`:
+
+| Exigido | Campo |
+|---|---|
+| CPF | via `colaborador.cpf` |
+| Data e hora da marcação | `data_hora` (com fuso — `USE_TZ`) |
+| Fuso da marcação | preservado no `DateTimeField` e emitido em ISO 8601 no AFD |
+| Data e hora da gravação | `created_at` |
+| Identificador do coletor | `totem` |
+| Hash SHA-256 | `hash_registro`, encadeado a `hash_anterior` |
+
+### NSR por estabelecimento, sequencial, iniciando em 1
+✅ `models.UniqueConstraint(fields=["empresa", "nsr"])`
+(`apps/ponto/models.py:276`). A sequência é por empresa, como a norma
+determina.
+
+### ❌ Redundância e alta disponibilidade
+A base roda em **uma única VPS**, sem réplica, sem failover. Há backup
+diário automatizado, o que atende "confiabilidade", mas **não**
+"redundância" nem "alta disponibilidade".
+
+**O que falta:** réplica de leitura do PostgreSQL em outra máquina, ou
+banco gerenciado com replicação; e um segundo nó de aplicação. É decisão
+de infraestrutura e custo, não de código.
+
+---
+
+## Requisito 7 — Dados da ARP não podem ser apagados ou alterados
+
+**Estado: ✅ atendido**
+
+Três camadas independentes:
+
+1. **Exclusão bloqueada no modelo.** `RegistroPonto.delete()` levanta
+   exceção (`apps/ponto/models.py:312`): *"Registros de ponto não podem
+   ser excluídos. Utilize o cancelamento por ajuste."*
+2. **Cancelamento em vez de exclusão.** O campo `cancelado` anula o
+   efeito preservando o registro e o NSR — a Portaria anula, não apaga.
+3. **Cadeia de hash.** Cada registro carrega o SHA-256 do anterior;
+   alterar um invalida todos os seguintes. `RegistroPontoService.verificar_cadeia`
+   detecta a divergência.
+
+Evidência automatizada: os testes da cadeia de integridade, incluindo
+regressão que falha se a normalização de fuso for revertida.
+
+---
+
+## Requisito 8 — Passos da marcação de ponto
+
+**Estado: ✅ atendido**
+
+| Passo | Onde |
+|---|---|
+| 8.1 Identificação inequívoca | Reconhecimento facial (ArcFace, limiar 0,60) com alternativa por CPF + data de nascimento |
+| 8.2 Data e hora confiáveis | Hora do servidor, sincronizada com o ON; `validators.validar_data_hora` recusa marcação no futuro |
+| 8.3 Gravação na ARP | `RegistroPontoService.registrar`, em transação com o consumo do NSR |
+| 8.4 Comprovante | `apps/relatorios/` — comprovante com os campos do art. 79 |
+
+---
+
+## Requisito 9 — Comprovante impresso (densidade e altura)
+
+**Estado: ✅ atendido por não se aplicar**
+
+O comprovante é entregue em formato eletrônico (PDF e tela). O requisito
+condiciona-se a *"caso seja adotado o formato impresso"*.
+
+O PDF é gerado em formato de bobina/A6
+(`apps/relatorios/templates/relatorios/comprovante.html`) e, se impresso,
+usa fonte com altura muito superior a 3 mm. **Se a KS TEC passar a
+oferecer impressora térmica, este item precisa de medição real** — não de
+suposição.
+
+---
+
+## Requisito 10 — Campos do registro na ARP
+
+**Estado: ✅ atendido**
+
+Os oito campos exigidos estão gravados (ver 6.5) e são emitidos no AFD
+conforme o Anexo V, validado contra o texto publicado no DOU:
+
+- Registro tipo 7, 137 caracteres
+- NSR (9), tipo (1), data/hora da marcação (24, ISO 8601 com fuso),
+  CPF (12), data/hora da gravação (24), coletor (2), indicador off-line
+  (1), hash SHA-256 (64)
+
+---
+
+## Requisito 11 — Geração do AFD
+
+**Estado: ✅ atendido**
+
+`apps/relatorios/afd.py` — `AFDGenerator`. Layout conferido contra o
+texto do DOU, incluindo CRC-16/KERMIT nos registros que o exigem e o hash
+oficial do arquivo, reproduzível por um auditor sem acesso ao sistema.
+
+> Nota sobre o texto da norma: o Anexo IX menciona *"em conformidade com
+> o Anexo I"*, mas o layout do AFD está no **Anexo V**. A implementação
+> segue o Anexo V, que é o que traz o leiaute.
+
+---
+
+## Requisito 12 — AFD por intervalo temporal
+
+**Estado: ✅ atendido**
+
+`AFDGenerator(empresa, data_inicio, data_fim)` — o intervalo é parâmetro
+obrigatório. A tela de relatórios fiscais expõe a seleção de período.
+
+---
+
+## Requisito 13 — Alta disponibilidade de todos os equipamentos e programas
+
+**Estado: ❌ não atendido**
+
+Mesma limitação do requisito 6: máquina única, sem redundância. Os
+serviços têm reinício automático (`systemd`) e há monitoramento de totem
+off-line, mas **uma falha da VPS interrompe o registro de ponto de todos
+os clientes**.
+
+**O que falta:** segundo nó de aplicação com balanceamento, e banco com
+réplica. É custo de infraestrutura.
+
+---
+
+## Conclusão e o que fazer antes de assinar o Atestado
+
+**Nove dos treze requisitos estão plenamente atendidos, com evidência
+verificável.** Os quatro restantes se dividem em dois grupos:
+
+### Bloqueiam o Atestado sem ressalva
+
+| # | Requisito | O que falta | Natureza |
+|---|---|---|---|
+| 6 | Redundância e alta disponibilidade da ARP | Réplica do banco e segundo nó | Infraestrutura |
+| 13 | Alta disponibilidade do conjunto | Idem | Infraestrutura |
+
+### Resolvíveis em software, e baratos
+
+| # | Requisito | O que falta | Esforço |
+|---|---|---|---|
+| 2 | Verificação do desvio do relógio | Tarefa periódica lendo `timedatectl` e alertando acima de 5s | Pequeno |
+| — | `tem_offline` anunciado sem existir | Implementar a fila ou remover o campo | Decisão comercial |
+
+### Ordem sugerida
+
+1. **Implementar a verificação do desvio do relógio** — é barata, e a
+   norma exige *manter* o sincronismo, não só configurá-lo.
+2. **Decidir sobre `tem_offline`** — não é conformidade, é o que se
+   promete em contrato.
+3. **Registrar o programa no INPI** (art. 91) — ver
+   [`registro-inpi.md`](registro-inpi.md).
+4. **Resolver a infraestrutura** — enquanto a VPS for única, os
+   requisitos 6 e 13 não são atendidos. Duas saídas honestas:
+   - migrar para infraestrutura redundante antes de assinar; ou
+   - assinar declarando a limitação, e assumir o risco de a fiscalização
+     considerá-la descumprimento.
+
+> **Recomendação.** Não assine o Atestado Técnico declarando atendimento
+> integral enquanto 6 e 13 não estiverem resolvidos. O documento tem
+> responsabilidade criminal, e a limitação é verificável por qualquer
+> auditor que pergunte quantos servidores existem.
+
+---
+
+## Como refazer esta apuração
+
+Cada item acima aponta arquivo e, quando útil, linha. A apuração deve ser
+refeita a cada mudança relevante — e, obrigatoriamente, **antes de cada
+emissão de Atestado Técnico para um novo cliente**, porque o documento
+declara o estado do sistema naquele momento, não no momento em que este
+levantamento foi escrito.
