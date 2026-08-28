@@ -446,6 +446,47 @@ class Empresa(BaseModel):
         ),
     )
 
+    #: Quantas tentativas de reconhecimento antes de oferecer o CPF.
+    #:
+    #: Hoje o totem insiste ate o tempo da camera esgotar, e a pessoa
+    #: fica parada na frente do aparelho sem saber se deve esperar ou
+    #: desistir. Contar as tentativas e oferecer a alternativa no momento
+    #: certo resolve a fila — e uma segunda chance evita mandar para a
+    #: digitacao quem so estava mal enquadrado na primeira foto.
+    #:
+    #: Zero mantem o comportamento antigo: insistir ate o tempo acabar.
+    tentativas_antes_do_cpf = models.PositiveSmallIntegerField(
+        "Tentativas antes de oferecer o CPF",
+        default=2,
+        validators=[MinValueValidator(0), MaxValueValidator(10)],
+        help_text=(
+            "Depois desse número de tentativas sem reconhecer, o totem "
+            "oferece o registro por CPF. Zero insiste até o tempo acabar."
+        ),
+    )
+
+    #: Tamanho dos textos do totem.
+    #:
+    #: Fixos no CSS, ficavam pequenos numa tela de 7 polegadas vista a
+    #: um metro de distancia — que e a distancia de quem passa pela
+    #: portaria. O tamanho certo depende do tablet e de onde ele foi
+    #: instalado, e nao ha um valor que sirva para todos.
+    msg_boas_vindas_px = models.PositiveSmallIntegerField(
+        "Tamanho da mensagem de boas-vindas (px)",
+        default=19,
+        validators=[MinValueValidator(12), MaxValueValidator(72)],
+    )
+    slogan_px = models.PositiveSmallIntegerField(
+        "Tamanho da frase do totem (px)",
+        default=13,
+        validators=[MinValueValidator(10), MaxValueValidator(48)],
+    )
+    msg_sucesso_px = models.PositiveSmallIntegerField(
+        "Tamanho da mensagem de confirmação (px)",
+        default=16,
+        validators=[MinValueValidator(12), MaxValueValidator(64)],
+    )
+
     #: Altura da assinatura no rodape do totem (KS TEC ou Kronus).
     #:
     #: Fixa em 1rem, ela some numa tela de 7 polegadas vista a um metro

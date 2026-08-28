@@ -249,3 +249,67 @@ class LogoBrancaPorTelaTests(TestCase):
 
         corpo = self.client.get("/alfa/").content.decode()
         self.assertNotIn("invert(1)", corpo)
+
+
+@override_settings(MEDIA_ROOT=MIDIA)
+class AjustesDoTotemTests(TestCase):
+    """
+    Tamanho de texto e tentativas de reconhecimento.
+
+    Valores fixos no CSS serviam para um tablet e não para o próximo: o
+    que se lê a um metro de distância numa tela de 7 polegadas depende do
+    aparelho e de onde ele foi instalado.
+    """
+
+    def setUp(self):
+        plano = Plano.objects.create(nome="P", slug="p", max_empresas=2, max_totems=2)
+        cliente = Cliente.objects.create(
+            razao_social="Alfa", cnpj="45997418000153",
+            plano=plano, email_contato="a@x.com",
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="Alfa", cnpj="45997418000234",
+        )
+
+    def test_valores_padrao_sao_utilizaveis(self):
+        self.assertGreaterEqual(self.empresa.msg_boas_vindas_px, 12)
+        self.assertGreaterEqual(self.empresa.msg_sucesso_px, 12)
+        self.assertGreaterEqual(self.empresa.slogan_px, 10)
+
+    def test_uma_segunda_chance_antes_de_pedir_o_cpf(self):
+        """
+        Uma tentativa só mandaria para a digitação quem apenas estava mal
+        enquadrado na primeira foto.
+        """
+        self.assertGreaterEqual(self.empresa.tentativas_antes_do_cpf, 2)
+
+    def test_a_api_entrega_os_ajustes_ao_totem(self):
+        from apps.api.serializers import ConfigTotemSerializer
+
+        totem = Totem.objects.create(empresa=self.empresa, ativo=True)
+        dados = ConfigTotemSerializer(totem).data["empresa"]
+
+        for chave in ("msg_boas_vindas_px", "slogan_px", "msg_sucesso_px",
+                      "tentativas_antes_do_cpf"):
+            self.assertIn(chave, dados)
+
+    def test_a_tela_do_totem_aplica_os_tamanhos(self):
+        totem = Totem.objects.create(empresa=self.empresa, ativo=True)
+        corpo = self.client.get(f"/totem/{totem.token_acesso}/").content.decode()
+
+        self.assertIn("--totem-msg-px", corpo)
+        self.assertIn("--totem-slogan-px", corpo)
+        self.assertIn("tentativasReconhecimento", corpo)
+
+    def test_a_foto_vem_antes_do_selo_na_confirmacao(self):
+        """
+        É o rosto que confirma "foi você mesmo"; o selo responde uma
+        pergunta menos importante — "deu certo?".
+        """
+        totem = Totem.objects.create(empresa=self.empresa, ativo=True)
+        corpo = self.client.get(f"/totem/{totem.token_acesso}/").content.decode()
+
+        self.assertLess(
+            corpo.index('id="sucesso-foto"'),
+            corpo.index("totem-sucesso__check"),
+        )

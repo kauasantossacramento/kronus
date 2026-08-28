@@ -139,6 +139,7 @@
     irParaIdle: function () {
       this.estado = 'idle';
       this.enviando = false;
+      this.tentativasFalhas = 0;
       this.camera.fechar();
       this.detector.reiniciar();
       this.ui.mostrar('idle');
@@ -288,7 +289,23 @@
             self.ui.mostrarErro(dados.mensagem, false);
             self.ui.agendar(self.irParaIdle.bind(self), 4000);
           } else if (dados.codigo === 'nao_identificado') {
-            self.ui.definirInstrucao('Não reconhecido. Continue tentando...', false);
+            // Contar as tentativas e oferecer o CPF no momento certo:
+            // antes, o totem insistia até o tempo da câmera esgotar, e a
+            // pessoa ficava parada sem saber se devia esperar ou
+            // desistir. A segunda chance evita mandar para a digitação
+            // quem só estava mal enquadrado na primeira foto.
+            self.tentativasFalhas = (self.tentativasFalhas || 0) + 1;
+            var limite = self.config.tentativasReconhecimento || 0;
+
+            if (limite && self.tentativasFalhas >= limite
+                && self.config.permiteFallback) {
+              self.ui.definirInstrucao('Não reconhecemos seu rosto.', false);
+              self.ui.agendar(self.irParaFallback.bind(self), 900);
+            } else if (self.tentativasFalhas === 1) {
+              self.ui.definirInstrucao('Não reconhecido. Olhe para a câmera.', false);
+            } else {
+              self.ui.definirInstrucao('Continue tentando...', false);
+            }
           } else if (dados.codigo === 'sem_rosto') {
             self.ui.definirInstrucao('Aproxime-se da câmera', false);
           } else if (dados.codigo === 'multiplos_rostos') {
@@ -335,6 +352,9 @@
     // Estado 4 — fallback por CPF
     // ══════════════════════════════════════════════════════════
     irParaFallback: function () {
+      // Zera aqui e no retorno ao ocioso: sem isso, a proxima pessoa na
+      // fila herdaria as falhas da anterior e cairia direto na digitacao.
+      this.tentativasFalhas = 0;
       if (!this.config.permiteFallback) return this.irParaIdle();
 
       this.estado = 'fallback';

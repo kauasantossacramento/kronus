@@ -136,9 +136,13 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             # so a usa quando nao ha nenhum slide cadastrado.
             "idle_screen_img",
             "msg_boas_vindas",
+            "msg_boas_vindas_px",
             "slogan_totem",
+            "slogan_px",
             "assinatura_altura_px",
             "msg_sucesso_ponto",
+            "msg_sucesso_px",
+            "tentativas_antes_do_cpf",
             "som_confirmacao",
         )
         widgets = {

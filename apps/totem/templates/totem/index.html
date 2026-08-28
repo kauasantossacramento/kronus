@@ -52,8 +52,10 @@
         <img src="{% static 'img/logo-kronus-branco.svg' %}" alt="Kronus" class="totem-logo-img">
       {% endif %}
     </div>
-    <p class="totem-idle__mensagem">{{ empresa.msg_boas_vindas }}</p>
-    <p class="totem-idle__tagline">{% firstof empresa.slogan_totem KRONUS.TAGLINE_TOTEM %}</p>
+    <p class="totem-idle__mensagem"
+       style="--totem-msg-px: {{ empresa.msg_boas_vindas_px }}px">{{ empresa.msg_boas_vindas }}</p>
+    <p class="totem-idle__tagline"
+       style="--totem-slogan-px: {{ empresa.slogan_px }}px">{% firstof empresa.slogan_totem KRONUS.TAGLINE_TOTEM %}</p>
   </div>
 
   <div class="totem-relogio">
@@ -101,15 +103,20 @@
 {# ══════════════ ESTADO 3 — SUCESSO ══════════════ #}
 <section class="totem-tela totem-coluna" id="tela-sucesso" hidden>
   <div class="totem-sucesso">
+    {% comment %}
+      A foto vem primeiro e sobe para cima do cartão: é o rosto que
+      confirma "foi você mesmo". O selo de confirmação vem depois, porque
+      responde uma pergunta menos importante — "deu certo?".
+    {% endcomment %}
+    <img id="sucesso-foto" class="totem-sucesso__foto" alt="" hidden>
+    <span id="sucesso-iniciais" class="totem-sucesso__iniciais" hidden></span>
+
     <span class="totem-sucesso__check" aria-hidden="true">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M5 12.5 10 17.5 19 7"/>
       </svg>
     </span>
-
-    <img id="sucesso-foto" class="totem-sucesso__foto" alt="" hidden>
-    <span id="sucesso-iniciais" class="totem-sucesso__iniciais" hidden></span>
 
     <p class="totem-sucesso__nome" id="sucesso-nome"></p>
     <p class="totem-sucesso__cpf" id="sucesso-cpf"></p>
@@ -118,7 +125,8 @@
     <p class="totem-sucesso__hora" id="sucesso-hora"></p>
     <p class="totem-sucesso__data" id="sucesso-data"></p>
 
-    <p class="totem-sucesso__mensagem" id="sucesso-mensagem"></p>
+    <p class="totem-sucesso__mensagem" id="sucesso-mensagem"
+       style="font-size: {{ empresa.msg_sucesso_px }}px"></p>
 
     <div class="totem-sucesso__comprovante">
       <span id="sucesso-nsr"></span>
@@ -228,6 +236,7 @@
       identificador: '{{ totem.identificador|escapejs }}',
       versao: '{{ versao_app }}',
       permiteFallback: {{ totem.permite_fallback_cpf|yesno:"true,false" }},
+      tentativasReconhecimento: {{ empresa.tentativas_antes_do_cpf }},
       segundosSucesso: {{ totem.segundos_tela_sucesso }},
       segundosOffline: {{ totem.segundos_countdown_offline }},
       exigirLiveness: {{ empresa.config.exigir_liveness|yesno:"true,false" }},

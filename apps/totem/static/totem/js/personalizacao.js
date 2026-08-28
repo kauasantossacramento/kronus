@@ -41,6 +41,21 @@
         var frase = document.querySelector('.totem-idle__tagline');
         if (frase) frase.textContent = empresa.slogan;
       }
+      var tamanhos = [
+        ['.totem-idle__mensagem', '--totem-msg-px', empresa.msg_boas_vindas_px],
+        ['.totem-idle__tagline', '--totem-slogan-px', empresa.slogan_px]
+      ];
+      tamanhos.forEach(function (par) {
+        if (!par[2]) return;
+        var alvo = document.querySelector(par[0]);
+        if (alvo) alvo.style.setProperty(par[1], par[2] + 'px');
+      });
+
+      if (empresa.msg_sucesso_px) {
+        var msg = document.getElementById('sucesso-mensagem');
+        if (msg) msg.style.fontSize = empresa.msg_sucesso_px + 'px';
+      }
+
       if (empresa.assinatura_altura_px) {
         var assinatura = document.querySelector('.totem-assinatura');
         if (assinatura) {

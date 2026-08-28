@@ -153,6 +153,10 @@ class ConfigTotemSerializer(serializers.Serializer):
             "logo_css": empresa.css_da_logo("totem"),
             "slogan": empresa.slogan_totem,
             "assinatura_altura_px": empresa.assinatura_altura_px,
+            "msg_boas_vindas_px": empresa.msg_boas_vindas_px,
+            "slogan_px": empresa.slogan_px,
+            "msg_sucesso_px": empresa.msg_sucesso_px,
+            "tentativas_antes_do_cpf": empresa.tentativas_antes_do_cpf,
             # Mantido por compatibilidade com totens que ainda nao
             # atualizaram o app.
             "idle_screen": slides[0]["url"] if slides else None,
