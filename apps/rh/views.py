@@ -384,6 +384,12 @@ class ColaboradorCreateView(BaseRHFormView, CreateView):
             )
 
     def get_success_url(self):
+        # Quem marcou "cadastrar o rosto agora" vai direto para a
+        # captura: voltar para a ficha e pedir que a pessoa ache o botão
+        # é onde o cadastro facial costuma ficar para depois — e "depois"
+        # vira nunca.
+        if self.request.POST.get("ir_para_biometria"):
+            return reverse("facial:cadastro", args=[self.object.pk])
         return reverse("rh:colaborador_detalhe", args=[self.object.pk])
 
 
@@ -396,6 +402,12 @@ class ColaboradorUpdateView(BaseRHFormView, UpdateView):
     extra_context = {"titulo": "Editar colaborador"}
 
     def get_success_url(self):
+        # Quem marcou "cadastrar o rosto agora" vai direto para a
+        # captura: voltar para a ficha e pedir que a pessoa ache o botão
+        # é onde o cadastro facial costuma ficar para depois — e "depois"
+        # vira nunca.
+        if self.request.POST.get("ir_para_biometria"):
+            return reverse("facial:cadastro", args=[self.object.pk])
         return reverse("rh:colaborador_detalhe", args=[self.object.pk])
 
 

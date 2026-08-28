@@ -212,12 +212,57 @@
       var tentar = function () {
         if (!self._recargaPendente) return;
         if (self.estado === 'idle' || self.estado === 'offline') {
-          window.location.reload();
+          self._recargaPendente = false;
+          self.atualizarConfiguracao();
           return;
         }
         setTimeout(tentar, 3000);
       };
       tentar();
+    },
+
+    /**
+     * Busca a configuração e aplica **sem recarregar a página**.
+     *
+     * Recarregar era o caminho simples, e tinha um efeito colateral que
+     * só aparece no equipamento: a tela cheia cai. O navegador não deixa
+     * reentrar sem gesto do usuário, então o totem ficava com barra de
+     * endereço até alguém tocar na tela — e barra de navegador convida o
+     * colaborador a sair da página.
+     *
+     * Aplicar ao vivo cobre o que muda na prática: logo, cores, imagens
+     * da tela ociosa, mensagens e tamanhos. Mudança de estrutura da
+     * página continua exigindo recarga, mas essa vem com o deploy, não
+     * com um clique do administrador.
+     */
+    atualizarConfiguracao: function () {
+      var self = this;
+      if (!this.config || !this.config.urls || !this.config.urls.config) return;
+
+      fetch(this.config.urls.config, {
+        headers: { 'Authorization': 'Token ' + this.config.token }
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (dados) {
+          if (!dados || !dados.empresa) return;
+          self.config.empresa = dados.empresa;
+          if (global.KronusPersonalizacao) {
+            global.KronusPersonalizacao.aplicar(
+              dados.empresa, self.config.elementos
+            );
+          }
+          if (dados.totem) {
+            self.config.permiteFallback = dados.totem.permite_fallback_cpf;
+            if (dados.empresa.tentativas_antes_do_cpf !== undefined) {
+              self.config.tentativasReconhecimento =
+                dados.empresa.tentativas_antes_do_cpf;
+            }
+          }
+          console.info('[Kronus] configuração atualizada sem recarregar.');
+        })
+        .catch(function (erro) {
+          console.warn('[Kronus] não foi possível atualizar a configuração:', erro);
+        });
     },
 
     _pararLoop: function () {

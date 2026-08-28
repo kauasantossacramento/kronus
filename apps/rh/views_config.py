@@ -425,12 +425,17 @@ def slides_totem(request):
 @require_POST
 def recarregar_totens(request):
     """
-    Manda os totens recarregarem agora.
+    Manda os totens buscarem a configuração de novo.
 
     Existe porque nem toda mudança que afeta o quiosque passa pela tela
     de personalização — trocar a escala de um colaborador, por exemplo.
-    E porque, no suporte, "mandar recarregar" resolve metade dos casos
-    sem alguém ir até o equipamento.
+    E porque, no suporte, isto resolve metade dos casos sem alguém ir até
+    o equipamento.
+
+    **Não é mais uma recarga da página.** Recarregar derrubava a tela
+    cheia, e o navegador não deixa reentrar sem gesto do usuário: o totem
+    ficava com barra de endereço até alguém tocar na tela. O equipamento
+    agora rebusca a configuração e aplica ao vivo.
     """
     empresa = request.empresa_ativa
     totens = empresa.totens.filter(ativo=True)
@@ -446,7 +451,8 @@ def recarregar_totens(request):
     )
     messages.success(
         request,
-        f"{totens.count()} totem(ns) vão recarregar assim que ficarem ociosos — "
-        "uma recarga no meio de um reconhecimento perderia a batida.",
+        f"{totens.count()} totem(ns) vão atualizar a configuração assim que "
+        "ficarem ociosos — atualizar no meio de um reconhecimento perderia "
+        "a batida.",
     )
     return redirect(request.META.get("HTTP_REFERER") or "rh:equipamentos")

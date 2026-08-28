@@ -130,9 +130,15 @@
       this.aoPedirRecarga();
     },
 
-    /** Substituido pelo app: so ele sabe se a tela esta ociosa. */
+    /**
+     * Substituido pelo app: so ele sabe se a tela esta ociosa.
+     *
+     * O padrao nao faz nada de proposito. Recarregar aqui derrubaria a
+     * tela cheia — e sem o app em cima, nem daria para saber se ha
+     * alguem na frente da camera no momento.
+     */
     aoPedirRecarga: function () {
-      window.location.reload();
+      console.warn('[Kronus] pedido de recarga sem tratador.');
     },
 
     _marcarOffline: function (motivo) {

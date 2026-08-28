@@ -1,1 +1,211 @@
-{% extends "rh/_form_generico.html" %}
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Novo colaborador</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    Quatro passos. Só o primeiro é obrigatório para salvar — o resto pode
+    ser completado depois.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+{% comment %}
+  Cadastro em passos, e não um formulário de vinte campos.
+
+  Vinte campos numa tela só fazem quem cadastra parar no meio e voltar
+  outro dia — e o cadastro incompleto é o que faz o ponto não fechar. Os
+  passos separam o que o sistema precisa para funcionar (identificação e
+  jornada) do que é complemento (documentos, acesso).
+
+  A ordem não é a do banco de dados: é a da conversa que quem cadastra
+  tem com a pessoa.
+{% endcomment %}
+<form method="post" enctype="multipart/form-data" x-data="wizard()" class="max-w-3xl">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {% for erro in form.non_field_errors %}<p>{{ erro }}</p>{% endfor %}
+    </div>
+  {% endif %}
+
+  {# Trilha dos passos #}
+  <ol class="mb-6 flex flex-wrap gap-2">
+    <template x-for="(nome, i) in nomes" :key="i">
+      <li class="flex items-center gap-2">
+        <button type="button" @click="ir(i)"
+                class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition"
+                :class="i === passo
+                  ? 'bg-[var(--kronus-primary-600)] text-white'
+                  : (visitados.includes(i)
+                      ? 'bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-700)]'
+                      : 'text-[var(--kronus-gray-400)]')">
+          <span class="grid h-5 w-5 place-items-center rounded-full text-xs font-bold"
+                :class="i === passo ? 'bg-white/20' : 'bg-[var(--kronus-gray-200)]'"
+                x-text="i + 1"></span>
+          <span x-text="nome"></span>
+        </button>
+      </li>
+    </template>
+  </ol>
+
+  {# ── Passo 1: quem é ─────────────────────────────────────── #}
+  <div x-show="passo === 0" class="card p-6">
+    <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Identificação</h2>
+    <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+      O CPF identifica a pessoa nos arquivos fiscais. A data de nascimento é o
+      segundo fator do registro por CPF no totem — sem ela correta, quem o rosto
+      não reconhecer fica sem alternativa.
+    </p>
+    <div class="mt-5 grid gap-5 sm:grid-cols-2">
+      {% for campo in form %}
+        {% if campo.name == "nome_completo" or campo.name == "nome_social" or campo.name == "cpf" or campo.name == "data_nascimento" or campo.name == "email" or campo.name == "telefone" %}
+          <div class="{% if campo.name == 'nome_completo' %}sm:col-span-2{% endif %}">
+            <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+            <div class="mt-1.5">{{ campo }}</div>
+            {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+            {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Passo 2: jornada ────────────────────────────────────── #}
+  <div x-show="passo === 1" x-cloak class="card p-6">
+    <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Jornada e vínculo</h2>
+    <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+      A escala define o que é hora extra e o que é falta. Sem ela, o sistema
+      registra as batidas mas não tem contra o que compará-las.
+    </p>
+    <div class="mt-5 grid gap-5 sm:grid-cols-2">
+      {% for campo in form %}
+        {% if campo.name == "escala" or campo.name == "departamento" or campo.name == "cargo_ref" or campo.name == "cargo" or campo.name == "data_admissao" or campo.name == "matricula" %}
+          <div>
+            <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+            <div class="mt-1.5">{{ campo }}</div>
+            {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+            {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Passo 3: documentos ─────────────────────────────────── #}
+  <div x-show="passo === 2" x-cloak class="card p-6">
+    <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Documentos e foto</h2>
+    <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+      Complemento do cadastro. Nada aqui impede o ponto de funcionar.
+    </p>
+    <div class="mt-5 grid gap-5 sm:grid-cols-2">
+      {% for campo in form %}
+        {% if campo.name == "pis_pasep" or campo.name == "ctps" or campo.name == "ctps_serie" or campo.name == "foto_perfil" or campo.name == "observacoes" %}
+          <div class="{% if campo.name == 'observacoes' or campo.name == 'foto_perfil' %}sm:col-span-2{% endif %}">
+            <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+            <div class="mt-1.5">{{ campo }}</div>
+            {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+            {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Passo 4: acesso e biometria ─────────────────────────── #}
+  <div x-show="passo === 3" x-cloak class="card p-6">
+    <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Acesso e biometria</h2>
+
+    <div class="mt-5 space-y-4">
+      {% for campo in form %}
+        {% if campo.name == "criar_acesso" or campo.name == "permite_ponto_web" or campo.name == "ativo" %}
+          <label class="flex items-start gap-2">
+            {{ campo }}
+            <span>
+              <span class="text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</span>
+              {% if campo.help_text %}<span class="block text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</span>{% endif %}
+            </span>
+          </label>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="mt-6 rounded-lg border border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)] p-4">
+      <p class="flex items-center gap-2 text-sm font-medium text-[var(--kronus-gray-800)]">
+        {% icone "rosto" classe="h-4 w-4 text-[var(--kronus-primary-600)]" %}
+        Cadastro facial
+      </p>
+      <p class="mt-1.5 text-sm text-[var(--kronus-gray-600)]">
+        Feito na tela seguinte, com a câmera. Pode ser agora ou depois — o
+        colaborador já consegue bater o ponto pelo CPF enquanto isso.
+      </p>
+
+      <label class="mt-3 flex items-start gap-2">
+        <input type="checkbox" name="ir_para_biometria" value="1" checked
+               class="mt-0.5 h-4 w-4 rounded border-[var(--kronus-gray-300)] text-[var(--kronus-primary-600)]">
+        <span>
+          <span class="text-sm font-medium text-[var(--kronus-gray-700)]">Cadastrar o rosto agora</span>
+          <span class="block text-xs text-[var(--kronus-gray-500)]">
+            Ao salvar, abre direto a captura.
+          </span>
+        </span>
+      </label>
+
+      <p class="mt-3 rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-[var(--kronus-gray-600)]">
+        <strong>Cadastre com a câmera que a pessoa vai usar no dia a dia.</strong>
+        Se ela bate o ponto no totem, cadastre pelo totem — capturas de
+        câmeras diferentes produzem resultados diferentes, e o sistema
+        reconhece melhor quando existe uma amostra da câmera de uso.
+      </p>
+    </div>
+  </div>
+
+  {# Navegação #}
+  <div class="mt-6 flex flex-wrap items-center justify-between gap-2">
+    <button type="button" @click="voltar()" x-show="passo > 0" x-cloak
+            class="btn btn-outline">Voltar</button>
+    <span x-show="passo === 0"></span>
+
+    <div class="flex flex-wrap gap-2">
+      {% comment %}
+        Salvar disponível desde o primeiro passo: os passos seguintes são
+        complemento, e obrigar a percorrê-los faria quem tem pressa
+        desistir no meio — deixando o cadastro pela metade, que é pior.
+      {% endcomment %}
+      <button type="submit" class="btn btn-outline" x-show="passo < 3" x-cloak>
+        Salvar agora
+      </button>
+      <button type="button" @click="avancar()" x-show="passo < 3"
+              class="btn btn-primary">Continuar</button>
+      <button type="submit" x-show="passo === 3" x-cloak
+              class="btn btn-primary">Salvar colaborador</button>
+    </div>
+  </div>
+</form>
+
+<script>
+  function wizard() {
+    return {
+      passo: 0,
+      visitados: [0],
+      nomes: ['Identificação', 'Jornada', 'Documentos', 'Acesso'],
+      ir(i) {
+        // Só deixa pular para onde já se passou: adiante, o passo pode
+        // depender de um campo que ainda não foi preenchido.
+        if (this.visitados.includes(i)) this.passo = i;
+      },
+      avancar() {
+        if (this.passo >= this.nomes.length - 1) return;
+        this.passo += 1;
+        if (!this.visitados.includes(this.passo)) this.visitados.push(this.passo);
+      },
+      voltar() {
+        if (this.passo > 0) this.passo -= 1;
+      }
+    };
+  }
+</script>
+{% endblock %}

@@ -248,16 +248,30 @@
   });
 
   // ── Primeiro acesso ────────────────────────────────────────
-  // Abre sozinho uma vez por tela. Depois disso, só por clique — uma
-  // ajuda que reaparece vira coisa a fechar, não a ler.
-  // `kronus-ajuda-vista-todas` desliga a abertura automatica sem mexer
-  // no botao: usado pela ferramenta que fotografa as telas do manual, e
-  // util para quem ja conhece o sistema e nao quer o tour em tela nova.
-  if (!jaViu(CHAVE_VISTO) && !jaViu('kronus-ajuda-vista-todas')) {
+  //
+  // No máximo **uma** abertura automática por sessão, e só onde há
+  // roteiro guiado. Abrir em toda tela nova transformava a ajuda em algo
+  // a fechar antes de trabalhar — que é o oposto de ajudar. Nas demais
+  // telas o botão fica lá, esperando ser procurado.
+  //
+  // `kronus-ajuda-vista-todas` desliga a abertura automática sem mexer no
+  // botão: usado pela ferramenta que fotografa as telas do manual, e útil
+  // para quem já conhece o sistema.
+  var CHAVE_SESSAO = 'kronus-ajuda-sessao';
+  function jaAbriuNestaSessao() {
+    try { return sessionStorage.getItem(CHAVE_SESSAO) === '1'; }
+    catch (e) { return true; }
+  }
+  function marcarSessao() {
+    try { sessionStorage.setItem(CHAVE_SESSAO, '1'); } catch (e) {}
+  }
+
+  if (passos.length && !jaViu(CHAVE_VISTO)
+      && !jaViu('kronus-ajuda-vista-todas') && !jaAbriuNestaSessao()) {
     setTimeout(function () {
-      if (passos.length) iniciarTour();
-      else abrir();
-    }, 1200);
+      marcarSessao();
+      iniciarTour();
+    }, 1500);
   }
 })();
 </script>
