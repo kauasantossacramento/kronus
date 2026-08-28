@@ -126,3 +126,45 @@ class CarimboDeVersaoTests(TestCase):
         # `@never_cache` acrescenta no-store/private por cima; o que
         # importa e que o proprio SW nunca seja servido do cache.
         self.assertIn("no-cache", resposta["Cache-Control"])
+
+
+class PoliticaDeSegurancaTests(SimpleTestCase):
+    """
+    A CSP de producao precisa permitir o que o front realmente usa.
+
+    Este defeito e invisivel em desenvolvimento: la nao ha CSP, entao
+    tudo funciona. Em producao o Alpine carregava, removia o `x-cloak` e
+    parava — deixando todo painel escondido permanentemente aberto e
+    surdo a cliques.
+    """
+
+    @staticmethod
+    def _script_src():
+        """
+        Le a diretiva do arquivo em vez de importar o modulo: importar
+        `config.settings.production` exige o `.env` da VPS e estouraria
+        `ImproperlyConfigured` na maquina de quem roda os testes.
+        """
+        fonte = (RAIZ / "config" / "settings" / "production.py").read_text(encoding="utf-8")
+        trecho = fonte.split("CSP_SCRIPT_SRC", 1)[1].split(")", 1)[0]
+        return trecho
+
+    def test_csp_de_producao_permite_o_que_o_alpine_exige(self):
+        base = RAIZ / "templates" / "base.html"
+        usa_alpine = "alpinejs" in base.read_text(encoding="utf-8")
+        if not usa_alpine:
+            self.skipTest("base.html nao carrega mais o Alpine")
+
+        self.assertIn(
+            "'unsafe-eval'", self._script_src(),
+            "o Alpine avalia expressoes com new Function(); sem "
+            "'unsafe-eval' na CSP toda diretiva dele morre em producao",
+        )
+
+    def test_cdns_carregados_estao_liberados_na_csp(self):
+        base = (RAIZ / "templates" / "base.html").read_text(encoding="utf-8")
+        for host in re.findall(r'src="https://([^/"]+)', base):
+            self.assertIn(
+                host, self._script_src(),
+                f"base.html carrega script de {host}, que a CSP bloqueia",
+            )

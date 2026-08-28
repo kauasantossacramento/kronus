@@ -61,7 +61,23 @@ CSRF_TRUSTED_ORIGINS = [
 # Content Security Policy aplicada via apps.core.middleware.SecurityHeadersMiddleware
 CSP_DEFAULT_SRC = "'self'"
 CSP_IMG_SRC = "'self' data: blob: https://kstec.online"
-CSP_SCRIPT_SRC = "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com"
+# `unsafe-eval` e exigido pelo Alpine.js: ele avalia as expressoes dos
+# atributos (`x-data`, `@click`, `x-show`) com `new Function()`. Sem essa
+# permissao o Alpine carrega, remove o `x-cloak` dos elementos — e para
+# ali. Todo painel que deveria comecar escondido aparece na tela e nao
+# responde a clique nenhum. Foi o que quebrou o menu de perfil e a tela
+# do celular em producao, sem aparecer em desenvolvimento, onde nao ha
+# CSP nenhuma.
+#
+# A politica ja permite `unsafe-inline`, entao o acrescimo e incremental
+# e nao o que decide a seguranca da pagina. Mesmo assim e uma divida:
+# o caminho correto e migrar para o build CSP do Alpine
+# (`@alpinejs/csp`), que troca expressao em atributo por componente
+# registrado em `Alpine.data()` e dispensa as duas permissoes.
+CSP_SCRIPT_SRC = (
+    "'self' 'unsafe-inline' 'unsafe-eval' "
+    "https://cdn.jsdelivr.net https://unpkg.com"
+)
 CSP_STYLE_SRC = "'self' 'unsafe-inline' https://fonts.googleapis.com"
 CSP_FONT_SRC = "'self' https://fonts.gstatic.com data:"
 CSP_CONNECT_SRC = "'self' wss://kronus.online"
