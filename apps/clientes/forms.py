@@ -129,6 +129,9 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             "logo_css",
             "cor_primaria",
             "cor_secundaria",
+            # Capa unica do totem. Continua valendo como reserva: a API
+            # so a usa quando nao ha nenhum slide cadastrado.
+            "idle_screen_img",
             "msg_boas_vindas",
             "msg_sucesso_ponto",
             "som_confirmacao",

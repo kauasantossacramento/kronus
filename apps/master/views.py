@@ -399,3 +399,97 @@ class LogAcessoListView(MasterRequiredMixin, ListView):
         contexto["clientes"] = Cliente.objects.all()
         contexto["acoes"] = LogAcesso.Acao.choices
         return contexto
+
+
+@master_required
+def empresa_personalizacao(request, pk):
+    """
+    Logo, cores e capa do totem de uma empresa, pelo Master.
+
+    A mesma tela existe no RH, mas so alcanca `request.empresa_ativa` — e
+    o Master nao tem empresa ativa. Na pratica, quem faz a implantacao do
+    cliente nao conseguia subir a logo dele em lugar nenhum.
+
+    Reusa `PersonalizacaoEmpresaForm` de proposito: duplicar os campos
+    aqui criaria dois formularios para a mesma coisa, que divergem no
+    primeiro campo novo.
+    """
+    from apps.clientes.forms import PersonalizacaoEmpresaForm
+    from apps.clientes.models import Empresa, SlideTotem
+
+    empresa = get_object_or_404(
+        Empresa.objects.select_related("cliente"), pk=pk
+    )
+
+    if request.method == "POST" and request.POST.get("acao") == "slide":
+        return _slide_do_master(request, empresa, SlideTotem)
+
+    form = PersonalizacaoEmpresaForm(
+        request.POST or None, request.FILES or None, instance=empresa
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        _log_master(
+            request, LogAcessoMaster.Acao.EMPRESA_VINCULADA, empresa.cliente,
+            f"Personalização de {empresa.razao_social}: "
+            f"{', '.join(form.changed_data) or 'sem alteração'}",
+        )
+        _avisar_totens_da_empresa(empresa)
+        messages.success(request, "Personalização salva. Os totens serão atualizados.")
+        return redirect("master:empresa_personalizacao", pk=pk)
+
+    return render(request, "master/empresas/personalizacao.html", {
+        "titulo": f"Personalização — {empresa.nome_exibicao}",
+        "menu_ativo": "empresas",
+        "empresa": empresa,
+        "form": form,
+        "slides": empresa.slides.order_by("ordem"),
+        "totens": empresa.totens.filter(ativo=True),
+    })
+
+
+def _slide_do_master(request, empresa, SlideTotem):
+    """Adiciona ou remove um slide da tela de ociosidade."""
+    remover = request.POST.get("remover")
+    if remover:
+        empresa.slides.filter(pk=remover).delete()
+        _avisar_totens_da_empresa(empresa)
+        messages.success(request, "Slide removido.")
+        return redirect("master:empresa_personalizacao", pk=empresa.pk)
+
+    imagem = request.FILES.get("imagem")
+    if imagem is None:
+        messages.error(request, "Selecione uma imagem.")
+    elif imagem.size > 8 * 1024 * 1024:
+        # O totem baixa a imagem a cada troca de slide; num link de
+        # portaria, um arquivo grande trava a tela em vez de enfeitá-la.
+        messages.error(
+            request,
+            "Imagem acima de 8 MB. O totem carrega isso a cada troca de "
+            "slide — comprima antes de enviar.",
+        )
+    else:
+        ultima = empresa.slides.order_by("-ordem").first()
+        SlideTotem.objects.create(
+            empresa=empresa,
+            imagem=imagem,
+            legenda=(request.POST.get("legenda") or "")[:120],
+            ordem=(ultima.ordem + 1) if ultima else 0,
+        )
+        _avisar_totens_da_empresa(empresa)
+        messages.success(request, "Slide adicionado.")
+    return redirect("master:empresa_personalizacao", pk=empresa.pk)
+
+
+def _avisar_totens_da_empresa(empresa) -> None:
+    """
+    Pede aos totens da empresa que recarreguem a configuracao.
+
+    Sem isto, a logo nova so apareceria quando alguem reiniciasse o
+    tablet — e ninguem reinicia um totem de portaria.
+    """
+    from django.utils import timezone
+
+    empresa.totens.filter(ativo=True).update(
+        recarga_solicitada_em=timezone.now()
+    )

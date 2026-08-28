@@ -1,1 +1,18 @@
 {% extends "master/_form_generico.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">{{ titulo }}</h1>
+    {% if object %}
+      <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">{{ object.cliente }}</p>
+    {% endif %}
+  </div>
+  {% if object %}
+    <a href="{% url 'master:empresa_personalizacao' object.pk %}" class="btn btn-outline text-sm">
+      {% icone "estrela" classe="h-4 w-4" %} Logo, cores e totem
+    </a>
+  {% endif %}
+</div>
+{% endblock %}

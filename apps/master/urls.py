@@ -25,6 +25,11 @@ urlpatterns = [
         views.EmpresaUpdateView.as_view(),
         name="empresa_editar",
     ),
+    path(
+        "empresas/<int:pk>/personalizacao/",
+        views.empresa_personalizacao,
+        name="empresa_personalizacao",
+    ),
     # -- Planos ------------------------------------------------
     path("planos/", views.PlanoListView.as_view(), name="plano_lista"),
     path("planos/novo/", views.PlanoCreateView.as_view(), name="plano_criar"),
