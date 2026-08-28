@@ -153,6 +153,45 @@ def recognize(request):
             "Reconhecimento facial temporariamente indisponível. Use o CPF.",
         )
 
+    # ── Prova de vida ──────────────────────────────────────
+    # Roda **antes** do reconhecimento: gastar 217 ms identificando uma
+    # foto impressa e so depois recusa-la seria desperdicio de CPU num
+    # servidor de um nucleo. E, mais importante, a recusa por spoofing
+    # nao deve revelar se a foto correspondia a alguem cadastrado.
+    config = getattr(totem.empresa, "config", None)
+    if config is not None and config.exigir_liveness:
+        quadros_b64 = serializer.validated_data.get("quadros") or []
+        if not quadros_b64:
+            return _resposta_erro(
+                "liveness_ausente",
+                "Siga a instrução na tela para confirmar que é você.",
+                permite_fallback=totem.permite_fallback_cpf,
+            )
+
+        from apps.facial.liveness import LivenessRecusado, LivenessService
+        from apps.facial.processors import preparar
+
+        try:
+            quadros = [preparar(q) for q in quadros_b64]
+            LivenessService(provedor=servico.provedor).verificar(
+                quadros, desafio=serializer.validated_data.get("desafio")
+            )
+        except LivenessRecusado as recusa:
+            _registrar_evento(
+                totem,
+                EventoTotem.Tipo.RECONHECIMENTO_FALHA,
+                f"Prova de vida recusada: {recusa.codigo}",
+                recusa.detalhes,
+            )
+            return _resposta_erro(
+                recusa.codigo, recusa.mensagem,
+                permite_fallback=totem.permite_fallback_cpf,
+            )
+        except Exception:
+            # Falha do proprio verificador nao pode travar o ponto: a
+            # prova de vida e uma camada a mais, nao a obrigacao legal.
+            logger.exception("Falha ao verificar prova de vida.")
+
     resultado = servico.reconhecer(
         serializer.validated_data["image"],
         empresas=totem.empresas_atendidas(),

@@ -411,6 +411,61 @@ class ConfiguracaoEmpresa(BaseModel):
         "Aplicar hora noturna reduzida (52min30s)", default=True
     )
 
+    # -- Marcação ----------------------------------------------
+    minutos_entre_marcacoes = models.PositiveSmallIntegerField(
+        "Intervalo mínimo entre marcações (min)",
+        default=10,
+        validators=[MinValueValidator(0), MaxValueValidator(120)],
+        help_text=(
+            "Impede a batida em duplicidade por engano — o toque a mais no "
+            "totem, o clique repetido. Zero desativa a trava."
+        ),
+    )
+
+    # -- Reconhecimento facial ---------------------------------
+    exigir_liveness = models.BooleanField(
+        "Exigir prova de vida no totem",
+        default=False,
+        help_text=(
+            "Pede um gesto e analisa vários quadros. Impede foto impressa e "
+            "tela parada; NÃO impede vídeo gravado. Deixa o registro alguns "
+            "segundos mais lento."
+        ),
+    )
+
+    # -- Regime de horas extras --------------------------------
+    class RegimeHoras(models.TextChoices):
+        BANCO = "banco", "Banco de horas (compensação)"
+        PAGAMENTO = "pagamento", "Pagamento de horas extras"
+        AMBOS = "ambos", "Banco, com pagamento do excedente"
+
+    regime_horas = models.CharField(
+        "Regime de horas extras",
+        max_length=10,
+        choices=RegimeHoras.choices,
+        default=RegimeHoras.BANCO,
+        help_text=(
+            "Define se o excedente vira crédito no banco ou hora extra a pagar. "
+            "Muda o que a exportação para a folha envia."
+        ),
+    )
+    exibir_custos_hora_extra = models.BooleanField(
+        "Exibir custos de horas extras",
+        default=False,
+        help_text=(
+            "Mostra o valor em reais das horas extras nos relatórios. "
+            "Exige que os salários estejam preenchidos."
+        ),
+    )
+    exibir_salarios = models.BooleanField(
+        "Exibir salários no painel",
+        default=False,
+        help_text=(
+            "Salário é dado sensível dentro da própria empresa. Desligado, "
+            "o campo some das telas e dos relatórios do RH."
+        ),
+    )
+
     # -- Banco de horas ----------------------------------------
     modo_compensacao = models.BooleanField(
         "Compensação automática", default=True

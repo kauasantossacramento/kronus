@@ -20,6 +20,21 @@ class ReconhecimentoSerializer(serializers.Serializer):
         allow_blank=True,
         help_text="Identificador do equipamento. Informativo — o escopo real vem do token.",
     )
+    quadros = serializers.ListField(
+        child=serializers.CharField(trim_whitespace=True),
+        required=False,
+        allow_empty=True,
+        max_length=8,
+        write_only=True,
+        help_text=(
+            "Sequência de quadros para a prova de vida, em base64. "
+            "O último é o usado no reconhecimento."
+        ),
+    )
+    desafio = serializers.CharField(
+        required=False, allow_blank=True,
+        help_text="Gesto pedido ao colaborador, devolvido para conferência.",
+    )
     registrar_ponto = serializers.BooleanField(
         default=True,
         help_text="Quando falso, apenas identifica sem gravar a batida.",

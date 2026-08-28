@@ -83,6 +83,38 @@ def cadastro(request, colaborador_id):
 @rh_required
 @empresa_ativa_required
 @require_POST
+def refazer_cadastro(request, colaborador_id):
+    """
+    Reinicia o cadastro facial do colaborador.
+
+    Necessario quando a pessoa mudou de aparencia ou quando o cadastro
+    original saiu ruim. Sem isso, a tela travava ao atingir o maximo de
+    amostras e nao havia caminho de volta: fotos novas nunca alteravam
+    o reconhecimento.
+    """
+    colaborador = _colaborador_no_escopo(request, colaborador_id)
+    total = FaceRecognitionService().refazer_cadastro(colaborador)
+
+    registrar_log(
+        request=request,
+        acao=LogAcesso.Acao.ALTERACAO,
+        descricao=(
+            f"Cadastro facial reiniciado para {colaborador.nome_exibicao} "
+            f"({total} amostra(s) aposentada(s))"
+        ),
+        objeto=colaborador,
+    )
+    messages.warning(
+        request,
+        f"Cadastro facial reiniciado. {total} amostra(s) foram desativadas — "
+        "capture as novas para o colaborador voltar a ser reconhecido.",
+    )
+    return redirect("facial:cadastro", colaborador_id=colaborador.pk)
+
+
+@rh_required
+@empresa_ativa_required
+@require_POST
 def receber_amostra(request, colaborador_id):
     """
     Recebe uma foto da webcam e devolve o resultado do processamento.

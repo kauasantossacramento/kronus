@@ -57,13 +57,33 @@ def validar_empresa_operacional(empresa):
 
 def validar_intervalo_minimo(colaborador, momento=None, segundos=None):
     """
-    Regra 11 da Seção 14: nenhuma batida a menos de 1 minuto da anterior.
+    Bloqueia batida repetida logo após a anterior.
 
-    Protege contra duplo toque no totem e contra reenvio de formulário.
+    Protege contra o toque duplo no totem, o clique repetido no navegador
+    e o reenvio de formulário — situações em que a segunda marcação é
+    engano, não jornada. Uma entrada duplicada suja o pareamento do dia e
+    obriga o RH a um ajuste manual, que é mais caro e mais frágil na
+    auditoria do que evitar o problema.
+
+    **O prazo é da empresa, não do sistema.** Cada operação tem um ritmo:
+    numa fábrica com turno único, 10 minutos são seguros; num hospital
+    com plantão fracionado, podem barrar marcação legítima. Por isso
+    `ConfiguracaoEmpresa.minutos_entre_marcacoes` manda, e zero desliga
+    a trava. O valor do settings é apenas o piso técnico, para o caso de
+    a empresa não ter configuração.
     """
     from apps.ponto.models import RegistroPonto
 
-    segundos = segundos or settings.INTERVALO_MINIMO_ENTRE_BATIDAS_SEGUNDOS
+    if segundos is None:
+        config = getattr(colaborador.empresa, "config", None)
+        minutos = getattr(config, "minutos_entre_marcacoes", None)
+        if minutos is not None:
+            if minutos == 0:
+                return          # a empresa desligou a trava
+            segundos = minutos * 60
+        else:
+            segundos = settings.INTERVALO_MINIMO_ENTRE_BATIDAS_SEGUNDOS
+
     momento = momento or timezone.now()
 
     ultimo = (
@@ -76,9 +96,14 @@ def validar_intervalo_minimo(colaborador, momento=None, segundos=None):
     decorrido = (momento - ultimo.data_hora).total_seconds()
     if 0 <= decorrido < segundos:
         faltam = int(segundos - decorrido)
+        if faltam >= 60:
+            minutos = (faltam + 59) // 60
+            texto = f"Aguarde {minutos} minuto{'s' if minutos != 1 else ''}"
+        else:
+            texto = f"Aguarde {faltam} segundo{'s' if faltam != 1 else ''}"
         raise RegistroInvalido(
-            f"Aguarde {faltam} segundo{'s' if faltam != 1 else ''} para registrar "
-            "novamente.",
+            f"{texto} para registrar novamente. Seu último ponto foi às "
+            f"{timezone.localtime(ultimo.data_hora):%H:%M}.",
             codigo="intervalo_minimo",
             detalhes={"segundos_restantes": faltam},
         )

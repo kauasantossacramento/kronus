@@ -115,3 +115,40 @@ def reconsolidar_cadastros(empresa_id: int = None):
         servico.consolidar_cadastro(colaborador)
         total += 1
     return {"colaboradores": total}
+
+
+@shared_task(
+    name="apps.facial.tasks.gerar_embedding_remoto",
+    queue="facial",
+    time_limit=60,
+    soft_time_limit=45,
+)
+def gerar_embedding_remoto(imagem_b64: str) -> dict:
+    """
+    Gera um embedding no worker dedicado.
+
+    **Por que existe.** O ArcFace ocupa ~1,1 GB de RAM residente, e esse
+    custo é *por processo*. Com o reconhecimento em linha no worker web,
+    cada worker que atendesse um rosto carregaria a sua própria cópia:
+    dois workers = 2,2 GB, o que num servidor de 3,9 GB empurra o
+    Postgres para o swap.
+
+    Concentrando aqui, o modelo carrega **uma vez só**, num worker Celery
+    de concorrência 1. Os workers web nunca importam TensorFlow.
+
+    O custo dessa escolha é a ida e volta pelo Redis — na ordem de
+    dezenas de milissegundos contra os ~217 ms da inferência. Vale.
+
+    A imagem trafega em base64 porque o serializador do Celery é JSON:
+    trocá-lo por pickle para economizar 33% de tamanho abriria execução
+    remota de código a quem alcançasse o Redis.
+    """
+    import base64
+
+    from apps.facial.providers import DeepFaceProvider
+
+    dados = base64.b64decode(imagem_b64)
+    # Direto no DeepFace: passar por `obter_provedor` correria o risco de
+    # o worker estar configurado como delegado e chamar a si mesmo.
+    vetor = DeepFaceProvider().gerar_embedding(dados)
+    return {"embedding": [float(x) for x in vetor]}

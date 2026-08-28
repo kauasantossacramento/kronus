@@ -139,6 +139,8 @@ class FaceRecognitionService:
             )
         registro.save()
 
+        self._aposentar_excedentes(colaborador)
+
         logger.info(
             "Amostra facial cadastrada: colaborador=%s angulo=%s qualidade=%.1f",
             colaborador.pk,
@@ -146,6 +148,48 @@ class FaceRecognitionService:
             qualidade,
         )
         return registro
+
+    @staticmethod
+    def _aposentar_excedentes(colaborador):
+        """
+        Mantem apenas as N amostras mais recentes ativas.
+
+        Sem isto, adicionar fotos novas nao muda o reconhecimento: a
+        media fica dominada pelas amostras antigas. Quem cadastrou com
+        luz ruim e depois tentou corrigir com fotos boas via o sistema
+        continuar recusando — foi exatamente o sintoma relatado.
+
+        As excedentes sao **desativadas, nao apagadas**: o historico de
+        qual foto gerou qual embedding faz parte da trilha de auditoria
+        do dado biometrico.
+        """
+        limite = getattr(settings, "FACE_AMOSTRAS_MAXIMAS", 5)
+        ativas = list(
+            colaborador.registros_faciais.filter(ativo=True).order_by("-created_at")
+        )
+        excedentes = ativas[limite:]
+        for registro in excedentes:
+            registro.ativo = False
+            registro.save(update_fields=["ativo", "updated_at"])
+        return len(excedentes)
+
+    def refazer_cadastro(self, colaborador) -> int:
+        """
+        Aposenta todas as amostras atuais para um cadastro do zero.
+
+        Usado quando a pessoa mudou de aparencia (barba, oculos, corte)
+        ou quando o cadastro original saiu ruim. Desativa em vez de
+        apagar, e zera o embedding consolidado para que o colaborador
+        nao seja reconhecido por um cadastro que estamos refazendo.
+        """
+        total = colaborador.registros_faciais.filter(ativo=True).update(ativo=False)
+        colaborador.limpar_biometria()
+        self.invalidar_cache(colaborador.empresa_id)
+        logger.info(
+            "Cadastro facial reiniciado: colaborador=%s amostras aposentadas=%s",
+            colaborador.pk, total,
+        )
+        return total
 
     def consolidar_cadastro(self, colaborador) -> int:
         """

@@ -252,12 +252,70 @@ class ValidacoesTests(BasePontoTestCase):
         self.assertEqual(contexto.exception.codigo, "intervalo_minimo")
 
     def test_permite_apos_o_intervalo_minimo(self):
-        agora = timezone.now()
-        RegistroPontoService.registrar(colaborador=self.colaborador, momento=agora)
+        """
+        O prazo agora vem da empresa (padrao 10 min), nao de uma
+        constante do sistema: cada operacao tem o seu ritmo.
+        """
+        config = self.empresa.config
+        # Ancorado no passado: somar 10 min a "agora" cairia no futuro, e
+        # o servico recusa marcacao futura.
+        inicio = timezone.now() - timedelta(hours=1)
+        RegistroPontoService.registrar(colaborador=self.colaborador, momento=inicio)
         registro = RegistroPontoService.registrar(
-            colaborador=self.colaborador, momento=agora + timedelta(seconds=61)
+            colaborador=self.colaborador,
+            momento=inicio + timedelta(minutes=config.minutos_entre_marcacoes, seconds=1),
         )
         self.assertEqual(registro.nsr, 2)
+
+    def test_recusa_batida_repetida_dentro_do_prazo_da_empresa(self):
+        """O toque duplo no totem: a segunda marcacao e engano, nao jornada."""
+        inicio = timezone.now() - timedelta(hours=1)
+        RegistroPontoService.registrar(colaborador=self.colaborador, momento=inicio)
+
+        with self.assertRaises(validators.RegistroInvalido) as contexto:
+            RegistroPontoService.registrar(
+                colaborador=self.colaborador, momento=inicio + timedelta(minutes=3)
+            )
+        self.assertEqual(contexto.exception.codigo, "intervalo_minimo")
+
+    def test_empresa_pode_encurtar_o_prazo(self):
+        config = self.empresa.config
+        config.minutos_entre_marcacoes = 1
+        config.save(update_fields=["minutos_entre_marcacoes"])
+
+        inicio = timezone.now() - timedelta(hours=1)
+        RegistroPontoService.registrar(colaborador=self.colaborador, momento=inicio)
+        registro = RegistroPontoService.registrar(
+            colaborador=self.colaborador, momento=inicio + timedelta(seconds=70)
+        )
+        self.assertEqual(registro.nsr, 2)
+
+    def test_zero_desliga_a_trava(self):
+        """
+        Operacoes com plantao fracionado precisam poder desligar — a
+        trava existe para evitar engano, nao para impedir jornada real.
+        """
+        config = self.empresa.config
+        config.minutos_entre_marcacoes = 0
+        config.save(update_fields=["minutos_entre_marcacoes"])
+
+        inicio = timezone.now() - timedelta(hours=1)
+        RegistroPontoService.registrar(colaborador=self.colaborador, momento=inicio)
+        registro = RegistroPontoService.registrar(
+            colaborador=self.colaborador, momento=inicio + timedelta(seconds=5)
+        )
+        self.assertEqual(registro.nsr, 2)
+
+    def test_mensagem_usa_minutos_quando_a_espera_e_longa(self):
+        """"Aguarde 540 segundos" e pior do que "aguarde 9 minutos"."""
+        inicio = timezone.now() - timedelta(hours=1)
+        RegistroPontoService.registrar(colaborador=self.colaborador, momento=inicio)
+
+        with self.assertRaises(validators.RegistroInvalido) as contexto:
+            RegistroPontoService.registrar(
+                colaborador=self.colaborador, momento=inicio + timedelta(minutes=1)
+            )
+        self.assertIn("minuto", str(contexto.exception))
 
     def test_recusa_colaborador_inativo(self):
         self.colaborador.ativo = False

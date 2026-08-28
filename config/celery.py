@@ -10,6 +10,17 @@ app = Celery("kronus")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
+# A inferencia facial vai para uma fila propria, atendida por um worker
+# dedicado. Sem isso, uma tarefa de 217 ms com 1,1 GB de modelo
+# dividiria o mesmo processo das tarefas leves (webhooks, consolidacao),
+# e todas passariam a carregar o custo de memoria do TensorFlow.
+app.conf.task_routes = {
+    "apps.facial.tasks.gerar_embedding_remoto": {"queue": "facial"},
+}
+# O worker facial nao deve puxar mais de uma tarefa por vez: com 1 vCPU,
+# duas inferencias concorrentes so disputam o mesmo nucleo.
+app.conf.worker_prefetch_multiplier = 1
+
 
 # ==============================================================
 # Agenda (Celery Beat)

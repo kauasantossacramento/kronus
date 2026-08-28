@@ -22,6 +22,11 @@ urlpatterns = [
         name="excluir_amostra",
     ),
     path(
+        "cadastro/<int:colaborador_id>/refazer/",
+        views.refazer_cadastro,
+        name="refazer_cadastro",
+    ),
+    path(
         "cadastro/<int:colaborador_id>/excluir/",
         views.excluir_biometria,
         name="excluir_biometria",

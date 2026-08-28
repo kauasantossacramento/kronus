@@ -94,25 +94,89 @@ def validar_dimensoes(imagem_bytes: bytes) -> tuple[int, int]:
     return largura, altura
 
 
-def normalizar(imagem_bytes: bytes, lado_maximo: int = LADO_MAXIMO) -> bytes:
-    """
-    Redimensiona e reencoda como JPEG.
+#: Lado menor alvo da normalizacao.
+#:
+#: A imagem e levada a esta medida **nos dois sentidos** — ampliando a
+#: foto pequena e reduzindo a grande. Antes so haviamos reducao, entao
+#: um tablet de 480p e um celular de 12 MP chegavam ao ArcFace com
+#: escalas muito diferentes, e o mesmo rosto produzia embeddings
+#: distintos conforme o aparelho do cadastro.
+LADO_ALVO = 640
 
-    Uniformizar a entrada antes do motor reduz o custo do reconhecimento
-    e elimina surpresas com PNG com transparência ou EXIF rotacionado.
+
+def equalizar_iluminacao(imagem):
+    """
+    Equaliza o brilho preservando a cor.
+
+    O cadastro costuma acontecer na sala do RH e a batida no corredor da
+    portaria — luzes, horarios e sombras diferentes. Sem equalizar, essa
+    diferenca entra no embedding e vira "nao reconheci" numa pessoa
+    cadastrada.
+
+    Trabalha so no canal de **luminancia** (LAB): mexer nos canais RGB
+    separadamente deslocaria o tom de pele, que e justamente um sinal
+    util para o modelo.
+
+    Usa CLAHE quando o OpenCV esta disponivel — equalizacao por regioes,
+    que nao estoura o rosto quando o fundo esta claro. Sem OpenCV, cai
+    para o autocontraste do PIL, que e mais grosseiro mas ainda melhor
+    do que nada. O importante e que **a mesma funcao rode no cadastro e
+    no reconhecimento**: consistencia vale mais do que a escolha do
+    algoritmo.
+    """
+    import numpy as np
+    from PIL import Image, ImageOps
+
+    try:
+        import cv2
+
+        matriz = cv2.cvtColor(np.array(imagem), cv2.COLOR_RGB2LAB)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        matriz[:, :, 0] = clahe.apply(matriz[:, :, 0])
+        return Image.fromarray(cv2.cvtColor(matriz, cv2.COLOR_LAB2RGB))
+    except Exception:
+        # Sem OpenCV (workers web em producao nao o carregam), o
+        # autocontraste do PIL cumpre o papel.
+        return ImageOps.autocontrast(imagem, cutoff=1)
+
+
+def normalizar(imagem_bytes: bytes, lado_alvo: int = LADO_ALVO) -> bytes:
+    """
+    Pipeline de normalizacao — o mesmo no cadastro e no reconhecimento.
+
+    1. corrige rotacao de EXIF (foto de celular deitada)
+    2. converte para RGB
+    3. leva o lado menor a `lado_alvo`, ampliando ou reduzindo
+    4. equaliza a iluminacao
+    5. reencoda como JPEG
+
+    Os passos 3 e 4 sao os que fazem um cadastro feito no celular do RH
+    valer no totem da portaria.
     """
     from PIL import Image, ImageOps
 
     with Image.open(io.BytesIO(imagem_bytes)) as imagem:
-        # `exif_transpose` corrige fotos de celular deitadas.
         imagem = ImageOps.exif_transpose(imagem)
         if imagem.mode != "RGB":
             imagem = imagem.convert("RGB")
-        if max(imagem.size) > lado_maximo:
-            imagem.thumbnail((lado_maximo, lado_maximo), Image.LANCZOS)
+
+        largura, altura = imagem.size
+        menor = min(largura, altura)
+        if menor and menor != lado_alvo:
+            escala = lado_alvo / menor
+            # Teto de 1600 px no lado maior: um panorama muito alongado
+            # nao precisa virar uma imagem gigante so para o lado menor
+            # bater no alvo.
+            novo = (
+                min(int(largura * escala), 1600),
+                min(int(altura * escala), 1600),
+            )
+            imagem = imagem.resize(novo, Image.LANCZOS)
+
+        imagem = equalizar_iluminacao(imagem)
 
         saida = io.BytesIO()
-        imagem.save(saida, format="JPEG", quality=85, optimize=True)
+        imagem.save(saida, format="JPEG", quality=88, optimize=True)
         return saida.getvalue()
 
 

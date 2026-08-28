@@ -179,10 +179,62 @@ class ProcessamentoTests(TestCase):
         with self.assertRaises(ImagemInvalida):
             validar_dimensoes(b"isto nao e uma imagem")
 
-    def test_normalizacao_reduz_o_lado_maior(self):
+    def test_normalizacao_leva_o_lado_menor_ao_alvo(self):
+        """
+        A normalizacao agora escala nos **dois** sentidos.
+
+        Antes so reduzia: uma foto de tablet 480p chegava ao ArcFace com
+        metade da escala de uma foto de celular 12 MP, e o mesmo rosto
+        gerava embeddings diferentes conforme o aparelho do cadastro.
+        Levar o lado menor a uma medida fixa uniformiza a entrada.
+        """
+        from apps.facial.processors import LADO_ALVO
+
         grande = imagem_bytes(tamanho=(1600, 1200))
         with Image.open(io.BytesIO(normalizar(grande))) as resultado:
-            self.assertLessEqual(max(resultado.size), 640)
+            self.assertEqual(min(resultado.size), LADO_ALVO)
+
+    def test_normalizacao_amplia_imagem_pequena(self):
+        pequena = imagem_bytes(tamanho=(320, 240))
+        from apps.facial.processors import LADO_ALVO
+
+        with Image.open(io.BytesIO(normalizar(pequena))) as resultado:
+            self.assertEqual(min(resultado.size), LADO_ALVO)
+
+    def test_normalizacao_preserva_a_proporcao(self):
+        with Image.open(io.BytesIO(normalizar(imagem_bytes(tamanho=(1200, 900))))) as r:
+            self.assertAlmostEqual(r.size[0] / r.size[1], 1200 / 900, places=1)
+
+    def test_normalizacao_equaliza_iluminacao(self):
+        """
+        Duas fotos do mesmo conteudo sob luzes diferentes precisam sair
+        parecidas — e o que faz um cadastro na sala do RH valer no
+        corredor da portaria.
+        """
+        from PIL import Image as PILImage, ImageEnhance
+
+        base = PILImage.open(io.BytesIO(imagem_bytes(tamanho=(640, 640))))
+        escura, clara = io.BytesIO(), io.BytesIO()
+        ImageEnhance.Brightness(base).enhance(0.45).save(escura, format="JPEG")
+        ImageEnhance.Brightness(base).enhance(1.7).save(clara, format="JPEG")
+
+        def brilho_medio(dados):
+            with PILImage.open(io.BytesIO(dados)) as img:
+                cinza = img.convert("L")
+                pixels = list(cinza.getdata())
+                return sum(pixels) / len(pixels)
+
+        antes_diferenca = abs(
+            brilho_medio(escura.getvalue()) - brilho_medio(clara.getvalue())
+        )
+        depois_diferenca = abs(
+            brilho_medio(normalizar(escura.getvalue()))
+            - brilho_medio(normalizar(clara.getvalue()))
+        )
+        self.assertLess(
+            depois_diferenca, antes_diferenca,
+            "a equalizacao deveria aproximar o brilho das duas versoes",
+        )
 
     def test_normalizacao_converte_para_jpeg(self):
         png = io.BytesIO()
@@ -636,3 +688,98 @@ class ExpurgoLGPDTests(BaseFacialTestCase):
 
         self.joao.refresh_from_db()
         self.assertTrue(self.joao.face_registrada)
+
+
+# ══════════════════════════════════════════════════════════════
+# Recadastro — o bug da "imutabilidade"
+# ══════════════════════════════════════════════════════════════
+class RecadastroTests(BaseFacialTestCase):
+    def setUp(self):
+        self.servico = FaceRecognitionService(provedor=ProvedorDeterministico())
+
+    @staticmethod
+    def foto(semente):
+        """Fotos distintas: o provedor deterministico deriva o vetor dos bytes."""
+        return imagem_bytes(ruido=semente + 1)
+
+    """
+    Adicionar fotos novas precisa mudar o reconhecimento.
+
+    O sintoma relatado era que, depois do primeiro cadastro, o sistema
+    "continuava aceitando apenas o registro anterior". Duas causas:
+    a tela travava ao atingir o maximo de amostras, e mesmo passando por
+    ela a media continuaria dominada pelas fotos antigas.
+    """
+
+    def amostras_ativas(self):
+        return self.joao.registros_faciais.filter(ativo=True).count()
+
+    def test_amostra_alem_do_limite_aposenta_a_mais_antiga(self):
+        from django.conf import settings
+
+        limite = settings.FACE_AMOSTRAS_MAXIMAS
+        for indice in range(limite + 3):
+            self.servico.cadastrar_amostra(
+                self.joao, self.foto(indice), exigir_qualidade=False
+            )
+
+        self.assertEqual(self.amostras_ativas(), limite)
+        # Nada e apagado: a trilha de qual foto gerou qual embedding
+        # faz parte da auditoria do dado biometrico.
+        self.assertEqual(
+            self.joao.registros_faciais.count(), limite + 3
+        )
+
+    def test_a_mais_recente_sobrevive(self):
+        from django.conf import settings
+
+        for indice in range(settings.FACE_AMOSTRAS_MAXIMAS + 2):
+            ultima = self.servico.cadastrar_amostra(
+                self.joao, self.foto(indice), exigir_qualidade=False
+            )
+        ultima.refresh_from_db()
+        self.assertTrue(ultima.ativo)
+
+    def test_refazer_aposenta_tudo_e_zera_o_embedding(self):
+        for indice in range(3):
+            self.servico.cadastrar_amostra(
+                self.joao, self.foto(indice), exigir_qualidade=False
+            )
+        self.servico.consolidar_cadastro(self.joao)
+        self.joao.refresh_from_db()
+        self.assertTrue(self.joao.face_registrada)
+
+        total = self.servico.refazer_cadastro(self.joao)
+
+        self.joao.refresh_from_db()
+        self.assertEqual(total, 3)
+        self.assertEqual(self.amostras_ativas(), 0)
+        self.assertFalse(self.joao.face_registrada)
+
+    def test_apos_refazer_um_novo_cadastro_funciona(self):
+        """O caminho completo: cadastrar, refazer, cadastrar de novo."""
+        for indice in range(3):
+            self.servico.cadastrar_amostra(
+                self.joao, self.foto(indice), exigir_qualidade=False
+            )
+        self.servico.refazer_cadastro(self.joao)
+
+        for indice in range(10, 13):
+            self.servico.cadastrar_amostra(
+                self.joao, self.foto(indice), exigir_qualidade=False
+            )
+        total = self.servico.consolidar_cadastro(self.joao)
+
+        self.joao.refresh_from_db()
+        self.assertEqual(total, 3)
+        self.assertTrue(self.joao.face_registrada)
+
+    def test_consolidacao_usa_so_as_ativas(self):
+        from django.conf import settings
+
+        for indice in range(settings.FACE_AMOSTRAS_MAXIMAS + 2):
+            self.servico.cadastrar_amostra(
+                self.joao, self.foto(indice), exigir_qualidade=False
+            )
+        usadas = self.servico.consolidar_cadastro(self.joao)
+        self.assertEqual(usadas, settings.FACE_AMOSTRAS_MAXIMAS)

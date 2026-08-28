@@ -333,15 +333,83 @@ class ProvedorIndisponivel(ProvedorFacial):
 # ══════════════════════════════════════════════════════════════
 # Seleção do provedor
 # ══════════════════════════════════════════════════════════════
+class ProvedorDelegado(ProvedorFacial):
+    """
+    Delega a inferencia a um worker Celery dedicado.
+
+    O modelo nunca e carregado neste processo: o worker web manda a
+    imagem, espera o vetor e segue. Isso mantem os workers web em ~110 MB
+    em vez de 1,2 GB cada — a diferenca entre caber e nao caber num
+    servidor de 4 GB.
+
+    A espera e sincrona de proposito. Quem esta no totem esta parado na
+    frente da camera; devolver "processando, volte depois" nao e uma
+    resposta util. O `TIMEOUT` existe para que uma fila travada vire uma
+    mensagem clara em vez de um worker web pendurado.
+    """
+
+    nome = "delegado"
+
+    #: Teto de espera. A inferencia leva ~217 ms; 15 s cobrem inclusive
+    #: a primeira chamada, que carrega o modelo (~4,4 s).
+    TIMEOUT = 15
+
+    @property
+    def disponivel(self) -> bool:
+        """
+        Delegar so faz sentido se houver worker atendendo a fila.
+
+        Perguntamos ao broker em vez de assumir: um worker parado faria
+        todo reconhecimento esperar 15 s para entao falhar, o que na
+        pratica derruba o totem sem dizer por que.
+        """
+        try:
+            from config.celery import app
+
+            respostas = app.control.inspect(timeout=1.5).ping() or {}
+            return bool(respostas)
+        except Exception:
+            logger.warning("Nao foi possivel consultar os workers Celery.")
+            return False
+
+    def gerar_embedding(self, imagem_bytes: bytes) -> np.ndarray:
+        import base64
+
+        from apps.facial.tasks import gerar_embedding_remoto
+
+        b64 = base64.b64encode(imagem_bytes).decode()
+        try:
+            resultado = gerar_embedding_remoto.apply_async(
+                args=[b64], queue="facial"
+            ).get(timeout=self.TIMEOUT, propagate=True)
+        except (NenhumRostoDetectado, MultiplosRostosDetectados):
+            # Erros de dominio atravessam intactos: o totem precisa
+            # distinguir "nao vi rosto" de "o motor caiu".
+            raise
+        except Exception as erro:
+            logger.exception("Falha ao delegar o reconhecimento.")
+            raise MotorIndisponivel(
+                "O servico de reconhecimento nao respondeu a tempo. "
+                "Use o CPF para registrar."
+            ) from erro
+
+        return np.array(resultado["embedding"], dtype=np.float32)
+
+
 def obter_provedor(nome: str = None) -> ProvedorFacial:
     """
     Devolve o provedor configurado.
 
     `settings.FACE_PROVIDER` aceita:
-        "auto"           DeepFace se disponível, senão indisponível (padrão)
-        "deepface"       força o motor de produção
+        "auto"           delegado se houver worker, senão DeepFace local,
+                         senão indisponível (padrão)
+        "delegado"       força a inferência no worker Celery dedicado
+        "deepface"       força o motor no próprio processo
         "deterministico" motor de teste
         "indisponivel"   desliga o reconhecimento
+
+    **Em produção use "delegado".** É o que impede cada worker web de
+    carregar a sua própria cópia de 1,1 GB do ArcFace.
     """
     nome = nome or getattr(settings, "FACE_PROVIDER", "auto")
 
@@ -351,7 +419,14 @@ def obter_provedor(nome: str = None) -> ProvedorFacial:
         return ProvedorIndisponivel()
     if nome == "deepface":
         return DeepFaceProvider()
+    if nome == "delegado":
+        return ProvedorDelegado()
 
-    # auto
-    provedor = DeepFaceProvider()
-    return provedor if provedor.disponivel else ProvedorIndisponivel()
+    # auto: prefere delegar. Carregar o modelo no proprio processo e o
+    # ultimo recurso, porque e o que estoura a memoria em producao.
+    delegado = ProvedorDelegado()
+    if delegado.disponivel:
+        return delegado
+
+    local = DeepFaceProvider()
+    return local if local.disponivel else ProvedorIndisponivel()
