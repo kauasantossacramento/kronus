@@ -225,6 +225,43 @@ from apps.core.ajuda_telas import TELAS as _DEMAIS  # noqa: E402
 AJUDA.update(_DEMAIS)
 
 
+#: Telas que reaproveitam a ajuda de outra.
+#:
+#: "Editar cargo" e "Novo cargo" explicam a mesma coisa. Escrever o texto
+#: duas vezes garante que uma das copias envelheca — e a que envelhece e
+#: sempre a que ninguem lembra que existe.
+EQUIVALENTES = {
+    "rh:cargo_criar": "rh:cargo_lista",
+    "rh:cargo_editar": "rh:cargo_lista",
+    "rh:departamento_criar": "rh:departamento_lista",
+    "rh:departamento_editar": "rh:departamento_lista",
+    "rh:escala_criar": "rh:escala_lista",
+    "rh:escala_editar": "rh:escala_lista",
+    "rh:colaborador_editar": "rh:colaborador_criar",
+    "rh:colaborador_detalhe": "rh:colaborador_lista",
+    "rh:atestado_criar": "rh:atestado_lista",
+    "rh:justificativa_criar": "rh:justificativa_lista",
+    "rh:afastamento_criar": "rh:afastamento_lista",
+    "rh:afastamento_editar": "rh:afastamento_lista",
+    "rh:ajuste_registro": "rh:ajuste_novo",
+    "master:cliente_editar": "master:cliente_criar",
+    "master:cliente_detalhe": "master:cliente_lista",
+    "master:plano_criar": "master:plano_lista",
+    "master:plano_editar": "master:plano_lista",
+    "master:totem_criar": "master:totem_lista",
+    "master:totem_editar": "master:totem_lista",
+    "master:totem_detalhe": "master:totem_lista",
+    "master:usuario_editar": "master:usuario_criar",
+    "master:assinatura_detalhe": "master:assinaturas",
+    "master:demo_criar": "master:comercial_demos",
+    "relatorios:afd": "relatorios:fiscais",
+    "relatorios:aej": "relatorios:fiscais",
+    "ponto:espelho": "ponto:meus_espelhos",
+    "ponto:conferir_espelho": "ponto:meus_espelhos",
+    "ponto:espelho_colaborador": "rh:espelho_lista",
+}
+
+
 #: Ajuda usada quando a tela ainda nao tem texto proprio.
 #:
 #: Existir e melhor do que o botao sumir em algumas telas: um botao que
@@ -246,11 +283,12 @@ def para_rota(nome_da_rota: str) -> dict:
     Indexado pelo nome da rota, e nao pelo caminho: o caminho muda com
     refatoracao de URL, o nome nao.
     """
-    conteudo = dict(AJUDA.get(nome_da_rota) or PADRAO)
+    chave = EQUIVALENTES.get(nome_da_rota, nome_da_rota)
+    conteudo = dict(AJUDA.get(chave) or PADRAO)
     conteudo.setdefault("itens", [])
     conteudo.setdefault("passos", [])
     conteudo.setdefault("atencao", "")
-    conteudo["tem_conteudo"] = nome_da_rota in AJUDA
+    conteudo["tem_conteudo"] = chave in AJUDA
     conteudo["rota"] = nome_da_rota
     return conteudo
 

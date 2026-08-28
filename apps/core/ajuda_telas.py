@@ -423,3 +423,68 @@ TELAS = {
         ],
     },
 }
+
+# ══════════════════════════════════════════════════════════════
+# Telas restantes
+# ══════════════════════════════════════════════════════════════
+TELAS.update({
+    "notificacoes:lista": {
+        "titulo": "Notificações",
+        "resumo": "O que o sistema quis te avisar, do mais recente ao mais antigo.",
+        "itens": [
+            "Alertas de totem offline, atestado pendente e esquecimento de ponto chegam aqui.",
+            "Clique no aviso para ir direto ao que ele trata.",
+        ],
+    },
+    "faturamento:minha_assinatura": {
+        "titulo": "Minha assinatura",
+        "resumo": (
+            "Seu plano, o que ele inclui, as faturas e os adicionais "
+            "contratados."
+        ),
+        "itens": [
+            "O valor mostrado já soma os adicionais — totens além do incluído no plano.",
+            "Faturas em aberto trazem link de pagamento, linha digitável e Pix.",
+            "<strong>Precisa de mais totens?</strong> Contrate aqui mesmo; a liberação é imediata.",
+        ],
+    },
+    "faturamento:planos": {
+        "titulo": "Planos",
+        "resumo": "O que cada plano inclui e o que muda ao trocar.",
+        "itens": [
+            "Trocar de plano vale a partir da próxima fatura.",
+            "Reduzir o plano exige estar dentro dos limites do novo — o sistema avisa se não estiver.",
+        ],
+    },
+    "master:grupo_totem_lista": {
+        "titulo": "Grupos de totens",
+        "resumo": (
+            "Permitem que um totem atenda colaboradores de mais de uma "
+            "empresa do mesmo cliente."
+        ),
+        "itens": [
+            "Útil quando empresas do grupo dividem a mesma portaria.",
+            "A empresa do próprio totem entra sempre, mesmo sem estar no grupo.",
+            "Um grupo nunca atravessa clientes diferentes — isso vazaria biometria entre contas.",
+        ],
+    },
+    "ponto:comprovante": {
+        "titulo": "Comprovante",
+        "resumo": (
+            "O recibo da sua marcação, com número sequencial e código de "
+            "verificação."
+        ),
+        "itens": [
+            "Guarde ou imprima: é a prova de que a batida foi registrada.",
+            "O código pode ser conferido por qualquer pessoa em kronus.online/verificar/, sem login.",
+        ],
+    },
+    "accounts:perfil": {
+        "titulo": "Meu perfil",
+        "resumo": "Seus dados de acesso e a troca de senha.",
+        "itens": [
+            "Você entra com <strong>e-mail ou CPF</strong> — os dois funcionam.",
+            "Trocar a senha encerra as outras sessões abertas.",
+        ],
+    },
+})

@@ -108,3 +108,38 @@ class HiddenTests(TestCase):
             encoding="utf-8"
         )
         self.assertIn("[hidden] { display: none !important; }", css)
+
+
+class CoberturaTests(TestCase):
+    """
+    Botão só onde há conteúdo.
+
+    Um modal dizendo "conteúdo em construção" é pior do que a ausência do
+    botão: ensina o usuário que a ajuda não ajuda, e ele para de clicar
+    justamente nas telas onde ela existe.
+    """
+
+    def test_telas_equivalentes_reaproveitam_a_ajuda(self):
+        editar = ajuda.para_rota("rh:cargo_editar")
+        lista = ajuda.para_rota("rh:cargo_lista")
+
+        self.assertTrue(editar["tem_conteudo"])
+        self.assertEqual(editar["titulo"], lista["titulo"])
+
+    def test_equivalencias_apontam_para_conteudo_existente(self):
+        orfas = [
+            origem for origem, destino in ajuda.EQUIVALENTES.items()
+            if destino not in ajuda.AJUDA
+        ]
+        self.assertEqual(orfas, [], f"equivalências sem destino: {orfas}")
+
+    def test_o_botao_some_onde_nao_ha_conteudo(self):
+        base = (RAIZ / "templates" / "base.html").read_text(encoding="utf-8")
+        self.assertIn("ajuda.tem_conteudo", base)
+
+    def test_a_maioria_das_telas_navegaveis_tem_ajuda(self):
+        """
+        Guarda contra regressão: cobertura pode subir, não descer.
+        """
+        cobertas = len(ajuda.AJUDA) + len(ajuda.EQUIVALENTES)
+        self.assertGreaterEqual(cobertas, 70)
