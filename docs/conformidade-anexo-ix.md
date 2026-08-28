@@ -17,8 +17,8 @@
 
 | | Requisitos |
 |---|---|
-| ✅ Atendido | 9 |
-| ⚠️ Atendido com ressalva | 2 |
+| ✅ Atendido | 10 |
+| ⚠️ Atendido com ressalva | 1 |
 | ❌ Não atendido | 2 |
 | **Total** | **13** |
 
@@ -47,7 +47,7 @@ do identificador acompanha o documento e chega correto ao AFD e ao AEJ.
 
 ## Requisito 2 — Sincronismo com a Hora Legal Brasileira (máx. 30s)
 
-**Estado: ⚠️ atendido com ressalva**
+**Estado: ✅ atendido**
 
 O servidor sincroniza com os servidores estrato 1 do NTP.br
 (`a.st1.ntp.br` a `d.st1.ntp.br`), ligados diretamente aos relógios
@@ -56,16 +56,41 @@ atômicos do Observatório Nacional.
 - Configuração: `/etc/systemd/timesyncd.conf.d/hlb.conf` na VPS
 - Justificativa registrada em `apps/ponto/services.py`, linhas 35–45
 
-**Ressalva.** A fonte está correta e a precisão típica do NTP é de
-milissegundos — muito abaixo dos 30 segundos exigidos. Mas **não existe
-verificação automática do desvio**. Se o `systemd-timesyncd` parar, o
-relógio começa a derivar e nada no sistema acusa. A norma exige manter o
-sincronismo, não apenas configurá-lo.
+**Prova documental da fonte.** O sistema reporta, na própria VPS:
 
-**O que falta:** uma verificação periódica que leia o desvio real
-(`timedatectl show-timesync`) e alerte acima de um limite conservador
-(sugestão: 5 segundos), registrando o resultado para apresentação à
-fiscalização.
+```
+ServerName=a.st1.ntp.br
+NTPMessage={ ... Stratum=1, Reference=ONBR, Ignored=no ... }
+```
+
+`Reference=ONBR` é o identificador do **Observatório Nacional**, e
+`Stratum=1` significa ligado diretamente ao relógio atômico, sem
+intermediário — exatamente a fonte que o Anexo IX nomeia.
+
+**Verificação contínua.** `apps/ponto/relogio.py` mede o desvio real por
+consulta NTP direta, e `apps/ponto/tasks.verificar_relogio` roda de hora
+em hora, alertando o Master acima de **5 segundos** — folga deliberada
+sobre os 30 da norma, porque alertar ao cruzar o limite legal seria
+alertar quando já se está em descumprimento.
+
+Isso cobre a parte do requisito que a configuração sozinha não cobre: a
+norma exige **manter** o sincronismo. Se o `systemd-timesyncd` parar, o
+relógio deriva e as batidas seguem sendo gravadas — com hora errada — sem
+que nada acuse.
+
+**Medição em produção (28/08/2026):**
+
+| | |
+|---|---|
+| Fonte | `a.st1.ntp.br` |
+| Estrato | 1 |
+| Referência | `ONBR` (Observatório Nacional) |
+| Desvio medido | **0,00022 s** |
+| Limite legal | 30 s |
+
+Evidência automatizada: `tests/test_relogio.py`, com a saída real da VPS
+como fixture — um formato suposto passaria no teste e falharia no
+servidor.
 
 ---
 
@@ -285,22 +310,25 @@ verificável.** Os quatro restantes se dividem em dois grupos:
 | 6 | Redundância e alta disponibilidade da ARP | Réplica do banco e segundo nó | Infraestrutura |
 | 13 | Alta disponibilidade do conjunto | Idem | Infraestrutura |
 
-### Resolvíveis em software, e baratos
+### Resolvido durante esta apuração
 
-| # | Requisito | O que falta | Esforço |
-|---|---|---|---|
-| 2 | Verificação do desvio do relógio | Tarefa periódica lendo `timedatectl` e alertando acima de 5s | Pequeno |
-| — | `tem_offline` anunciado sem existir | Implementar a fila ou remover o campo | Decisão comercial |
+| # | O que era | O que foi feito |
+|---|---|---|
+| 2 | Sem verificação do desvio | Medição por consulta NTP direta, de hora em hora, com alerta ao Master acima de 5s |
+
+### Pendente, mas não é conformidade
+
+| Item | O que fazer | Natureza |
+|---|---|---|
+| `tem_offline` anunciado sem existir | Implementar a fila ou remover o campo do plano | Contratual |
 
 ### Ordem sugerida
 
-1. **Implementar a verificação do desvio do relógio** — é barata, e a
-   norma exige *manter* o sincronismo, não só configurá-lo.
-2. **Decidir sobre `tem_offline`** — não é conformidade, é o que se
+1. **Decidir sobre `tem_offline`** — não é conformidade, é o que se
    promete em contrato.
-3. **Registrar o programa no INPI** (art. 91) — ver
+2. **Registrar o programa no INPI** (art. 91) — ver
    [`registro-inpi.md`](registro-inpi.md).
-4. **Resolver a infraestrutura** — enquanto a VPS for única, os
+3. **Resolver a infraestrutura** — enquanto a VPS for única, os
    requisitos 6 e 13 não são atendidos. Duas saídas honestas:
    - migrar para infraestrutura redundante antes de assinar; ou
    - assinar declarando a limitação, e assumir o risco de a fiscalização
