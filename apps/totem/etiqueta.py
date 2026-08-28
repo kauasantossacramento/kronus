@@ -66,6 +66,28 @@ def _qrcode(dados: str, lado: int) -> Image.Image:
     return img.convert("RGB").resize((lado, lado), Image.NEAREST)
 
 
+def _logo_branca(altura: int):
+    """
+    Logo da KS TEC em branco, redimensionada pela altura.
+
+    Versionada no repositorio, e nao lida de kstec.online: a etiqueta e
+    gerada sob demanda, e um site externo fora do ar nao pode impedir a
+    emissao da etiqueta de um equipamento.
+    """
+    from pathlib import Path
+
+    from django.conf import settings
+
+    caminho = Path(settings.BASE_DIR) / "static" / "img" / "kstec-logo-branca.png"
+    try:
+        logo = Image.open(caminho).convert("RGBA")
+    except OSError:
+        return None
+
+    largura = round(logo.width * altura / logo.height)
+    return logo.resize((largura, altura), Image.LANCZOS)
+
+
 def gerar(totem, url_base: str = "https://kronus.online") -> bytes:
     """
     Devolve o PNG da etiqueta do totem.
@@ -82,8 +104,17 @@ def gerar(totem, url_base: str = "https://kronus.online") -> bytes:
     # Faixa superior: a quem pertence o equipamento.
     faixa = 132 * SUPER
     d.rectangle([0, 0, largura, faixa], fill=AZUL)
-    d.text((margem, 30 * SUPER), "KS TEC", font=_fonte(52 * SUPER, True), fill=BRANCO)
-    d.text((margem, 88 * SUPER), "PROPRIEDADE DA KS TEC — NÃO REMOVER",
+
+    logo = _logo_branca(altura=52 * SUPER)
+    if logo is not None:
+        img.paste(logo, (margem, 22 * SUPER), logo)
+    else:
+        # Sem o arquivo, o nome em texto: uma etiqueta sem marca nenhuma
+        # nao cumpre o proposito de dizer de quem e o equipamento.
+        d.text((margem, 26 * SUPER), "KS TEC",
+               font=_fonte(52 * SUPER, True), fill=BRANCO)
+
+    d.text((margem, 90 * SUPER), "PROPRIEDADE DA KS TEC — NÃO REMOVER",
            font=_fonte(22 * SUPER), fill=OURO)
 
     # Patrimonio, em destaque: e o que alguem anota ao telefone.

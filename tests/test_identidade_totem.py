@@ -217,3 +217,55 @@ class VersaoDoAppTests(BaseTotem):
         campos = set(TotemForm().fields)
         self.assertNotIn("versao_firmware", campos)
         self.assertNotIn("identificador", campos)
+
+
+class LogoNaEtiquetaTests(BaseTotem):
+    """
+    A faixa superior existe para dizer de quem e o equipamento. Sem a
+    marca, ela e so um retangulo azul.
+    """
+
+    def test_a_logo_branca_esta_versionada(self):
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        arquivo = raiz / "static" / "img" / "kstec-logo-branca.png"
+        self.assertTrue(
+            arquivo.exists(),
+            "a logo precisa estar no repositorio: a etiqueta e gerada sob "
+            "demanda e nao pode depender de kstec.online estar no ar",
+        )
+
+    def test_a_logo_e_realmente_branca_e_com_transparencia(self):
+        import pathlib
+
+        from PIL import Image
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        with Image.open(raiz / "static" / "img" / "kstec-logo-branca.png") as img:
+            self.assertEqual(img.mode, "RGBA", "sem alfa, vira caixa branca")
+            cores = {p[:3] for p in img.convert("RGBA").getdata() if p[3] > 200}
+            self.assertTrue(
+                cores and all(c == (255, 255, 255) for c in cores),
+                f"todo pixel opaco deveria ser branco; achei {list(cores)[:3]}",
+            )
+
+    def test_a_faixa_da_etiqueta_recebe_a_logo(self):
+        import io
+
+        from PIL import Image
+
+        from apps.totem.etiqueta import gerar
+
+        totem = self._totem()
+        with Image.open(io.BytesIO(gerar(totem))) as etiqueta:
+            faixa = etiqueta.convert("RGB").crop((30, 20, 220, 70))
+            # Pixel branco dentro da faixa azul so pode vir da logo.
+            brancos = sum(
+                1 for p in faixa.getdata()
+                if p[0] > 230 and p[1] > 230 and p[2] > 230
+            )
+        self.assertGreater(
+            brancos, 200,
+            "a logo branca nao aparece na faixa superior da etiqueta",
+        )
