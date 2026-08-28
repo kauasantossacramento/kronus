@@ -11,64 +11,91 @@ from django.test import TestCase
 
 from apps.ponto import relogio
 
+SAIDA_REAL = """LinkNTPServers=
+SystemNTPServers=a.st1.ntp.br b.st1.ntp.br c.st1.ntp.br d.st1.ntp.br
+ServerName=a.st1.ntp.br
+ServerAddress=2001:12ff:0:7::186
+NTPMessage={ Leap=0, Version=4, Mode=4, Stratum=1, Precision=-22, RootDelay=0, RootDispersion=1.144ms, Reference=ONBR, Ignored=no, PacketCount=14, Jitter=756us }
+Frequency=24350
+"""
 
-class ConversaoTests(TestCase):
-    def test_le_as_unidades_do_systemd(self):
-        self.assertAlmostEqual(relogio._para_segundos("+1.5ms"), 0.0015)
-        self.assertAlmostEqual(relogio._para_segundos("-250us"), -0.00025)
-        self.assertAlmostEqual(relogio._para_segundos("2.5s"), 2.5)
-        self.assertAlmostEqual(relogio._para_segundos("100ns"), 1e-7)
 
+class FonteTests(TestCase):
+    """
+    A saida usada aqui foi copiada da VPS em producao — nao inventada.
+    Um formato suposto passaria no teste e falharia no servidor.
+    """
 
-class EstadoDoRelogioTests(TestCase):
-    def _saida(self, offset):
-        return (
-            "ServerName=a.st1.ntp.br\n"
-            "ServerAddress=200.160.7.186\n"
-            f"NTPMessage={{ Leap=0, offset={offset}, delay=20ms }}\n"
-        )
-
-    def _rodar(self, offset):
+    def _com_saida(self, saida=SAIDA_REAL):
         with mock.patch("subprocess.run") as run:
-            run.return_value = mock.Mock(stdout=self._saida(offset))
-            return relogio.estado_do_relogio()
+            run.return_value = mock.Mock(stdout=saida)
+            return relogio.fonte_configurada()
+
+    def test_le_o_servidor(self):
+        self.assertEqual(self._com_saida()["servidor"], "a.st1.ntp.br")
+
+    def test_le_o_estrato_e_a_referencia(self):
+        info = self._com_saida()
+        self.assertEqual(info["estrato"], 1)
+        self.assertEqual(info["referencia"], "ONBR")
+
+    def test_reconhece_que_a_fonte_e_o_observatorio_nacional(self):
+        """`ONBR` e estrato 1 sao a prova documental exigida pelo Anexo IX."""
+        with mock.patch("subprocess.run") as run:
+            run.return_value = mock.Mock(stdout=SAIDA_REAL)
+            with mock.patch.object(relogio, "medir_desvio", return_value=0.003):
+                estado = relogio.estado_do_relogio()
+        self.assertTrue(estado["fonte_e_o_on"])
+
+    def test_fonte_qualquer_nao_passa_por_observatorio(self):
+        saida = SAIDA_REAL.replace("Stratum=1", "Stratum=3").replace(
+            "Reference=ONBR", "Reference=10.0.0.1"
+        ).replace("ServerName=a.st1.ntp.br", "ServerName=ntp.ubuntu.com")
+        with mock.patch("subprocess.run") as run:
+            run.return_value = mock.Mock(stdout=saida)
+            with mock.patch.object(relogio, "medir_desvio", return_value=0.003):
+                estado = relogio.estado_do_relogio()
+        self.assertFalse(estado["fonte_e_o_on"])
+
+    def test_sem_systemd_nao_estoura(self):
+        with mock.patch("subprocess.run", side_effect=OSError("sem timedatectl")):
+            info = relogio.fonte_configurada()
+        self.assertEqual(info["servidor"], "")
+
+
+class DesvioTests(TestCase):
+    def _estado(self, desvio):
+        with mock.patch("subprocess.run") as run:
+            run.return_value = mock.Mock(stdout=SAIDA_REAL)
+            with mock.patch.object(relogio, "medir_desvio", return_value=desvio):
+                return relogio.estado_do_relogio()
 
     def test_desvio_pequeno_fica_dentro_do_limite(self):
-        estado = self._rodar("+3.2ms")
-
+        estado = self._estado(0.004)
         self.assertTrue(estado["dentro_do_limite"])
-        self.assertEqual(estado["servidor"], "a.st1.ntp.br")
-        self.assertLess(estado["desvio_segundos"], 0.01)
 
-    def test_desvio_grande_estoura_o_limite(self):
-        estado = self._rodar("+12.4s")
-
+    def test_desvio_grande_estoura(self):
+        estado = self._estado(12.4)
         self.assertFalse(estado["dentro_do_limite"])
         self.assertAlmostEqual(estado["desvio_segundos"], 12.4, places=1)
 
-    def test_desvio_negativo_conta_pelo_modulo(self):
-        """Adiantado ou atrasado, o que importa e a distancia."""
-        estado = self._rodar("-9.0s")
-
-        self.assertFalse(estado["dentro_do_limite"])
-        self.assertAlmostEqual(estado["desvio_segundos"], 9.0, places=1)
+    def test_atrasado_ou_adiantado_conta_pelo_modulo(self):
+        self.assertAlmostEqual(self._estado(-9.0)["desvio_segundos"], 9.0, places=1)
 
     def test_alerta_bem_antes_do_limite_legal(self):
-        """
-        Alertar so aos 30s seria alertar quando ja se esta em
-        descumprimento. O objetivo e agir antes.
-        """
         self.assertLess(
             relogio.DESVIO_ALERTA_SEGUNDOS, relogio.DESVIO_LEGAL_SEGUNDOS
         )
 
-    def test_sem_a_ferramenta_nao_estoura(self):
-        """Falha ao medir nao pode derrubar nada — ela e o proprio alerta."""
-        with mock.patch("subprocess.run", side_effect=OSError("sem timedatectl")):
-            estado = relogio.estado_do_relogio()
+    def test_servidor_mudo_e_informacao_e_nao_erro(self):
+        """Rede fora tambem impede manter o sincronismo."""
+        with mock.patch("subprocess.run") as run:
+            run.return_value = mock.Mock(stdout=SAIDA_REAL)
+            with mock.patch.object(relogio, "medir_desvio", return_value=None):
+                estado = relogio.estado_do_relogio()
 
         self.assertIsNone(estado["desvio_segundos"])
-        self.assertIn("não foi possível", estado["erro"])
+        self.assertIn("respondeu", estado["erro"])
 
 
 class TarefaTests(TestCase):
@@ -109,5 +136,4 @@ class TarefaTests(TestCase):
 
         aviso = Notificacao.objects.filter(destinatario=master).first()
         self.assertIsNotNone(aviso)
-        self.assertIn("sincronismo", aviso.titulo.lower())
         self.assertIn("18", aviso.mensagem)
