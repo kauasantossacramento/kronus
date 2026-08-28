@@ -103,22 +103,28 @@
 
     // ── Logo ─────────────────────────────────────────────────
     _logo: function (empresa, elementos) {
-      var alvo = (elementos && elementos.logo) || document.querySelector('[data-kronus-logo]');
-      if (!alvo) return;
-
-      if (empresa.logo) {
-        alvo.innerHTML = '';
-        var img = document.createElement('img');
-        img.src = empresa.logo;
-        img.alt = empresa.nome || '';
-        img.className = 'totem-logo-img';
-        alvo.appendChild(img);
-      }
+      // A tela do totem tem mais de um ponto de marca — ociosidade,
+      // camera e confirmacao. `querySelector` pegava so o primeiro, e a
+      // logo aparecia trocada numa tela e antiga nas outras.
+      var alvos = document.querySelectorAll('[data-kronus-logo]');
+      if (elementos && elementos.logo) alvos = [elementos.logo];
+      if (!alvos.length) return;
 
       var altura = empresa.logo_altura_px || 64;
       var deslocamento = empresa.logo_deslocamento_px || 0;
-      alvo.style.setProperty('--totem-logo-altura', altura + 'px');
-      alvo.style.transform = 'translateY(' + deslocamento + 'px)';
+
+      Array.prototype.forEach.call(alvos, function (alvo) {
+        if (empresa.logo) {
+          alvo.innerHTML = '';
+          var img = document.createElement('img');
+          img.src = empresa.logo;
+          img.alt = empresa.nome || '';
+          img.className = 'totem-logo-img';
+          alvo.appendChild(img);
+        }
+        alvo.style.setProperty('--totem-logo-altura', altura + 'px');
+        alvo.style.transform = 'translateY(' + deslocamento + 'px)';
+      });
 
       // Regra livre do administrador. Aplicada por uma folha de estilo
       // propria, e nao inline, para que valha tambem para o SVG da

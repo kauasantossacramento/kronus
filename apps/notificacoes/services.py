@@ -210,3 +210,55 @@ def notificar_fraude_gps(registro):
         ):
             enviadas += 1
     return enviadas
+
+
+def notificar_facial_degradado(empresa, em_risco: list[dict]):
+    """
+    Avisa o RH sobre colaboradores cujo rosto esta deixando de ser
+    reconhecido.
+
+    A degradacao e silenciosa: enquanto a distancia fica abaixo do
+    limiar, o ponto e registrado normalmente e ninguem percebe. O
+    primeiro sinal costuma ser a pessoa reclamando na fila do totem — e
+    ai ja e um problema de gente, nao de sistema.
+
+    Um aviso so por semana, com a lista inteira: uma notificacao por
+    colaborador transformaria o alerta em ruido que ninguem le.
+    """
+    if not em_risco:
+        return []
+
+    criticos = [i for i in em_risco if i["situacao"] == "critica"]
+    nomes = ", ".join(i["nome"] for i in em_risco[:3])
+    if len(em_risco) > 3:
+        nomes += f" e mais {len(em_risco) - 3}"
+
+    nivel = Notificacao.Nivel.ALERTA if criticos else Notificacao.Nivel.INFO
+    titulo = (
+        f"{len(em_risco)} colaborador(es) com reconhecimento facial em queda"
+    )
+    mensagem = (
+        f"{nomes}. O rosto ainda é reconhecido, mas a margem está estreita — "
+        "refazer o cadastro facial evita que passem a depender do CPF. "
+        "Causas comuns: barba, troca de armação, mudança no cabelo."
+    )
+
+    criadas = []
+    for gestor in gestores_da_empresa(empresa):
+        notificacao = criar(
+            destinatario=gestor,
+            evento=Notificacao.Evento.FACIAL_DEGRADADO,
+            titulo=titulo,
+            mensagem=mensagem,
+            nivel=nivel,
+            empresa=empresa,
+            url_acao="/rh/facial/qualidade/",
+            metadados={
+                "total": len(em_risco),
+                "criticos": len(criticos),
+                "colaboradores": [i["colaborador_id"] for i in em_risco],
+            },
+        )
+        if notificacao:
+            criadas.append(notificacao)
+    return criadas

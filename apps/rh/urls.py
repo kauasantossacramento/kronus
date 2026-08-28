@@ -123,6 +123,8 @@ urlpatterns = [
     path("dados/folha/", views_dados.exportar_folha, name="exportar_folha"),
     path("dados/folha/baixar/", views_dados.baixar_folha, name="baixar_folha"),
     path("equipamentos/", views_dados.equipamentos, name="equipamentos"),
+    path("facial/qualidade/", views_dados.qualidade_facial,
+         name="qualidade_facial"),
     path("configuracoes/slides/", views_config.slides_totem, name="slides_totem"),
     path(
         "equipamentos/recarregar/",

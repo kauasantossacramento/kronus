@@ -201,3 +201,11 @@ def css_logo_login(empresa):
     if empresa is None:
         return ""
     return empresa.css_da_logo("login")
+
+
+@register.filter(name="css_logo_totem")
+def css_logo_totem(empresa):
+    """Regras CSS da logo na tela do totem."""
+    if empresa is None:
+        return ""
+    return empresa.css_da_logo("totem")

@@ -4,6 +4,18 @@
 {% block titulo %}{{ empresa.nome_exibicao }} · Kronus{% endblock %}
 
 {% block head_extra %}
+{% with css_logo=empresa|css_logo_totem %}
+  {% if css_logo %}
+    {% comment %}
+      Aplicado ja no primeiro paint. Depender do JS que carrega a
+      configuracao fazia a logo aparecer na cor errada ate a chamada
+      voltar — e ficar na cor errada para sempre se a chamada falhasse.
+    {% endcomment %}
+    <style>
+      [data-kronus-logo], [data-kronus-logo] img, [data-kronus-logo] svg { {{ css_logo }} }
+    </style>
+  {% endif %}
+{% endwith %}
   {# face-api.js — o Service Worker cacheia para funcionar offline #}
   <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
 {% endblock %}

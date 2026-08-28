@@ -286,3 +286,29 @@ def equipamentos(request):
             "offline": [f for f in fichas if f["totem"].ativo and not f["totem"].online],
         },
     )
+
+
+@rh_required
+def qualidade_facial(request):
+    """
+    Quem esta deixando de ser reconhecido — antes de virar reclamacao.
+
+    Enquanto a distancia entre o rosto do dia e o vetor guardado fica
+    abaixo do limiar, o ponto e registrado normalmente e ninguem percebe
+    a degradacao. Esta tela mostra quanto da folga cada colaborador ja
+    consumiu, para que o recadastro aconteca por decisao e nao por
+    incidente.
+    """
+    from apps.facial.qualidade import resumo
+
+    empresa = request.empresa_ativa
+    if empresa is None:
+        messages.error(request, "Selecione uma empresa.")
+        return redirect("core:selecionar_empresa")
+
+    return render(request, "rh/dados/qualidade_facial.html", {
+        "titulo": "Qualidade do reconhecimento",
+        "menu_ativo": "qualidade_facial",
+        "empresa": empresa,
+        **resumo(empresa),
+    })

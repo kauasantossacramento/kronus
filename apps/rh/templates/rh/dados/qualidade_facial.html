@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Qualidade do reconhecimento</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    Quanto da margem cada colaborador já consumiu. Enquanto a margem existe o ponto
+    é registrado normalmente — o problema só aparece quando acaba.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="space-y-6">
+
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Avaliados</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-[var(--kronus-gray-900)]">{{ total }}</p>
+      <p class="mt-0.5 text-[11px] text-[var(--kronus-gray-400)]">últimos {{ dias }} dias</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Boa</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-emerald-700">{{ boa }}</p>
+    </div>
+    <div class="card p-4 {% if atencao %}ring-2 ring-amber-200{% endif %}">
+      <p class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Atenção</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-amber-700">{{ atencao }}</p>
+    </div>
+    <div class="card p-4 {% if critica %}ring-2 ring-red-200{% endif %}">
+      <p class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Crítica</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-red-700">{{ critica }}</p>
+    </div>
+  </div>
+
+  {% if critica or atencao %}
+    <div class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      {% icone "alerta" classe="mt-0.5 h-5 w-5 shrink-0" %}
+      <span>
+        Refazer o cadastro facial de quem está em <strong>atenção</strong> ou
+        <strong>crítica</strong> evita que essas pessoas passem a depender do CPF
+        para bater o ponto. Causas comuns: barba, troca de armação, mudança no cabelo.
+      </span>
+    </div>
+  {% endif %}
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+        <thead class="bg-[var(--kronus-gray-50)]">
+          <tr class="text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+            <th class="px-4 py-3">Colaborador</th>
+            <th class="px-4 py-3">Situação</th>
+            <th class="px-4 py-3">Margem consumida</th>
+            <th class="px-4 py-3">Distância média</th>
+            <th class="px-4 py-3">Amostras</th>
+            <th class="px-4 py-3">Último reconhecimento</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+          {% for item in itens %}
+            <tr class="hover:bg-[var(--kronus-gray-50)]">
+              <td class="px-4 py-3 font-medium text-[var(--kronus-gray-900)]">{{ item.nome }}</td>
+              <td class="px-4 py-3">
+                {% if item.situacao == "critica" %}
+                  <span class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">Crítica</span>
+                {% elif item.situacao == "atencao" %}
+                  <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">Atenção</span>
+                {% else %}
+                  <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Boa</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--kronus-gray-200)]">
+                    <div class="h-full rounded-full {% if item.situacao == 'critica' %}bg-red-500{% elif item.situacao == 'atencao' %}bg-amber-500{% else %}bg-emerald-500{% endif %}"
+                         style="width: {{ item.folga_consumida }}%"></div>
+                  </div>
+                  <span class="font-mono text-xs">{{ item.folga_consumida }}%</span>
+                </div>
+              </td>
+              <td class="px-4 py-3 font-mono text-xs">{{ item.media }}</td>
+              <td class="px-4 py-3 font-mono text-xs">{{ item.amostras }}</td>
+              <td class="px-4 py-3 text-xs text-[var(--kronus-gray-600)]">{{ item.ultima|date:"d/m/Y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-500)]">
+                Ainda não há dados suficientes. São necessários pelo menos
+                {{ minimo_amostras }} reconhecimentos por colaborador nos últimos
+                {{ dias }} dias.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="text-xs text-[var(--kronus-gray-500)]">
+    O limiar de correspondência é {{ limiar }}. "Margem consumida" é a distância média
+    em relação a ele — a 100%, o rosto deixa de ser reconhecido.
+  </p>
+</div>
+{% endblock %}

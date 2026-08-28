@@ -152,3 +152,34 @@ def gerar_embedding_remoto(imagem_b64: str) -> dict:
     # o worker estar configurado como delegado e chamar a si mesmo.
     vetor = DeepFaceProvider().gerar_embedding(dados)
     return {"embedding": [float(x) for x in vetor]}
+
+
+@shared_task(name="apps.facial.tasks.monitorar_qualidade_facial")
+def monitorar_qualidade_facial():
+    """
+    Varre as empresas e avisa quem tem cadastro facial envelhecendo.
+
+    Semanal de proposito: a degradacao acontece em semanas, nao em horas,
+    e um aviso diario sobre o mesmo colaborador vira ruido que o RH
+    aprende a ignorar — justamente o alerta que precisamos que seja lido.
+    """
+    from apps.clientes.models import Empresa
+    from apps.facial.qualidade import em_risco
+    from apps.notificacoes.services import notificar_facial_degradado
+
+    avisadas = 0
+    total = 0
+    for empresa in Empresa.objects.filter(ativo=True):
+        arriscados = em_risco(empresa)
+        if not arriscados:
+            continue
+        notificar_facial_degradado(empresa, arriscados)
+        avisadas += 1
+        total += len(arriscados)
+
+    if avisadas:
+        logger.info(
+            "Qualidade facial: %s empresa(s) avisada(s), %s colaborador(es).",
+            avisadas, total,
+        )
+    return {"empresas": avisadas, "colaboradores": total}

@@ -109,6 +109,45 @@
           </div>
         </div>
 
+        {% comment %}
+          Orientacao antes da captura, nao depois.
+
+          A qualidade do cadastro decide a taxa de reconhecimento pelos
+          proximos anos. Quem cadastra de oculos escuros, no contraluz ou
+          com o rosto cortado so descobre o problema semanas depois, na
+          fila do totem — e a essa altura a correcao custa refazer o
+          cadastro de todo mundo.
+        {% endcomment %}
+        <details class="mt-5 w-full max-w-md rounded-lg border border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)]"
+                 open>
+          <summary class="cursor-pointer px-4 py-3 text-sm font-medium text-[var(--kronus-gray-800)]">
+            {% icone "info" classe="mr-1 inline h-4 w-4 align-text-bottom text-[var(--kronus-primary-600)]" %}
+            Antes de capturar — leia
+          </summary>
+          <div class="border-t border-[var(--kronus-gray-200)] px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Faça</p>
+            <ul class="mt-1.5 space-y-1 text-sm text-[var(--kronus-gray-700)]">
+              <li>· Cadastre <strong>como a pessoa costuma chegar ao trabalho</strong> — inclusive com os óculos de grau de uso diário</li>
+              <li>· Luz vinda de frente, rosto inteiro dentro do quadro</li>
+              <li>· Expressão neutra, olhos abertos e visíveis</li>
+            </ul>
+
+            <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-red-700">Não funciona</p>
+            <ul class="mt-1.5 space-y-1 text-sm text-[var(--kronus-gray-700)]">
+              <li>· <strong>Óculos escuros ou lente espelhada</strong> — a região dos olhos é a de maior peso no reconhecimento</li>
+              <li>· Boné, capuz ou máscara cobrindo o rosto</li>
+              <li>· Contraluz: janela ou lâmpada atrás da pessoa</li>
+            </ul>
+
+            <p class="mt-3 rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-[var(--kronus-gray-600)]">
+              <strong>Trocar de armação não atrapalha.</strong> O que é reconhecido é a
+              geometria do rosto — distância entre os olhos, formato do nariz, contorno
+              do queixo —, não a armação. Quem alterna entre óculos e lente de contato
+              pode capturar amostras das duas aparências.
+            </p>
+          </div>
+        </details>
+
         {# ── Roteiro de ângulos ──────────────────────────────── #}
         <div class="mt-5 w-full max-w-md">
           <p class="text-center font-display text-base font-semibold text-[var(--kronus-gray-800)]"

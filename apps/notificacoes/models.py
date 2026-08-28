@@ -17,6 +17,9 @@ class Notificacao(BaseModel):
         JUSTIFICATIVA_PENDENTE = "justificativa_pendente", "Justificativa pendente"
         ESPELHO_PENDENTE = "espelho_pendente", "Assinatura de espelho pendente"
         FRAUDE_GPS = "fraude_gps", "Tentativa de fraude (GPS fictício)"
+        FACIAL_DEGRADADO = (
+            "facial_degradado", "Reconhecimento facial perdendo precisão"
+        )
         SISTEMA = "sistema", "Aviso do sistema"
 
     class Canal(models.TextChoices):

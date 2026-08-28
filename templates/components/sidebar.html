@@ -76,6 +76,7 @@
 
       <p class="px-3 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-white/40">Sistema</p>
       <a href="{% url 'rh:configuracoes' %}" class="sidebar-link {% if menu_ativo == 'configuracoes' %}ativo{% endif %}">{% icone "config" classe="h-[18px] w-[18px] shrink-0" %}<span>Configurações</span></a>
+      <a href="{% url 'rh:qualidade_facial' %}" class="sidebar-link {% if menu_ativo == 'qualidade_facial' %}ativo{% endif %}">{% icone "rosto" classe="h-[18px] w-[18px] shrink-0" %}<span>Reconhecimento</span></a>
       <a href="{% url 'rh:equipamentos' %}" class="sidebar-link {% if menu_ativo == 'equipamentos' %}ativo{% endif %}">{% icone "totem" classe="h-[18px] w-[18px] shrink-0" %}<span>Equipamentos</span></a>
     {% endif %}
 

@@ -26,6 +26,13 @@ app.conf.worker_prefetch_multiplier = 1
 # Agenda (Celery Beat)
 # ==============================================================
 app.conf.beat_schedule = {
+    # Cadastro facial envelhece em semanas — barba, armacao nova, cabelo.
+    # Enquanto a distancia fica abaixo do limiar ninguem percebe; o
+    # primeiro sinal costuma ser a reclamacao na fila do totem.
+    "monitorar-qualidade-facial": {
+        "task": "apps.facial.tasks.monitorar_qualidade_facial",
+        "schedule": crontab(hour=6, minute=20, day_of_week=1),
+    },
     # Demonstracoes vencidas: o corte tambem e checado no acesso, mas sem
     # esta varredura o painel do Master mostraria como "ativa" uma
     # demonstracao que ja acabou.
