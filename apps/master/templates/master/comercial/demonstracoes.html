@@ -108,8 +108,8 @@
   </form>
 
   <div class="card overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+    <div class="tabela-responsiva-wrap overflow-x-auto">
+      <table class="tabela-responsiva min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
         <thead class="bg-[var(--kronus-gray-50)]">
           <tr class="text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
             <th class="px-4 py-3">Empresa</th>
@@ -123,13 +123,13 @@
         <tbody class="divide-y divide-[var(--kronus-gray-100)]">
           {% for s in solicitacoes %}
             <tr class="hover:bg-[var(--kronus-gray-50)]">
-              <td class="px-4 py-3">
+              <td data-rotulo="" class="px-4 py-3">
                 <p class="font-medium text-[var(--kronus-gray-900)]">{{ s.empresa }}</p>
                 <p class="text-xs text-[var(--kronus-gray-500)]">
                   {{ s.nome }}{% if s.porte %} · {{ s.porte }} colaboradores{% endif %}
                 </p>
               </td>
-              <td class="px-4 py-3">
+              <td data-rotulo="Contato" class="px-4 py-3">
                 <a href="mailto:{{ s.email }}" class="text-[var(--kronus-primary-600)] hover:underline">{{ s.email }}</a>
                 {% if s.whatsapp %}
                   <a href="https://wa.me/{{ s.whatsapp }}" target="_blank" rel="noopener"
@@ -138,7 +138,7 @@
                   </a>
                 {% endif %}
               </td>
-              <td class="px-4 py-3">
+              <td data-rotulo="Situação" class="px-4 py-3">
                 {% if s.status == "ativa" %}
                   <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Ativa</span>
                 {% elif s.status == "convertida" %}
@@ -149,7 +149,7 @@
                   <span class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">Cancelada</span>
                 {% endif %}
               </td>
-              <td class="px-4 py-3 text-xs text-[var(--kronus-gray-600)]">
+              <td data-rotulo="Prazo" class="px-4 py-3 text-xs text-[var(--kronus-gray-600)]">
                 <p>{{ s.created_at|date:"d/m/Y H:i" }}</p>
                 {% if s.status == "ativa" %}
                   <p class="text-[var(--kronus-gray-500)]">restam {{ s.horas_restantes }}h</p>
@@ -157,14 +157,14 @@
                   <p class="text-[var(--kronus-gray-400)]">até {{ s.expira_em|date:"d/m H:i" }}</p>
                 {% endif %}
               </td>
-              <td class="px-4 py-3 text-xs text-[var(--kronus-gray-600)]">
+              <td data-rotulo="Uso" class="px-4 py-3 text-xs text-[var(--kronus-gray-600)]">
                 {% if s.acessos %}
                   {{ s.acessos }} acesso{{ s.acessos|pluralize }}
                 {% else %}
                   <span class="text-[var(--kronus-gray-400)]">nunca entrou</span>
                 {% endif %}
               </td>
-              <td class="px-4 py-3">
+              <td data-rotulo="" class="px-4 py-3">
                 <div class="flex flex-wrap justify-end gap-1.5">
                   {% if s.cliente_id %}
                     <a href="{% url 'master:cliente_detalhe' s.cliente_id %}" class="btn btn-outline px-2 py-1 text-xs">Abrir</a>
@@ -195,7 +195,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-500)]">
+              <td data-rotulo="" colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-500)]">
                 Nenhuma solicitação ainda.
               </td>
             </tr>

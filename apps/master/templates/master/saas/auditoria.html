@@ -56,7 +56,7 @@
     {{ total }} registro{{ total|pluralize }}{% if total > 400 %} · exibindo os 400 mais recentes{% endif %}
   </div>
   <div class="max-h-[42rem] overflow-y-auto">
-    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+    <table class="tabela-responsiva min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
       <thead class="sticky top-0 bg-[var(--kronus-gray-50)]">
         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gray-500)]">
           <th class="px-4 py-2.5">Quando</th><th class="px-4 py-2.5">Quem</th>
@@ -67,8 +67,8 @@
       <tbody class="divide-y divide-[var(--kronus-gray-100)]">
         {% for log in logs %}
           <tr class="align-top hover:bg-[var(--kronus-gray-50)]">
-            <td class="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-[var(--kronus-gray-500)]">{{ log.created_at|date:"d/m/y H:i:s" }}</td>
-            <td class="px-4 py-2.5">
+            <td data-rotulo="" class="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-[var(--kronus-gray-500)]">{{ log.created_at|date:"d/m/y H:i:s" }}</td>
+            <td data-rotulo="Quem" class="px-4 py-2.5">
               {% if log.usuario %}
                 <p class="text-[var(--kronus-gray-800)]">{% firstof log.usuario.nome_completo log.usuario.username "—" %}</p>
                 <p class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ log.usuario.get_tipo_display }}</p>
@@ -76,10 +76,10 @@
                 <span class="text-xs text-[var(--kronus-gray-400)]">sistema</span>
               {% endif %}
             </td>
-            <td class="px-4 py-2.5 text-xs text-[var(--kronus-gray-600)]">
+            <td data-rotulo="Conta" class="px-4 py-2.5 text-xs text-[var(--kronus-gray-600)]">
               {% firstof log.empresa.razao_social log.cliente.razao_social "—" %}
             </td>
-            <td class="px-4 py-2.5">
+            <td data-rotulo="Ação" class="px-4 py-2.5">
               <span class="rounded px-1.5 py-0.5 font-mono text-xs
                 {% if log.acao == 'seguranca' or log.acao == 'login_falha' %}bg-red-50 text-red-700
                 {% elif log.acao == 'exclusao' or log.acao == 'ajuste_ponto' %}bg-amber-50 text-amber-800
@@ -87,11 +87,11 @@
                 {{ log.acao }}
               </span>
             </td>
-            <td class="px-4 py-2.5 text-[var(--kronus-gray-700)]">{{ log.descricao|truncatechars:120 }}</td>
-            <td class="px-4 py-2.5 font-mono text-xs text-[var(--kronus-gray-400)]">{{ log.ip|default:"—" }}</td>
+            <td data-rotulo="Descrição" class="px-4 py-2.5 text-[var(--kronus-gray-700)]">{{ log.descricao|truncatechars:120 }}</td>
+            <td data-rotulo="" class="px-4 py-2.5 font-mono text-xs text-[var(--kronus-gray-400)]">{{ log.ip|default:"—" }}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum registro com estes filtros.</td></tr>
+          <tr><td data-rotulo="" colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum registro com estes filtros.</td></tr>
         {% endfor %}
       </tbody>
     </table>

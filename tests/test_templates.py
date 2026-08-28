@@ -252,3 +252,50 @@ class LarguraEmCelularTests(SimpleTestCase):
             "sem `min-width: 0` no .card, toda tabela larga volta a "
             "empurrar a pagina de lado no celular",
         )
+
+
+class TabelaResponsivaTests(SimpleTestCase):
+    """
+    Tabela de seis colunas numa tela de 390px rola por dentro do card,
+    mas nada indica isso — e as colunas que somem sao as ultimas, onde
+    ficam status e acoes. O usuario de celular ve nome e documento e
+    conclui que a tela nao tem o resto.
+    """
+
+    LISTAS = [
+        "apps/master/templates/master/clientes/lista.html",
+        "apps/master/templates/master/empresas/lista.html",
+        "apps/master/templates/master/saas/usuarios.html",
+        "apps/master/templates/master/saas/auditoria.html",
+        "apps/master/templates/master/saas/assinaturas.html",
+        "apps/master/templates/master/totens/lista.html",
+        "apps/master/templates/master/comercial/demonstracoes.html",
+        "apps/rh/templates/rh/dados/qualidade_facial.html",
+        "apps/rh/templates/rh/colaboradores/lista.html",
+    ]
+
+    def test_as_listas_usam_o_padrao_responsivo(self):
+        faltando = [
+            caminho for caminho in self.LISTAS
+            if "tabela-responsiva" not in (RAIZ / caminho).read_text(encoding="utf-8")
+        ]
+        self.assertEqual(faltando, [], f"listas sem o padrão: {faltando}")
+
+    def test_as_celulas_tem_rotulo(self):
+        """
+        Com o `<thead>` escondido, valor sem rótulo perde o significado:
+        "2/3" sozinho não diz que são empresas.
+        """
+        sem_rotulo = []
+        for caminho in self.LISTAS:
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            if "data-rotulo" not in texto:
+                sem_rotulo.append(caminho)
+        self.assertEqual(sem_rotulo, [])
+
+    def test_a_regra_css_existe(self):
+        css = (RAIZ / "static" / "css" / "kronus-design-system.css").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(".tabela-responsiva", css)
+        self.assertIn("data-rotulo", css)

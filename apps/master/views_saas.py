@@ -309,7 +309,11 @@ def custos(request):
     """
     from datetime import date
 
-    from apps.faturamento.models import Cobranca, custo_da_cobranca
+    from apps.faturamento.models import (
+        Cobranca,
+        ConfiguracaoGateway,
+        custo_da_cobranca,
+    )
 
     config = ConfiguracaoGateway.carregar()
 
@@ -322,7 +326,7 @@ def custos(request):
 
     pagas = (
         Cobranca.objects.filter(
-            status=Cobranca.Status.PAGA,
+            status__in=Cobranca.STATUS_PAGOS,
             pago_em__year=ano,
             pago_em__month=mes,
         )
@@ -360,7 +364,7 @@ def custos(request):
             alvo_mes += 12
             alvo_ano -= 1
         do_mes = Cobranca.objects.filter(
-            status=Cobranca.Status.PAGA,
+            status__in=Cobranca.STATUS_PAGOS,
             pago_em__year=alvo_ano, pago_em__month=alvo_mes,
         ).select_related("assinatura")
         bruto = sum((c.valor for c in do_mes), Decimal("0"))

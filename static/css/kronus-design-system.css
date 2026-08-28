@@ -239,3 +239,88 @@ h1, h2, h3, .font-display {
   font-size: calc(var(--kronus-marca-px, 32px) * 0.62);
   line-height: 1.1;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Tabelas no celular
+
+   Uma tabela de seis colunas numa tela de 390px rola por dentro do
+   card, mas nada indica isso — e as colunas que somem sao justamente as
+   ultimas, onde ficam status e acoes. Na pratica, o usuario de celular
+   ve nome e CNPJ e conclui que a tela nao tem o resto.
+
+   Abaixo de 640px cada linha vira um bloco, com o titulo da coluna ao
+   lado do valor. O rotulo vem de `data-rotulo` no `<td>`, porque o
+   `<thead>` fica escondido e sem ele o valor perde o significado.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 639px) {
+  .tabela-responsiva thead {
+    /* `clip` em vez de `display: none`: o cabecalho continua existindo
+       para o leitor de tela, que depende dele para nomear as celulas. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .tabela-responsiva,
+  .tabela-responsiva tbody,
+  .tabela-responsiva tr,
+  .tabela-responsiva td {
+    display: block;
+    width: auto;
+  }
+
+  .tabela-responsiva tr {
+    padding: .875rem 1rem;
+    border-bottom: 1px solid var(--kronus-gray-200);
+  }
+  .tabela-responsiva tr:last-child { border-bottom: 0; }
+
+  .tabela-responsiva td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .2rem 0;
+    border: 0;
+    text-align: right;
+  }
+
+  .tabela-responsiva td::before {
+    content: attr(data-rotulo);
+    flex-shrink: 0;
+    font-size: .7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--kronus-gray-500);
+    text-align: left;
+  }
+
+  /* Celula sem rotulo (a primeira, que identifica a linha, e a de acoes)
+     ocupa a largura inteira e alinha a esquerda. */
+  .tabela-responsiva td[data-rotulo=""],
+  .tabela-responsiva td:not([data-rotulo]) {
+    display: block;
+    text-align: left;
+  }
+  .tabela-responsiva td[data-rotulo=""]::before,
+  .tabela-responsiva td:not([data-rotulo])::before { content: none; }
+
+  /* A celula que identifica a linha ganha destaque: e o titulo do bloco. */
+  .tabela-responsiva td:first-child {
+    margin-bottom: .35rem;
+    font-size: .95rem;
+  }
+
+  /* Acoes deixam de ficar coladas na direita e viram uma faixa propria. */
+  .tabela-responsiva td:last-child > div {
+    justify-content: flex-start;
+    margin-top: .5rem;
+  }
+
+  /* O container de rolagem perde a funcao: nada mais transborda. */
+  .tabela-responsiva-wrap { overflow-x: visible; }
+}

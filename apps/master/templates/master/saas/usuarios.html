@@ -51,8 +51,8 @@
   <div class="border-b border-[var(--kronus-gray-200)] px-4 py-2.5 text-xs text-[var(--kronus-gray-500)]">
     {{ total }} usuário{{ total|pluralize }}{% if total > 300 %} · exibindo os 300 mais recentes{% endif %}
   </div>
-  <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+  <div class="tabela-responsiva-wrap overflow-x-auto">
+    <table class="tabela-responsiva min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
       <thead class="bg-[var(--kronus-gray-50)]">
         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gray-500)]">
           <th class="px-4 py-3">Usuário</th><th class="px-4 py-3">Papel</th>
@@ -63,11 +63,11 @@
       <tbody class="divide-y divide-[var(--kronus-gray-100)]">
         {% for u in usuarios %}
           <tr class="hover:bg-[var(--kronus-gray-50)] {% if not u.is_active %}opacity-60{% endif %}">
-            <td class="px-4 py-3">
+            <td data-rotulo="" class="px-4 py-3">
               <p class="font-medium text-[var(--kronus-gray-900)]">{% firstof u.nome_completo u.username %}</p>
               <p class="font-mono text-xs text-[var(--kronus-gray-500)]">{{ u.username }}</p>
             </td>
-            <td class="px-4 py-3">
+            <td data-rotulo="Papel" class="px-4 py-3">
               <span class="rounded-full px-2 py-0.5 text-xs font-medium
                 {% if u.tipo == 'master' %}bg-[var(--kronus-gold-100)] text-[var(--kronus-gold-800)]
                 {% elif u.tipo == 'cliente' %}bg-[var(--kronus-primary-50)] text-[var(--kronus-primary-700)]
@@ -75,9 +75,9 @@
                 {{ u.get_tipo_display }}
               </span>
             </td>
-            <td class="px-4 py-3 text-[var(--kronus-gray-600)]">{{ u.cliente.razao_social|default:"—" }}</td>
-            <td class="px-4 py-3 font-mono text-xs text-[var(--kronus-gray-500)]">{{ u.last_login|date:"d/m/Y H:i"|default:"nunca" }}</td>
-            <td class="px-4 py-3">
+            <td data-rotulo="Conta" class="px-4 py-3 text-[var(--kronus-gray-600)]">{{ u.cliente.razao_social|default:"—" }}</td>
+            <td data-rotulo="Último acesso" class="px-4 py-3 font-mono text-xs text-[var(--kronus-gray-500)]">{{ u.last_login|date:"d/m/Y H:i"|default:"nunca" }}</td>
+            <td data-rotulo="Situação" class="px-4 py-3">
               {% if u.is_active %}
                 <span class="text-xs font-medium text-emerald-700">Ativo</span>
                 {% if u.trocar_senha_no_proximo_login %}<p class="text-xs text-amber-700">senha provisória</p>{% endif %}
@@ -85,7 +85,7 @@
                 <span class="text-xs font-medium text-red-700">Desativado</span>
               {% endif %}
             </td>
-            <td class="px-4 py-3">
+            <td data-rotulo="" class="px-4 py-3">
               <div class="flex justify-end gap-1.5">
                 <a href="{% url 'master:usuario_editar' u.pk %}" class="btn btn-outline text-xs">Editar</a>
                 <form method="post" action="{% url 'master:usuario_resetar_senha' u.pk %}"
@@ -102,7 +102,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum usuário encontrado com estes filtros.</td></tr>
+          <tr><td data-rotulo="" colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum usuário encontrado com estes filtros.</td></tr>
         {% endfor %}
       </tbody>
     </table>

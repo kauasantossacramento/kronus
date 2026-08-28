@@ -52,8 +52,8 @@
 </form>
 
 <div class="card overflow-hidden">
-  <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+  <div class="tabela-responsiva-wrap overflow-x-auto">
+    <table class="tabela-responsiva min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
       <thead class="bg-[var(--kronus-gray-50)]">
         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gray-500)]">
           <th class="px-4 py-3">Cliente</th><th class="px-4 py-3">Plano</th>
@@ -64,13 +64,13 @@
       <tbody class="divide-y divide-[var(--kronus-gray-100)]">
         {% for a in assinaturas %}
           <tr class="hover:bg-[var(--kronus-gray-50)]">
-            <td class="px-4 py-3">
+            <td data-rotulo="" class="px-4 py-3">
               <a href="{% url 'master:assinatura_detalhe' a.pk %}" class="font-medium text-[var(--kronus-primary-700)] hover:underline">{{ a.cliente.razao_social }}</a>
               <p class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ a.cliente.cnpj }}</p>
             </td>
-            <td class="px-4 py-3">{{ a.plano.nome }}<p class="text-xs text-[var(--kronus-gray-500)]">{{ a.get_ciclo_display }}</p></td>
-            <td class="px-4 py-3 font-mono">R$ {{ a.valor|floatformat:2 }}</td>
-            <td class="px-4 py-3">
+            <td data-rotulo="Plano" class="px-4 py-3">{{ a.plano.nome }}<p class="text-xs text-[var(--kronus-gray-500)]">{{ a.get_ciclo_display }}</p></td>
+            <td data-rotulo="Valor" class="px-4 py-3 font-mono">R$ {{ a.valor|floatformat:2 }}</td>
+            <td data-rotulo="Situação" class="px-4 py-3">
               {% if a.status == "ativa" %}
                 <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Ativa</span>
               {% elif a.status == "teste" %}
@@ -85,11 +85,11 @@
                 <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Pendente</span>
               {% endif %}
             </td>
-            <td class="px-4 py-3 font-mono text-xs">{{ a.proxima_cobranca|date:"d/m/Y"|default:"—" }}</td>
-            <td class="px-4 py-3 text-right"><a href="{% url 'master:assinatura_detalhe' a.pk %}" class="btn btn-outline text-xs">Abrir</a></td>
+            <td data-rotulo="Próxima cobrança" class="px-4 py-3 font-mono text-xs">{{ a.proxima_cobranca|date:"d/m/Y"|default:"—" }}</td>
+            <td data-rotulo="" class="px-4 py-3 text-right"><a href="{% url 'master:assinatura_detalhe' a.pk %}" class="btn btn-outline text-xs">Abrir</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhuma assinatura ainda.</td></tr>
+          <tr><td data-rotulo="" colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhuma assinatura ainda.</td></tr>
         {% endfor %}
       </tbody>
     </table>
