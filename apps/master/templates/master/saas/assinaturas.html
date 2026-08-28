@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Assinaturas</h1>
+    <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">A carteira: quem paga, quanto, e o que está vencido.</p>
+  </div>
+  <a href="{% url 'master:gateway' %}" class="btn btn-outline">{% icone "config" classe="h-4 w-4" %} Gateway</a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  <div class="card p-4">
+    <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Receita recorrente</p>
+    <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-primary-600)]">R$ {{ mrr|floatformat:2 }}</p>
+    <p class="text-xs text-[var(--kronus-gray-400)]">assinaturas ativas e em teste</p>
+  </div>
+  <div class="card p-4">
+    <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Recebido no mês</p>
+    <p class="mt-1 font-mono text-2xl font-bold text-emerald-600">R$ {{ recebido_mes|floatformat:2 }}</p>
+  </div>
+  <div class="card p-4 {% if qtd_vencidas %}ring-2 ring-red-200{% endif %}">
+    <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Vencido</p>
+    <p class="mt-1 font-mono text-2xl font-bold {% if qtd_vencidas %}text-red-600{% else %}text-[var(--kronus-gray-900)]{% endif %}">R$ {{ valor_vencido|floatformat:2 }}</p>
+    <p class="text-xs text-[var(--kronus-gray-400)]">{{ qtd_vencidas }} fatura{{ qtd_vencidas|pluralize }}</p>
+  </div>
+  <div class="card p-4">
+    <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Assinaturas</p>
+    <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-gray-900)]">{{ total }}</p>
+  </div>
+</div>
+
+<form method="get" class="card mb-5 flex flex-wrap items-end gap-3 p-4">
+  <div class="min-w-[16rem] flex-1">
+    <label for="busca" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Buscar</label>
+    <input type="search" id="busca" name="busca" value="{{ busca }}" placeholder="Razão social ou CNPJ"
+           class="block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+  </div>
+  <div>
+    <label for="status" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Situação</label>
+    <select id="status" name="status" class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <option value="">Todas</option>
+      {% for valor, rotulo in status_choices %}
+        <option value="{{ valor }}" {% if status_atual == valor %}selected{% endif %}>{{ rotulo }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-outline">{% icone "filtro" classe="h-4 w-4" %} Filtrar</button>
+</form>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)]">
+        <tr class="text-left text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gray-500)]">
+          <th class="px-4 py-3">Cliente</th><th class="px-4 py-3">Plano</th>
+          <th class="px-4 py-3">Valor</th><th class="px-4 py-3">Situação</th>
+          <th class="px-4 py-3">Próxima cobrança</th><th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for a in assinaturas %}
+          <tr class="hover:bg-[var(--kronus-gray-50)]">
+            <td class="px-4 py-3">
+              <a href="{% url 'master:assinatura_detalhe' a.pk %}" class="font-medium text-[var(--kronus-primary-700)] hover:underline">{{ a.cliente.razao_social }}</a>
+              <p class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ a.cliente.cnpj }}</p>
+            </td>
+            <td class="px-4 py-3">{{ a.plano.nome }}<p class="text-xs text-[var(--kronus-gray-500)]">{{ a.get_ciclo_display }}</p></td>
+            <td class="px-4 py-3 font-mono">R$ {{ a.valor|floatformat:2 }}</td>
+            <td class="px-4 py-3">
+              {% if a.status == "ativa" %}
+                <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Ativa</span>
+              {% elif a.status == "teste" %}
+                <span class="rounded-full bg-[var(--kronus-gold-100)] px-2 py-0.5 text-xs font-medium text-[var(--kronus-gold-800)]">
+                  Teste{% if a.dias_de_teste_restantes != None %} · {{ a.dias_de_teste_restantes }}d{% endif %}
+                </span>
+              {% elif a.status == "inadimplente" %}
+                <span class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Inadimplente</span>
+              {% elif a.status == "cancelada" %}
+                <span class="rounded-full bg-[var(--kronus-gray-100)] px-2 py-0.5 text-xs text-[var(--kronus-gray-600)]">Cancelada</span>
+              {% else %}
+                <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Pendente</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 font-mono text-xs">{{ a.proxima_cobranca|date:"d/m/Y"|default:"—" }}</td>
+            <td class="px-4 py-3 text-right"><a href="{% url 'master:assinatura_detalhe' a.pk %}" class="btn btn-outline text-xs">Abrir</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhuma assinatura ainda.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

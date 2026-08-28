@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Auditoria da plataforma</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    Logs de todas as contas num lugar só — é o que permite responder
+    <em>“quem cancelou este registro?”</em> sem abrir o banco. O RH vê apenas os da
+    própria empresa.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+{% if resumo %}
+  <div class="mb-5 flex flex-wrap gap-2">
+    {% for item in resumo %}
+      <span class="rounded-full bg-[var(--kronus-gray-100)] px-3 py-1 text-xs text-[var(--kronus-gray-700)]">
+        {{ item.acao }} <span class="font-mono font-semibold">{{ item.total }}</span>
+      </span>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<form method="get" class="card mb-5 flex flex-wrap items-end gap-3 p-4">
+  <div class="min-w-[14rem] flex-1">
+    <label for="busca" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Buscar</label>
+    <input type="search" id="busca" name="busca" value="{{ busca }}" placeholder="Descrição, usuário ou empresa"
+           class="block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+  </div>
+  <div>
+    <label for="acao" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Ação</label>
+    <select id="acao" name="acao" class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <option value="">Todas</option>
+      {% for valor, rotulo in acoes %}<option value="{{ valor }}" {% if acao_atual == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="cliente" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Cliente</label>
+    <select id="cliente" name="cliente" class="max-w-[14rem] rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <option value="">Todos</option>
+      {% for c in clientes %}<option value="{{ c.pk }}" {% if cliente_atual == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.razao_social }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="desde" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">A partir de</label>
+    <input type="date" id="desde" name="desde" value="{{ desde }}"
+           class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+  </div>
+  <button type="submit" class="btn btn-outline">{% icone "filtro" classe="h-4 w-4" %} Filtrar</button>
+</form>
+
+<div class="card overflow-hidden">
+  <div class="border-b border-[var(--kronus-gray-200)] px-4 py-2.5 text-xs text-[var(--kronus-gray-500)]">
+    {{ total }} registro{{ total|pluralize }}{% if total > 400 %} · exibindo os 400 mais recentes{% endif %}
+  </div>
+  <div class="max-h-[42rem] overflow-y-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="sticky top-0 bg-[var(--kronus-gray-50)]">
+        <tr class="text-left text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gray-500)]">
+          <th class="px-4 py-2.5">Quando</th><th class="px-4 py-2.5">Quem</th>
+          <th class="px-4 py-2.5">Conta</th><th class="px-4 py-2.5">Ação</th>
+          <th class="px-4 py-2.5">Descrição</th><th class="px-4 py-2.5">IP</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for log in logs %}
+          <tr class="align-top hover:bg-[var(--kronus-gray-50)]">
+            <td class="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-[var(--kronus-gray-500)]">{{ log.created_at|date:"d/m/y H:i:s" }}</td>
+            <td class="px-4 py-2.5">
+              {% if log.usuario %}
+                <p class="text-[var(--kronus-gray-800)]">{{ log.usuario.nome_completo|default:log.usuario.username }}</p>
+                <p class="font-mono text-xs text-[var(--kronus-gray-400)]">{{ log.usuario.get_tipo_display }}</p>
+              {% else %}
+                <span class="text-xs text-[var(--kronus-gray-400)]">sistema</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-xs text-[var(--kronus-gray-600)]">
+              {{ log.empresa.razao_social|default:log.cliente.razao_social|default:"—" }}
+            </td>
+            <td class="px-4 py-2.5">
+              <span class="rounded px-1.5 py-0.5 font-mono text-xs
+                {% if log.acao == 'seguranca' or log.acao == 'login_falha' %}bg-red-50 text-red-700
+                {% elif log.acao == 'exclusao' or log.acao == 'ajuste_ponto' %}bg-amber-50 text-amber-800
+                {% else %}bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-700)]{% endif %}">
+                {{ log.acao }}
+              </span>
+            </td>
+            <td class="px-4 py-2.5 text-[var(--kronus-gray-700)]">{{ log.descricao|truncatechars:120 }}</td>
+            <td class="px-4 py-2.5 font-mono text-xs text-[var(--kronus-gray-400)]">{{ log.ip|default:"—" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum registro com estes filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

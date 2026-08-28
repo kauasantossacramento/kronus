@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <nav class="mb-1 text-xs text-[var(--kronus-gray-400)]">
+    <a href="{% url 'faturamento:planos' %}" class="hover:underline">Planos</a> / {{ plano.nome }}
+  </nav>
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">
+    {% if assinatura %}Mudar para {{ plano.nome }}{% else %}Contratar {{ plano.nome }}{% endif %}
+  </h1>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-2xl">
+  <form method="post" class="card p-6">
+    {% csrf_token %}
+    <input type="hidden" name="acao" value="confirmar">
+
+    {% if assinatura and assinatura.plano_id != plano.pk %}
+      <div class="mb-5 rounded-lg border border-[var(--kronus-primary-200)] bg-[var(--kronus-primary-50)] px-4 py-3 text-sm text-[var(--kronus-primary-900)]">
+        <p>
+          Você sai de <strong>{{ assinatura.plano.nome }}</strong> e passa para
+          <strong>{{ plano.nome }}</strong>. O valor da próxima fatura já reflete a mudança.
+        </p>
+      </div>
+    {% endif %}
+
+    <div class="space-y-5">
+      <div>
+        <label for="ciclo" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Ciclo de cobrança</label>
+        <select id="ciclo" name="ciclo" onchange="this.form.method='get'; this.form.submit();"
+                class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          {% for valor, rotulo in ciclos %}
+            <option value="{{ valor }}" {% if ciclo == valor %}selected{% endif %}>{{ rotulo }}</option>
+          {% endfor %}
+        </select>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">Ciclos mais longos têm desconto sobre o mensal.</p>
+      </div>
+
+      <div>
+        <label for="forma_pagamento" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Forma de pagamento</label>
+        <select id="forma_pagamento" name="forma_pagamento"
+                class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          {% for valor, rotulo in formas %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}
+        </select>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+          Escolhendo "Cliente escolhe na hora", a fatura aceita boleto, Pix ou cartão.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-6 rounded-lg bg-[var(--kronus-gray-50)] p-5">
+      <div class="flex items-end justify-between">
+        <div>
+          <p class="text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">Total por ciclo</p>
+          <p class="mt-1 font-mono text-3xl font-bold text-[var(--kronus-primary-600)]">R$ {{ valor|floatformat:2 }}</p>
+        </div>
+        <p class="text-xs text-[var(--kronus-gray-500)]">
+          {{ plano.max_colaboradores }} colaboradores<br>{{ plano.max_empresas }} empresa(s)
+        </p>
+      </div>
+
+      {% if not assinatura %}
+        <p class="mt-4 flex items-start gap-2 border-t border-[var(--kronus-gray-200)] pt-4 text-sm text-[var(--kronus-gray-600)]">
+          {% icone "info" classe="mt-0.5 h-4 w-4 shrink-0 text-[var(--kronus-primary-600)]" %}
+          <span>
+            <strong>{{ dias_de_teste }} dias de teste.</strong> Você usa o sistema hoje mesmo;
+            a primeira fatura só vence depois desse prazo. Cancelando antes, nada é cobrado.
+          </span>
+        </p>
+      {% endif %}
+
+      {% if not gateway_ativo %}
+        <p class="mt-4 flex items-start gap-2 border-t border-[var(--kronus-gray-200)] pt-4 text-sm text-amber-800">
+          {% icone "alerta" classe="mt-0.5 h-4 w-4 shrink-0" %}
+          <span>
+            A cobrança automática está desativada nesta instalação. O plano é liberado
+            imediatamente e a fatura será combinada com a KS TEC.
+          </span>
+        </p>
+      {% endif %}
+    </div>
+
+    <div class="mt-6 flex flex-wrap justify-end gap-2">
+      <a href="{% url 'faturamento:planos' %}" class="btn btn-outline">Voltar</a>
+      <button type="submit" class="btn btn-primary">
+        {% if assinatura %}Confirmar mudança{% else %}Confirmar contratação{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

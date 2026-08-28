@@ -348,8 +348,21 @@ class GeofencingTests(BasePontoTestCase):
 # Sequência de marcações
 # ══════════════════════════════════════════════════════════════
 class SequenciaTests(BasePontoTestCase):
+    """
+    A dedução do tipo pela ordem das marcações.
+
+    As jornadas destes testes são ancoradas em **ontem**, não em uma
+    hora fixa de hoje: o serviço recusa marcação no futuro, e ancorar em
+    "hoje às 08:00" faz o teste passar à tarde e falhar de madrugada —
+    uma falha de relógio, não de código.
+    """
+
+    def jornada_de_ontem(self, hora):
+        ontem = timezone.localtime() - timedelta(days=1)
+        return ontem.replace(hour=hora, minute=0, second=0, microsecond=0)
+
     def test_tipos_seguem_a_sequencia_da_jornada(self):
-        agora = timezone.localtime().replace(hour=8, minute=0, second=0, microsecond=0)
+        agora = self.jornada_de_ontem(8)
         tipos = []
         for indice in range(4):
             registro = self.bater(momento=agora + timedelta(hours=indice * 2))
@@ -365,7 +378,7 @@ class SequenciaTests(BasePontoTestCase):
         )
 
     def test_quinta_marcacao_volta_a_entrada(self):
-        agora = timezone.localtime().replace(hour=6, minute=0, second=0, microsecond=0)
+        agora = self.jornada_de_ontem(6)
         for indice in range(4):
             self.bater(momento=agora + timedelta(hours=indice))
         quinta = self.bater(momento=agora + timedelta(hours=5))

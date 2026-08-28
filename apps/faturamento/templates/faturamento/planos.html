@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Planos</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    Você tem <strong>{{ colaboradores_ativos }}</strong> colaborador{{ colaboradores_ativos|pluralize:"es" }} ativo{{ colaboradores_ativos|pluralize }}.
+    Planos que não comportam esse número aparecem bloqueados — com o motivo — em vez de
+    falharem só na hora de confirmar.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+  {% for item in planos %}
+    <div class="card flex flex-col p-6
+      {% if item.atual %}ring-2 ring-[var(--kronus-primary-500)]
+      {% elif item.plano.destaque %}ring-2 ring-[var(--kronus-gold-500)]{% endif %}
+      {% if not item.disponivel %}opacity-70{% endif %}">
+
+      {% if item.atual %}
+        <span class="mb-3 inline-flex w-fit rounded-full bg-[var(--kronus-primary-50)] px-2.5 py-0.5 text-xs font-semibold text-[var(--kronus-primary-700)]">Seu plano</span>
+      {% elif item.plano.destaque %}
+        <span class="mb-3 inline-flex w-fit rounded-full bg-[var(--kronus-gold-100)] px-2.5 py-0.5 text-xs font-semibold text-[var(--kronus-gold-700)]">Recomendado</span>
+      {% endif %}
+
+      <h2 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">{{ item.plano.nome }}</h2>
+      <p class="mt-1 font-mono text-2xl font-bold text-[var(--kronus-primary-600)]">
+        R$ {{ item.plano.preco_mensal|floatformat:2 }}<span class="text-sm font-normal text-[var(--kronus-gray-400)]">/mês</span>
+      </p>
+      {% if item.plano.descricao %}<p class="mt-2 text-sm text-[var(--kronus-gray-600)]">{{ item.plano.descricao }}</p>{% endif %}
+
+      <dl class="mt-4 space-y-1.5 border-t border-[var(--kronus-gray-200)] pt-4 text-sm">
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Empresas</dt><dd class="font-mono">{{ item.plano.max_empresas }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Colaboradores</dt><dd class="font-mono">{{ item.plano.max_colaboradores }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[var(--kronus-gray-500)]">Totens</dt><dd class="font-mono">{{ item.plano.max_totems }}</dd></div>
+      </dl>
+
+      <ul class="mt-4 space-y-1 text-xs text-[var(--kronus-gray-600)]">
+        {% for recurso in item.plano.recursos_habilitados %}
+          <li class="flex items-start gap-1.5">{% icone "check" classe="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" %}<span>{{ recurso }}</span></li>
+        {% endfor %}
+      </ul>
+
+      {% if item.impedimentos %}
+        <div class="mt-4 rounded border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
+          <p class="font-medium">Não disponível para a sua conta:</p>
+          <ul class="mt-1 space-y-0.5">
+            {% for motivo in item.impedimentos %}<li>· {{ motivo }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <div class="mt-auto pt-5">
+        {% if item.atual %}
+          <a href="{% url 'faturamento:minha_assinatura' %}" class="btn btn-outline w-full">Ver assinatura</a>
+        {% elif item.disponivel %}
+          <a href="{% url 'faturamento:checkout' item.plano.slug %}" class="btn btn-primary w-full">
+            {% if assinatura %}Mudar para este plano{% else %}Contratar{% endif %}
+          </a>
+        {% else %}
+          <button class="btn btn-outline w-full" disabled>Indisponível</button>
+        {% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <div class="card col-span-full p-12 text-center text-[var(--kronus-gray-400)]">
+      Nenhum plano disponível para contratação no momento.
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

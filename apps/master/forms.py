@@ -2,7 +2,9 @@
 from django import forms
 from django.utils.text import slugify
 
-from apps.clientes.models import Empresa
+from apps.accounts.models import CustomUser
+from apps.clientes.models import Cliente, Empresa
+from apps.core.constants import TipoUsuario
 from apps.master.models import Plano
 from apps.totem.models import GrupoTotem, Totem
 
@@ -248,4 +250,85 @@ class GrupoTotemForm(forms.ModelForm):
                         "Um grupo de totens nunca atravessa contas."
                     )
                 })
+        return dados
+
+
+class UsuarioMasterForm(forms.ModelForm):
+    """
+    Cadastro de usuário pelo Master, em qualquer conta.
+
+    **A senha não está entre os campos** — nem na criação, nem na
+    edição. Quem cria recebe uma provisória gerada pelo sistema e é
+    obrigado a trocá-la; assim não existe momento em que o operador da
+    KS TEC conhece a senha em uso de um cliente, e o rastro de autoria
+    continua valendo.
+    """
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            "username",
+            "nome_completo",
+            "email",
+            "tipo",
+            "cliente",
+            "empresas",
+            "is_active",
+        )
+        widgets = {"empresas": forms.CheckboxSelectMultiple()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for nome, campo in self.fields.items():
+            if nome == "empresas":
+                continue
+            if isinstance(campo.widget, forms.CheckboxInput):
+                campo.widget.attrs.setdefault("class", CLASSES_CHECK)
+            else:
+                campo.widget.attrs.setdefault("class", CLASSES_INPUT)
+
+        self.fields["cliente"].queryset = Cliente.objects.order_by("razao_social")
+        self.fields["cliente"].required = False
+        self.fields["empresas"].queryset = Empresa.objects.select_related(
+            "cliente"
+        ).order_by("cliente__razao_social", "razao_social")
+        self.fields["empresas"].required = False
+        self.fields["username"].help_text = (
+            "E-mail ou CPF — é com este valor que a pessoa entra no sistema."
+        )
+
+    def clean(self):
+        dados = super().clean()
+        tipo = dados.get("tipo")
+        cliente = dados.get("cliente")
+        empresas = dados.get("empresas")
+
+        # Um usuário sem conta só faz sentido para o Master. Qualquer
+        # outro papel sem cliente vira um acesso órfão: entra no sistema
+        # e não enxerga nada, o que aparece no suporte como "meu login
+        # não funciona".
+        if tipo != TipoUsuario.MASTER and cliente is None:
+            raise forms.ValidationError(
+                {"cliente": "Informe o cliente ao qual este usuário pertence."}
+            )
+        if tipo == TipoUsuario.MASTER and cliente is not None:
+            raise forms.ValidationError(
+                {"cliente": "Usuário Master não pertence a um cliente."}
+            )
+
+        if empresas and cliente:
+            invasoras = [e for e in empresas if e.cliente_id != cliente.pk]
+            if invasoras:
+                nomes = ", ".join(e.razao_social for e in invasoras[:3])
+                raise forms.ValidationError({
+                    "empresas": (
+                        f"Estas empresas são de outro cliente: {nomes}. "
+                        "Vincular atravessaria contas."
+                    )
+                })
+
+        if tipo == TipoUsuario.RH and not empresas:
+            raise forms.ValidationError({
+                "empresas": "Um Admin RH precisa de ao menos uma empresa."
+            })
         return dados

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Usuários da plataforma</h1>
+    <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+      Todos os acessos, de todas as contas. Usuários são <strong>desativados</strong>, nunca
+      excluídos: eles aparecem em logs, ajustes de ponto e aprovações, e apagá-los deixaria
+      esses registros sem autor.
+    </p>
+  </div>
+  <a href="{% url 'master:usuario_criar' %}" class="btn btn-primary">{% icone "mais" classe="h-4 w-4" %} Novo usuário</a>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<form method="get" class="card mb-5 flex flex-wrap items-end gap-3 p-4">
+  <div class="min-w-[14rem] flex-1">
+    <label for="busca" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Buscar</label>
+    <input type="search" id="busca" name="busca" value="{{ busca }}" placeholder="Nome, login, e-mail ou cliente"
+           class="block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+  </div>
+  <div>
+    <label for="tipo" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Papel</label>
+    <select id="tipo" name="tipo" class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <option value="">Todos</option>
+      {% for valor, rotulo in tipos %}<option value="{{ valor }}" {% if tipo_atual == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="cliente" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Cliente</label>
+    <select id="cliente" name="cliente" class="max-w-[14rem] rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <option value="">Todos</option>
+      {% for c in clientes %}<option value="{{ c.pk }}" {% if cliente_atual == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.razao_social }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="situacao" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">Situação</label>
+    <select id="situacao" name="situacao" class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <option value="">Todas</option>
+      <option value="ativos" {% if situacao == "ativos" %}selected{% endif %}>Ativos</option>
+      <option value="inativos" {% if situacao == "inativos" %}selected{% endif %}>Inativos</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-outline">{% icone "filtro" classe="h-4 w-4" %} Filtrar</button>
+</form>
+
+<div class="card overflow-hidden">
+  <div class="border-b border-[var(--kronus-gray-200)] px-4 py-2.5 text-xs text-[var(--kronus-gray-500)]">
+    {{ total }} usuário{{ total|pluralize }}{% if total > 300 %} · exibindo os 300 mais recentes{% endif %}
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[var(--kronus-gray-200)] text-sm">
+      <thead class="bg-[var(--kronus-gray-50)]">
+        <tr class="text-left text-xs font-semibold uppercase tracking-wide text-[var(--kronus-gray-500)]">
+          <th class="px-4 py-3">Usuário</th><th class="px-4 py-3">Papel</th>
+          <th class="px-4 py-3">Conta</th><th class="px-4 py-3">Último acesso</th>
+          <th class="px-4 py-3">Situação</th><th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for u in usuarios %}
+          <tr class="hover:bg-[var(--kronus-gray-50)] {% if not u.is_active %}opacity-60{% endif %}">
+            <td class="px-4 py-3">
+              <p class="font-medium text-[var(--kronus-gray-900)]">{{ u.nome_completo|default:u.username }}</p>
+              <p class="font-mono text-xs text-[var(--kronus-gray-500)]">{{ u.username }}</p>
+            </td>
+            <td class="px-4 py-3">
+              <span class="rounded-full px-2 py-0.5 text-xs font-medium
+                {% if u.tipo == 'master' %}bg-[var(--kronus-gold-100)] text-[var(--kronus-gold-800)]
+                {% elif u.tipo == 'cliente' %}bg-[var(--kronus-primary-50)] text-[var(--kronus-primary-700)]
+                {% else %}bg-[var(--kronus-gray-100)] text-[var(--kronus-gray-700)]{% endif %}">
+                {{ u.get_tipo_display }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-[var(--kronus-gray-600)]">{{ u.cliente.razao_social|default:"—" }}</td>
+            <td class="px-4 py-3 font-mono text-xs text-[var(--kronus-gray-500)]">{{ u.last_login|date:"d/m/Y H:i"|default:"nunca" }}</td>
+            <td class="px-4 py-3">
+              {% if u.is_active %}
+                <span class="text-xs font-medium text-emerald-700">Ativo</span>
+                {% if u.trocar_senha_no_proximo_login %}<p class="text-xs text-amber-700">senha provisória</p>{% endif %}
+              {% else %}
+                <span class="text-xs font-medium text-red-700">Desativado</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex justify-end gap-1.5">
+                <a href="{% url 'master:usuario_editar' u.pk %}" class="btn btn-outline text-xs">Editar</a>
+                <form method="post" action="{% url 'master:usuario_resetar_senha' u.pk %}"
+                      onsubmit="return confirm('Gerar nova senha provisória para {{ u.username }}? A senha atual deixa de funcionar.');">
+                  {% csrf_token %}<button class="btn btn-outline text-xs">Senha</button>
+                </form>
+                <form method="post" action="{% url 'master:usuario_alternar_ativo' u.pk %}">
+                  {% csrf_token %}
+                  <button class="btn {% if u.is_active %}btn-danger{% else %}btn-outline{% endif %} text-xs">
+                    {% if u.is_active %}Desativar{% else %}Reativar{% endif %}
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="px-4 py-12 text-center text-[var(--kronus-gray-400)]">Nenhum usuário encontrado com estes filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

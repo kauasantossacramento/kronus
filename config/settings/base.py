@@ -69,6 +69,7 @@ LOCAL_APPS = [
     "apps.api",
     "apps.relatorios",
     "apps.notificacoes",
+    "apps.faturamento",
     "apps.landing",
 ]
 

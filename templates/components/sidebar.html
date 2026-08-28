@@ -28,7 +28,17 @@
       <a href="{% url 'master:empresa_lista' %}" class="sidebar-link {% if menu_ativo == 'empresas' %}ativo{% endif %}">{% icone "pasta" classe="h-[18px] w-[18px] shrink-0" %}<span>Empresas</span></a>
       <a href="{% url 'master:plano_lista' %}"   class="sidebar-link {% if menu_ativo == 'planos' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Planos</span></a>
       <a href="{% url 'master:totem_lista' %}"   class="sidebar-link {% if menu_ativo == 'totens' %}ativo{% endif %}">{% icone "totem" classe="h-[18px] w-[18px] shrink-0" %}<span>Totens</span></a>
+      <a href="{% url 'master:assinaturas' %}"   class="sidebar-link {% if menu_ativo == 'assinaturas' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Assinaturas</span></a>
+      <a href="{% url 'master:usuarios' %}"      class="sidebar-link {% if menu_ativo == 'usuarios' %}ativo{% endif %}">{% icone "usuarios" classe="h-[18px] w-[18px] shrink-0" %}<span>Usuários</span></a>
+      <a href="{% url 'master:auditoria' %}"     class="sidebar-link {% if menu_ativo == 'auditoria' %}ativo{% endif %}">{% icone "escudo" classe="h-[18px] w-[18px] shrink-0" %}<span>Auditoria</span></a>
+      <a href="{% url 'master:gateway' %}"       class="sidebar-link {% if menu_ativo == 'gateway' %}ativo{% endif %}">{% icone "config" classe="h-[18px] w-[18px] shrink-0" %}<span>Gateway</span></a>
       <a href="{% url 'master:log_lista' %}"     class="sidebar-link {% if menu_ativo == 'logs' %}ativo{% endif %}">{% icone "lista" classe="h-[18px] w-[18px] shrink-0" %}<span>Logs de acesso</span></a>
+      <div class="my-3 border-t border-white/10"></div>
+    {% endif %}
+
+    {% if user.tipo == 'cliente' %}
+      <p class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-white/40">Conta</p>
+      <a href="{% url 'faturamento:minha_assinatura' %}" class="sidebar-link {% if menu_ativo == 'assinatura' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Minha assinatura</span></a>
       <div class="my-3 border-t border-white/10"></div>
     {% endif %}
 

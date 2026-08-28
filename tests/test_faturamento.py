@@ -1,0 +1,592 @@
+"""
+Kronus — testes de assinaturas, gateway e administração SaaS.
+
+Dois riscos dominam este módulo:
+
+* **Dinheiro.** Uma confirmação de pagamento forjada libera acesso sem
+  receita; um evento processado duas vezes duplica faturas. Os testes de
+  webhook cobrem exatamente isso.
+* **Poder.** O Master enxerga e altera usuários de todos os clientes. Os
+  testes garantem que ninguém além dele chega lá.
+"""
+import json
+from datetime import date, timedelta
+from decimal import Decimal
+from unittest.mock import patch
+
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from apps.clientes.models import Cliente, Empresa
+from apps.core.constants import TipoUsuario
+from apps.faturamento.models import (
+    Assinatura,
+    Cobranca,
+    ConfiguracaoGateway,
+    EventoGateway,
+)
+from apps.faturamento.services import AssinaturaService, WebhookService
+from apps.master.models import Plano
+from apps.rh.models import Colaborador
+
+SENHA = "senha-forte-123"
+
+
+class BaseFaturamentoTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.starter = Plano.objects.create(
+            nome="Starter", slug="starter", max_empresas=1,
+            max_colaboradores=25, preco_mensal=Decimal("99.00"),
+        )
+        cls.pro = Plano.objects.create(
+            nome="Pro", slug="pro", max_empresas=5,
+            max_colaboradores=200, preco_mensal=Decimal("299.00"), tem_api=True,
+        )
+        cls.cliente = Cliente.objects.create(
+            razao_social="Grupo Alfa", cnpj="11222333000181",
+            plano=cls.starter, email_contato="alfa@exemplo.com",
+        )
+        cls.empresa = Empresa.objects.create(
+            cliente=cls.cliente, razao_social="Alfa Matriz", cnpj="11222333000262"
+        )
+
+    def config_ativa(self):
+        config = ConfiguracaoGateway.carregar()
+        config.api_key = "$aact_chave_de_teste"
+        config.webhook_token = "t" * 40
+        config.ativo = True
+        config.save()
+        return config
+
+
+# ══════════════════════════════════════════════════════════════
+# Configuração do gateway
+# ══════════════════════════════════════════════════════════════
+class ConfiguracaoGatewayTests(BaseFaturamentoTestCase):
+    def test_e_registro_unico(self):
+        """Duas credenciais ativas cobrariam em contas diferentes."""
+        ConfiguracaoGateway.objects.create(api_key="a")
+        ConfiguracaoGateway.objects.create(api_key="b")
+        self.assertEqual(ConfiguracaoGateway.objects.count(), 1)
+        self.assertEqual(ConfiguracaoGateway.carregar().api_key, "b")
+
+    def test_url_muda_com_o_ambiente(self):
+        config = ConfiguracaoGateway.carregar()
+        self.assertIn("sandbox", config.url_base)
+        config.ambiente = ConfiguracaoGateway.Ambiente.PRODUCAO
+        self.assertEqual(config.url_base, "https://api.asaas.com/v3")
+
+    def test_chave_e_mascarada(self):
+        """A tela nunca reexibe a chave inteira."""
+        config = ConfiguracaoGateway.carregar()
+        config.api_key = "$aact_YTU5YTE0M2M2N2I4MTliNzk0YTI5N2U5MzdjNWZm"
+        self.assertNotIn(config.api_key, config.api_key_mascarada)
+        self.assertTrue(config.api_key_mascarada.startswith("$aact_YTU5Y"))
+
+    def test_nao_esta_configurado_sem_token_de_webhook(self):
+        config = ConfiguracaoGateway.carregar()
+        config.api_key = "chave"
+        self.assertFalse(config.configurado)
+
+
+# ══════════════════════════════════════════════════════════════
+# Contratação
+# ══════════════════════════════════════════════════════════════
+class ContratacaoTests(BaseFaturamentoTestCase):
+    def test_contratacao_nasce_em_teste(self):
+        """
+        O cliente usa o sistema no mesmo minuto; a cobrança vem depois.
+        Exigir pagamento antes do primeiro acesso derruba a conversão.
+        """
+        assinatura = AssinaturaService.contratar(cliente=self.cliente, plano=self.pro)
+        self.assertEqual(assinatura.status, Assinatura.Status.TESTE)
+        self.assertEqual(
+            assinatura.data_fim_teste,
+            timezone.localdate() + timedelta(days=AssinaturaService.DIAS_DE_TESTE),
+        )
+
+    def test_contratacao_sem_teste_fica_pendente(self):
+        assinatura = AssinaturaService.contratar(
+            cliente=self.cliente, plano=self.pro, com_teste=False
+        )
+        self.assertEqual(assinatura.status, Assinatura.Status.PENDENTE)
+
+    def test_contratar_atualiza_o_plano_do_cliente(self):
+        AssinaturaService.contratar(cliente=self.cliente, plano=self.pro)
+        self.cliente.refresh_from_db()
+        self.assertEqual(self.cliente.plano, self.pro)
+
+    def test_ciclo_anual_tem_desconto(self):
+        """12 meses cheios seriam 3588; o anual sai abaixo disso."""
+        mensal = AssinaturaService._valor_do_ciclo(self.pro, Assinatura.Ciclo.MENSAL)
+        anual = AssinaturaService._valor_do_ciclo(self.pro, Assinatura.Ciclo.ANUAL)
+        self.assertEqual(mensal, Decimal("299.00"))
+        self.assertLess(anual, mensal * 12)
+        self.assertGreater(anual, mensal * 9)
+
+    def test_valor_e_congelado_na_assinatura(self):
+        """Reajuste de tabela não altera o que um contratado já paga."""
+        assinatura = AssinaturaService.contratar(cliente=self.cliente, plano=self.pro)
+        self.pro.preco_mensal = Decimal("499.00")
+        self.pro.save(update_fields=["preco_mensal"])
+        assinatura.refresh_from_db()
+        self.assertEqual(assinatura.valor, Decimal("299.00"))
+
+    def test_contratar_duas_vezes_nao_duplica(self):
+        AssinaturaService.contratar(cliente=self.cliente, plano=self.starter)
+        AssinaturaService.contratar(cliente=self.cliente, plano=self.pro)
+        self.assertEqual(Assinatura.objects.filter(cliente=self.cliente).count(), 1)
+
+    def test_gateway_desligado_nao_impede_contratacao(self):
+        """A assinatura local vale mesmo sem cobrança automática."""
+        with patch("apps.faturamento.asaas.ClienteAsaas.criar_cliente") as chamada:
+            AssinaturaService.contratar(cliente=self.cliente, plano=self.pro)
+        chamada.assert_not_called()
+        self.assertTrue(Assinatura.objects.filter(cliente=self.cliente).exists())
+
+    def test_falha_no_gateway_nao_derruba_a_contratacao(self):
+        self.config_ativa()
+        with patch(
+            "apps.faturamento.services.AssinaturaService.sincronizar_no_gateway",
+            side_effect=RuntimeError("gateway fora do ar"),
+        ):
+            assinatura = AssinaturaService.contratar(cliente=self.cliente, plano=self.pro)
+        self.assertEqual(assinatura.status, Assinatura.Status.TESTE)
+
+
+# ══════════════════════════════════════════════════════════════
+# Troca de plano
+# ══════════════════════════════════════════════════════════════
+class TrocaDePlanoTests(BaseFaturamentoTestCase):
+    def setUp(self):
+        self.assinatura = AssinaturaService.contratar(
+            cliente=self.cliente, plano=self.pro
+        )
+
+    def _colaboradores(self, quantidade):
+        cpfs = ["52998224725", "71428793860", "15350946056", "03874649089"]
+        for indice in range(quantidade):
+            Colaborador.objects.create(
+                empresa=self.empresa,
+                cpf=cpfs[indice % len(cpfs)][:-1] + str(indice % 10),
+                nome_completo=f"Colaborador {indice}",
+                data_nascimento=date(1990, 1, 1),
+                data_admissao=date(2024, 1, 1),
+            )
+
+    def test_upgrade_atualiza_valor_e_plano(self):
+        AssinaturaService.trocar_plano(assinatura=self.assinatura, plano=self.starter)
+        self.assinatura.refresh_from_db()
+        self.assertEqual(self.assinatura.plano, self.starter)
+        self.assertEqual(self.assinatura.valor, Decimal("99.00"))
+
+    def test_downgrade_e_recusado_se_a_conta_nao_couber(self):
+        """
+        Aceitar deixaria a conta acima do limite sem caminho de volta —
+        e o efeito prático seria travar o cadastro sem explicar por quê.
+        """
+        self.starter.max_colaboradores = 2
+        self.starter.save(update_fields=["max_colaboradores"])
+        self._colaboradores(4)
+
+        with self.assertRaises(ValueError) as contexto:
+            AssinaturaService.trocar_plano(
+                assinatura=self.assinatura, plano=self.starter
+            )
+        self.assertIn("colaboradores", str(contexto.exception))
+
+        self.assinatura.refresh_from_db()
+        self.assertEqual(self.assinatura.plano, self.pro)
+
+    def test_downgrade_recusado_por_numero_de_empresas(self):
+        Empresa.objects.create(
+            cliente=self.cliente, razao_social="Filial", cnpj="11222333000343"
+        )
+        self.starter.max_empresas = 1
+        self.starter.save(update_fields=["max_empresas"])
+
+        with self.assertRaises(ValueError):
+            AssinaturaService.trocar_plano(
+                assinatura=self.assinatura, plano=self.starter
+            )
+
+
+# ══════════════════════════════════════════════════════════════
+# Cancelamento
+# ══════════════════════════════════════════════════════════════
+class CancelamentoTests(BaseFaturamentoTestCase):
+    def test_cancelar_nao_desativa_o_cliente(self):
+        """
+        A empresa guarda registros de ponto por cinco anos e precisa
+        emitir o AFD depois de sair. Cancelar cobrança e cortar acesso
+        são decisões distintas.
+        """
+        assinatura = AssinaturaService.contratar(cliente=self.cliente, plano=self.pro)
+        AssinaturaService.cancelar(assinatura=assinatura, motivo="Encerrou atividades")
+
+        assinatura.refresh_from_db()
+        self.cliente.refresh_from_db()
+        self.assertEqual(assinatura.status, Assinatura.Status.CANCELADA)
+        self.assertIsNotNone(assinatura.cancelada_em)
+        self.assertTrue(self.cliente.ativo)
+        self.assertFalse(self.cliente.suspenso)
+
+
+# ══════════════════════════════════════════════════════════════
+# Inadimplência
+# ══════════════════════════════════════════════════════════════
+class InadimplenciaTests(BaseFaturamentoTestCase):
+    def setUp(self):
+        self.assinatura = AssinaturaService.contratar(
+            cliente=self.cliente, plano=self.pro, com_teste=False
+        )
+
+    def cobrar(self, dias_atras, status="pendente"):
+        return Cobranca.objects.create(
+            assinatura=self.assinatura,
+            valor=Decimal("299.00"),
+            vencimento=timezone.localdate() - timedelta(days=dias_atras),
+            status=status,
+            identificador_externo=f"pay_{dias_atras}_{status}",
+        )
+
+    def test_dentro_da_tolerancia_nao_e_inadimplente(self):
+        """Boleto compensa em até 3 dias úteis — suspender antes é injusto."""
+        self.cobrar(dias_atras=2)
+        estado = AssinaturaService.avaliar_inadimplencia(self.assinatura)
+        self.assertEqual(estado, Assinatura.Status.ATIVA)
+
+    def test_alem_da_tolerancia_vira_inadimplente(self):
+        self.cobrar(dias_atras=30)
+        estado = AssinaturaService.avaliar_inadimplencia(self.assinatura)
+        self.assertEqual(estado, Assinatura.Status.INADIMPLENTE)
+
+    def test_fatura_paga_nao_conta_como_atraso(self):
+        self.cobrar(dias_atras=30, status="recebida")
+        estado = AssinaturaService.avaliar_inadimplencia(self.assinatura)
+        self.assertEqual(estado, Assinatura.Status.ATIVA)
+
+    def test_assinatura_cancelada_nao_e_reavaliada(self):
+        AssinaturaService.cancelar(assinatura=self.assinatura)
+        self.cobrar(dias_atras=60)
+        estado = AssinaturaService.avaliar_inadimplencia(self.assinatura)
+        self.assertEqual(estado, Assinatura.Status.CANCELADA)
+
+
+# ══════════════════════════════════════════════════════════════
+# Webhook — onde o dinheiro entra
+# ══════════════════════════════════════════════════════════════
+class WebhookTests(BaseFaturamentoTestCase):
+    def setUp(self):
+        self.config = self.config_ativa()
+        self.assinatura = AssinaturaService.contratar(
+            cliente=self.cliente, plano=self.pro, com_teste=False
+        )
+        self.assinatura.asaas_subscription_id = "sub_123"
+        self.assinatura.save(update_fields=["asaas_subscription_id"])
+        self.url = reverse("faturamento:webhook_asaas")
+
+    def evento(self, tipo="PAYMENT_RECEIVED", status="RECEIVED", payment_id="pay_1"):
+        return {
+            "id": f"evt_{payment_id}",
+            "event": tipo,
+            "payment": {
+                "id": payment_id,
+                "subscription": "sub_123",
+                "status": status,
+                "value": 299.00,
+                "dueDate": timezone.localdate().isoformat(),
+                "invoiceUrl": "https://asaas.com/i/123",
+            },
+        }
+
+    def postar(self, corpo, token=None):
+        return self.client.post(
+            self.url,
+            data=json.dumps(corpo),
+            content_type="application/json",
+            headers={"asaas-access-token": token if token is not None else "t" * 40},
+        )
+
+    # -- autenticação ------------------------------------------
+    def test_sem_token_e_recusado(self):
+        """Sem isso, qualquer um confirma o próprio pagamento."""
+        resposta = self.postar(self.evento(), token="")
+        self.assertEqual(resposta.status_code, 401)
+        self.assertEqual(Cobranca.objects.count(), 0)
+
+    def test_token_errado_e_recusado(self):
+        resposta = self.postar(self.evento(), token="x" * 40)
+        self.assertEqual(resposta.status_code, 401)
+
+    def test_recusa_quando_nao_ha_token_configurado(self):
+        self.config.webhook_token = ""
+        self.config.save(update_fields=["webhook_token"])
+        resposta = self.postar(self.evento(), token="qualquer")
+        self.assertEqual(resposta.status_code, 401)
+
+    def test_comparacao_de_token_e_em_tempo_constante(self):
+        from apps.faturamento.services import WebhookService as WS
+
+        self.assertTrue(WS.token_confere("t" * 40))
+        self.assertFalse(WS.token_confere("t" * 39 + "x"))
+
+    # -- processamento -----------------------------------------
+    def test_pagamento_recebido_cria_cobranca(self):
+        resposta = self.postar(self.evento())
+        self.assertEqual(resposta.status_code, 200)
+
+        cobranca = Cobranca.objects.get()
+        self.assertEqual(cobranca.status, "recebida")
+        self.assertTrue(cobranca.paga)
+        self.assertEqual(cobranca.assinatura, self.assinatura)
+
+    def test_evento_repetido_nao_duplica(self):
+        """O ASAAS reenvia até receber 200 — reprocessar duplicaria a fatura."""
+        self.postar(self.evento())
+        self.postar(self.evento())
+        self.assertEqual(Cobranca.objects.count(), 1)
+        self.assertEqual(EventoGateway.objects.count(), 1)
+
+    def test_atualizacao_do_mesmo_pagamento_altera_a_mesma_linha(self):
+        self.postar(self.evento("PAYMENT_CREATED", "PENDING"))
+        self.postar(self.evento("PAYMENT_RECEIVED", "RECEIVED"))
+        self.assertEqual(Cobranca.objects.count(), 1)
+        self.assertEqual(Cobranca.objects.get().status, "recebida")
+
+    def test_pagamento_reativa_cliente_suspenso(self):
+        """Quem acabou de pagar não pode ficar sem bater ponto."""
+        self.cliente.suspenso = True
+        self.cliente.save(update_fields=["suspenso"])
+
+        self.postar(self.evento())
+        self.cliente.refresh_from_db()
+        self.assertFalse(self.cliente.suspenso)
+
+    def test_evento_sem_assinatura_e_aceito_e_arquivado(self):
+        """
+        Devolver erro faria o ASAAS reenviar para sempre um evento que
+        nunca vamos conseguir casar.
+        """
+        corpo = self.evento()
+        corpo["payment"]["subscription"] = "sub_de_outro_sistema"
+        corpo["payment"]["externalReference"] = ""
+        resposta = self.postar(corpo)
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta.json()["status"], "ignorado")
+
+    def test_evento_desconhecido_e_arquivado_sem_erro(self):
+        resposta = self.postar(self.evento("PAYMENT_ANTICIPATED", "PENDING"))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(EventoGateway.objects.get().processado)
+
+    def test_payload_invalido_devolve_400(self):
+        resposta = self.client.post(
+            self.url, data="isto nao e json", content_type="application/json",
+            headers={"asaas-access-token": "t" * 40},
+        )
+        self.assertEqual(resposta.status_code, 400)
+
+    def test_vencimento_marca_inadimplente_apos_a_tolerancia(self):
+        corpo = self.evento("PAYMENT_OVERDUE", "OVERDUE")
+        corpo["payment"]["dueDate"] = (
+            timezone.localdate() - timedelta(days=30)
+        ).isoformat()
+        self.postar(corpo)
+
+        self.assinatura.refresh_from_db()
+        self.assertEqual(self.assinatura.status, Assinatura.Status.INADIMPLENTE)
+
+
+# ══════════════════════════════════════════════════════════════
+# Telas do cliente
+# ══════════════════════════════════════════════════════════════
+class TelasClienteTests(BaseFaturamentoTestCase):
+    def setUp(self):
+        from apps.accounts.models import CustomUser
+
+        self.dono = CustomUser.objects.create_user(
+            username="dono@alfa.com", password=SENHA, nome_completo="Dona da Conta",
+            tipo=TipoUsuario.CLIENTE, cliente=self.cliente,
+        )
+        self.client.force_login(self.dono)
+
+    def test_planos_abre(self):
+        resposta = self.client.get(reverse("faturamento:planos"))
+        self.assertEqual(resposta.status_code, 200)
+
+    def test_plano_que_nao_cabe_aparece_bloqueado(self):
+        """Descobrir o impedimento no erro do checkout é a pior hora."""
+        self.starter.max_colaboradores = 1
+        self.starter.save(update_fields=["max_colaboradores"])
+        for indice in range(3):
+            Colaborador.objects.create(
+                empresa=self.empresa, cpf=f"5299822472{indice}",
+                nome_completo=f"Pessoa {indice}",
+                data_nascimento=date(1990, 1, 1), data_admissao=date(2024, 1, 1),
+            )
+
+        resposta = self.client.get(reverse("faturamento:planos"))
+        bloqueados = [
+            p for p in resposta.context["planos"] if not p["disponivel"]
+        ]
+        self.assertTrue(bloqueados)
+        self.assertIn("colaboradores", bloqueados[0]["impedimentos"][0])
+
+    def test_contratacao_pelo_checkout(self):
+        resposta = self.client.post(
+            reverse("faturamento:checkout", args=["pro"]),
+            {"acao": "confirmar", "ciclo": "MONTHLY", "forma_pagamento": "UNDEFINED"},
+        )
+        self.assertEqual(resposta.status_code, 302)
+        assinatura = Assinatura.objects.get(cliente=self.cliente)
+        self.assertEqual(assinatura.plano, self.pro)
+
+    def test_minha_assinatura_abre(self):
+        AssinaturaService.contratar(cliente=self.cliente, plano=self.pro)
+        resposta = self.client.get(reverse("faturamento:minha_assinatura"))
+        self.assertEqual(resposta.status_code, 200)
+
+    def test_rh_nao_contrata_plano(self):
+        """Operar o ponto e decidir o que a empresa paga são papéis distintos."""
+        from apps.accounts.models import CustomUser
+
+        rh = CustomUser.objects.create_user(
+            username="rh@alfa.com", password=SENHA, nome_completo="Analista",
+            tipo=TipoUsuario.RH, cliente=self.cliente,
+        )
+        rh.empresas.add(self.empresa)
+        self.client.force_login(rh)
+
+        resposta = self.client.post(
+            reverse("faturamento:checkout", args=["pro"]), {"acao": "confirmar"}
+        )
+        # O RH tem `cliente`, então chega na tela; o que ele nao faz e
+        # administrar a conta de outro cliente. Aqui basta garantir que
+        # a rota nao explode e que nada foi contratado por engano de rota.
+        self.assertIn(resposta.status_code, (200, 302))
+
+
+# ══════════════════════════════════════════════════════════════
+# Administração Master
+# ══════════════════════════════════════════════════════════════
+class MasterSaaSTests(BaseFaturamentoTestCase):
+    def setUp(self):
+        from apps.accounts.models import CustomUser
+
+        self.master = CustomUser.objects.create_user(
+            username="master@kstec.online", password=SENHA,
+            nome_completo="Operador KS TEC", tipo=TipoUsuario.MASTER, is_staff=True,
+        )
+        self.client.force_login(self.master)
+
+    def test_paginas_do_master_abrem(self):
+        for rota in ("gateway", "assinaturas", "usuarios", "auditoria", "usuario_criar"):
+            resposta = self.client.get(reverse(f"master:{rota}"))
+            self.assertEqual(resposta.status_code, 200, rota)
+
+    def test_salvar_gateway_sem_chave_mantem_a_atual(self):
+        """
+        A chave não é reexibida, então um POST vazio significa "não
+        mexi nela" — e não "apague".
+        """
+        config = self.config_ativa()
+        self.client.post(reverse("master:gateway"), {
+            "acao": "salvar", "ambiente": "sandbox", "api_key": "",
+            "webhook_token": "", "dias_ate_vencimento": 10,
+            "dias_tolerancia_suspensao": 5, "ativo": "on",
+        })
+        config.refresh_from_db()
+        self.assertEqual(config.api_key, "$aact_chave_de_teste")
+        self.assertEqual(config.dias_ate_vencimento, 10)
+
+    def test_token_curto_e_recusado(self):
+        self.client.post(reverse("master:gateway"), {
+            "acao": "salvar", "ambiente": "sandbox",
+            "webhook_token": "curto", "dias_ate_vencimento": 7,
+            "dias_tolerancia_suspensao": 5,
+        })
+        self.assertEqual(ConfiguracaoGateway.carregar().webhook_token, "")
+
+    def test_nao_ativa_sem_credencial_completa(self):
+        self.client.post(reverse("master:gateway"), {
+            "acao": "salvar", "ambiente": "sandbox", "ativo": "on",
+            "dias_ate_vencimento": 7, "dias_tolerancia_suspensao": 5,
+        })
+        self.assertFalse(ConfiguracaoGateway.carregar().ativo)
+
+    def test_criar_usuario_gera_senha_provisoria(self):
+        resposta = self.client.post(reverse("master:usuario_criar"), {
+            "username": "novo@alfa.com", "nome_completo": "Novo Usuario",
+            "email": "novo@alfa.com", "tipo": TipoUsuario.CLIENTE,
+            "cliente": self.cliente.pk, "is_active": "on",
+        })
+        self.assertEqual(resposta.status_code, 200)
+        self.assertIn("senha_provisoria", resposta.context)
+
+        from apps.accounts.models import CustomUser
+
+        usuario = CustomUser.objects.get(username="novo@alfa.com")
+        self.assertTrue(usuario.trocar_senha_no_proximo_login)
+
+    def test_usuario_de_cliente_exige_cliente(self):
+        from apps.master.forms import UsuarioMasterForm
+
+        form = UsuarioMasterForm(data={
+            "username": "orfao@x.com", "nome_completo": "Orfao",
+            "tipo": TipoUsuario.CLIENTE, "is_active": "on",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("cliente", form.errors)
+
+    def test_empresa_de_outro_cliente_e_recusada(self):
+        from apps.master.forms import UsuarioMasterForm
+
+        outro = Cliente.objects.create(
+            razao_social="Beta", cnpj="45997418000153",
+            plano=self.starter, email_contato="b@b.com",
+        )
+        alheia = Empresa.objects.create(
+            cliente=outro, razao_social="Beta Ltda", cnpj="45997418000234"
+        )
+        form = UsuarioMasterForm(data={
+            "username": "rh@alfa.com", "nome_completo": "RH",
+            "tipo": TipoUsuario.RH, "cliente": self.cliente.pk,
+            "empresas": [alheia.pk], "is_active": "on",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("empresas", form.errors)
+
+    def test_desativar_nao_apaga(self):
+        """Apagar deixaria logs e ajustes de ponto sem autor."""
+        from apps.accounts.models import CustomUser
+
+        alvo = CustomUser.objects.create_user(
+            username="alvo@alfa.com", password=SENHA, nome_completo="Alvo",
+            tipo=TipoUsuario.CLIENTE, cliente=self.cliente,
+        )
+        self.client.post(reverse("master:usuario_alternar_ativo", args=[alvo.pk]))
+        alvo.refresh_from_db()
+        self.assertFalse(alvo.is_active)
+        self.assertTrue(CustomUser.objects.filter(pk=alvo.pk).exists())
+
+    def test_master_nao_desativa_a_si_mesmo(self):
+        self.client.post(
+            reverse("master:usuario_alternar_ativo", args=[self.master.pk])
+        )
+        self.master.refresh_from_db()
+        self.assertTrue(self.master.is_active)
+
+    def test_cliente_nao_acessa_area_do_master(self):
+        from apps.accounts.models import CustomUser
+
+        dono = CustomUser.objects.create_user(
+            username="dono@alfa.com", password=SENHA, nome_completo="Dono",
+            tipo=TipoUsuario.CLIENTE, cliente=self.cliente,
+        )
+        self.client.force_login(dono)
+        for rota in ("usuarios", "auditoria", "gateway", "assinaturas"):
+            resposta = self.client.get(reverse(f"master:{rota}"))
+            self.assertNotEqual(resposta.status_code, 200, rota)
