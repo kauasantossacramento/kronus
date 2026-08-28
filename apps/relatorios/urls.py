@@ -1,10 +1,18 @@
 from django.urls import path
 
-from apps.relatorios import views
+from apps.relatorios import views, views_verificacao
 
 app_name = "relatorios"
 
 urlpatterns = [
+    # Verificacao publica: quem recebe o papel precisa poder conferir
+    # sem ter conta no sistema.
+    path("verificar/", views_verificacao.verificar, name="verificar"),
+    path(
+        "verificar/<str:codigo>/",
+        views_verificacao.verificar,
+        name="verificar_codigo",
+    ),
     # -- Arquivos fiscais (Portaria 671) -----------------------
     path("fiscais/", views.fiscais, name="fiscais"),
     path("afd/", views.baixar_afd, name="afd"),

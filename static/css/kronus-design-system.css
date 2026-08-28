@@ -66,7 +66,7 @@
   /* ── Tipografia (Seção 3.3) ── */
   --font-display: 'Outfit', system-ui, sans-serif;
   --font-body:    'Inter', system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+  --font-mono:    'Roboto', ui-monospace, monospace;
 }
 
 /* ══════════════════════════════════════════════════════════════

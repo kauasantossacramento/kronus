@@ -516,3 +516,89 @@ class DownloadFiscalTests(BaseFiscalTestCase):
         self.assertEqual(resposta.status_code, 200)
         self.assertIn("text/csv", resposta["Content-Type"])
         self.assertIn("João da Silva Souza", resposta.content.decode("utf-8-sig"))
+
+
+# ══════════════════════════════════════════════════════════════
+# Verificação pública de documentos
+# ══════════════════════════════════════════════════════════════
+class VerificacaoPublicaTests(BaseFiscalTestCase):
+    """
+    O código impresso no documento só vale se puder ser conferido por
+    quem recebe o papel — contador, advogado, fiscal. Sem login.
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self.dia = date(2026, 8, 24)
+        self.jornada_padrao(self.joao, self.dia)
+        self.registro = RegistroPonto.objects.filter(colaborador=self.joao).first()
+
+    def test_formulario_abre_sem_login(self):
+        resposta = self.client.get(reverse("relatorios:verificar"))
+        self.assertEqual(resposta.status_code, 200)
+
+    def test_codigo_valido_confirma_o_documento(self):
+        codigo = self.registro.codigo_verificacao
+        resposta = self.client.get(
+            reverse("relatorios:verificar_codigo", args=[codigo.replace("-", "")])
+        )
+        self.assertEqual(resposta.status_code, 200)
+        resultado = resposta.context["resultado"]
+        self.assertTrue(resultado["integro"])
+        self.assertIn("Comprovante", resultado["tipo"])
+
+    def test_aceita_codigo_com_hifen_e_minusculo(self):
+        codigo = self.registro.codigo_verificacao.lower()
+        resposta = self.client.get(
+            reverse("relatorios:verificar_codigo", args=[codigo])
+        )
+        self.assertIsNotNone(resposta.context.get("resultado"))
+
+    def test_codigo_inexistente_nao_confirma_nada(self):
+        resposta = self.client.get(
+            reverse("relatorios:verificar_codigo", args=["A1B2C3D4E5F67890"])
+        )
+        self.assertTrue(resposta.context["nao_encontrado"])
+
+    def test_codigo_malformado_e_recusado(self):
+        resposta = self.client.get(
+            reverse("relatorios:verificar_codigo", args=["ABC123"])
+        )
+        self.assertIn("16 caracteres", resposta.context["erro"])
+
+    def test_nao_expoe_o_cpf_completo(self):
+        """
+        A pagina confirma o documento; nao entrega dados de quem nao o tem.
+        """
+        codigo = self.registro.codigo_verificacao
+        resposta = self.client.get(
+            reverse("relatorios:verificar_codigo", args=[codigo])
+        )
+        corpo = resposta.content.decode()
+        self.assertNotIn(self.joao.cpf, corpo)
+        self.assertIn("***", resposta.context["resultado"]["cpf"])
+
+    def test_adulteracao_e_denunciada(self):
+        """Se o registro mudar depois de emitido, a consulta acusa."""
+        codigo = self.registro.codigo_verificacao
+        RegistroPonto.objects.filter(pk=self.registro.pk).update(
+            hash_registro="0" * 64
+        )
+        # O codigo deriva do hash: com o hash trocado, o documento some
+        # da busca — que ja e a resposta correta para quem confere.
+        resposta = self.client.get(
+            reverse("relatorios:verificar_codigo", args=[codigo])
+        )
+        self.assertTrue(resposta.context.get("nao_encontrado"))
+
+    def test_limite_de_tentativas(self):
+        """Sem limite, o codigo viraria alvo de varredura."""
+        from apps.relatorios.views_verificacao import LIMITE_TENTATIVAS
+
+        url = reverse("relatorios:verificar_codigo", args=["A1B2C3D4E5F67890"])
+        for _ in range(LIMITE_TENTATIVAS):
+            self.client.get(url)
+        resposta = self.client.get(url)
+        self.assertEqual(resposta.status_code, 429)

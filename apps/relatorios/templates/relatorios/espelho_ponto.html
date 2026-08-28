@@ -18,6 +18,8 @@
 
   .topo { display: flex; justify-content: space-between; align-items: flex-start;
           border-bottom: 2pt solid #1E3A5F; padding-bottom: 4mm; margin-bottom: 5mm; }
+  .marca-linha { display: flex; align-items: center; gap: 2.5mm; }
+  .marca-simbolo { width: 9mm; height: 9mm; }
   .marca { font-size: 17pt; font-weight: 700; letter-spacing: .15em;
            text-transform: uppercase; color: #1E3A5F; line-height: 1; }
   .marca-sub { font-size: 6.5pt; color: #64748B; letter-spacing: .06em; margin-top: 1mm; }
@@ -45,7 +47,7 @@
   table.dias td { padding: 1.4mm 1mm; text-align: center; border-bottom: .4pt solid #E2E8F0;
                   font-size: 7.4pt; }
   table.dias tbody tr:nth-child(even) { background: #F8FAFC; }
-  table.dias .mono { font-family: "JetBrains Mono", "Courier New", monospace;
+  table.dias .mono { font-family: "Roboto", "Courier New", monospace;
                      font-variant-numeric: tabular-nums; }
   table.dias .fds { color: #94A3B8; }
   .positivo { color: #047857; font-weight: 700; }
@@ -58,14 +60,14 @@
   .resumo { margin-top: 5mm; display: flex; gap: 4mm; }
   .cartao { flex: 1; border: .8pt solid #E2E8F0; border-radius: 2mm; padding: 3mm; text-align: center; }
   .cartao .rot { font-size: 6.5pt; text-transform: uppercase; letter-spacing: .06em; color: #64748B; }
-  .cartao .val { font-family: "JetBrains Mono", monospace; font-size: 12pt; font-weight: 700; margin-top: 1mm; }
+  .cartao .val { font-family: "Roboto", monospace; font-size: 12pt; font-weight: 700; margin-top: 1mm; }
 
   .integridade { margin-top: 6mm; border: .8pt solid #D4A017; background: #FFFBEB;
                  border-radius: 2mm; padding: 3mm 4mm; }
   .integridade .rot { font-size: 6.5pt; text-transform: uppercase; letter-spacing: .08em; color: #92690A; }
-  .integridade .cod { font-family: "JetBrains Mono", monospace; font-size: 12pt;
+  .integridade .cod { font-family: "Roboto", monospace; font-size: 12pt;
                       font-weight: 700; letter-spacing: .12em; margin-top: .5mm; }
-  .integridade .hash { font-family: "JetBrains Mono", monospace; font-size: 5.8pt;
+  .integridade .hash { font-family: "Roboto", monospace; font-size: 5.8pt;
                        color: #92690A; word-break: break-all; margin-top: 1.5mm; }
 
   .assinaturas { margin-top: 12mm; display: flex; gap: 14mm; }
@@ -83,13 +85,27 @@
   {# ── Cabeçalho ───────────────────────────────────────────── #}
   <div class="topo">
     <div>
-      <div class="marca">Kronus</div>
-      <div class="marca-sub">Registrador Eletrônico de Ponto via Programa</div>
+      <div class="marca-linha">
+        {# A ampulheta da marca, embutida como SVG: o PDF nao depende de
+           carregar imagem externa, que falharia num gerador offline. #}
+        <svg class="marca-simbolo" viewBox="0 0 24 24" fill="none"
+             stroke="#1E3A5F" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.5 2.8h11M6.5 21.2h11"/>
+          <path d="M8 2.8v3.4c0 2.2 1.6 3.9 4 5.8 2.4-1.9 4-3.6 4-5.8V2.8"/>
+          <path d="M8 21.2v-3.4c0-2.2 1.6-3.9 4-5.8 2.4 1.9 4 3.6 4 5.8v3.4"/>
+          <path d="M9.4 19.6h5.2c0-1.5-1-2.6-2.6-3.6-1.6 1-2.6 2.1-2.6 3.6Z"
+                fill="#D4A017" stroke="none"/>
+        </svg>
+        <div>
+          <div class="marca">Kronus</div>
+          <div class="marca-sub">Registrador Eletrônico de Ponto via Programa</div>
+        </div>
+      </div>
     </div>
     <div class="titulo">
       <h1>Espelho de Ponto</h1>
       <div class="periodo">{{ data_inicio|date:"d/m/Y" }} a {{ data_fim|date:"d/m/Y" }}</div>
-      <div class="selo">Portaria 671/2021 · MTP</div>
     </div>
   </div>
 
@@ -179,7 +195,10 @@
   <div class="integridade">
     <div class="rot">Código de verificação de integridade</div>
     <div class="cod">{{ codigo_verificacao }}</div>
-    <div class="hash">SHA-256: {{ hash_documento }}</div>
+    <div class="hash">
+      Confira este documento em {{ KRONUS.APP_URL }}/verificar<br>
+      SHA-256: {{ hash_documento }}
+    </div>
   </div>
 
   {# ── Assinaturas ─────────────────────────────────────────── #}

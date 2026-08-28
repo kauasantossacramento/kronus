@@ -25,11 +25,24 @@ class CPFTests(SimpleTestCase):
     def test_formatacao(self):
         self.assertEqual(utils.formatar_cpf("52998224725"), "529.982.247-25")
 
-    def test_mascaramento_oculta_os_tres_primeiros_digitos(self):
-        self.assertEqual(utils.mascarar_cpf("52998224725"), "***.982.247-25")
+    def test_mascaramento_oculta_inicio_e_meio(self):
+        """
+        Num totem de corredor, quem esta atras na fila le a tela. Cinco
+        caracteres visiveis bastam para a pessoa se reconhecer.
+        """
+        self.assertEqual(utils.mascarar_cpf("529.982.247-25"), "***.***.247-25")
 
+    def test_mascaramento_esconde_a_maior_parte_do_documento(self):
+        mascarado = utils.mascarar_cpf("52998224725")
+        visiveis = [c for c in mascarado if c.isdigit()]
+        self.assertEqual(len(visiveis), 5)
+        self.assertNotIn("529", mascarado)
+        self.assertNotIn("982", mascarado)
 
-class CNPJTests(SimpleTestCase):
+    def test_mascaramento_recusa_entrada_invalida(self):
+        self.assertEqual(utils.mascarar_cpf("123"), "***")
+        self.assertEqual(utils.mascarar_cpf(""), "***")
+
     def test_aceita_cnpj_valido(self):
         self.assertTrue(utils.cnpj_valido("11.222.333/0001-81"))
 

@@ -1,0 +1,117 @@
+{% extends "base_publica.html" %}
+{% load kronus_icons %}
+
+{% block titulo %}Verificar documento — Kronus{% endblock %}
+
+{% block conteudo %}
+<div class="mx-auto max-w-2xl px-4 py-12">
+
+  <header class="mb-8 text-center">
+    {% icone "escudo" classe="mx-auto h-10 w-10 text-[var(--kronus-gold-600)]" %}
+    <h1 class="mt-3 font-display text-2xl font-bold text-[var(--kronus-gray-900)]">Verificar documento</h1>
+    <p class="mx-auto mt-2 max-w-lg text-sm text-[var(--kronus-gray-600)]">
+      Espelhos de ponto e comprovantes emitidos pelo Kronus trazem um código de
+      verificação. Digite-o abaixo para confirmar que o documento é autêntico e que o
+      conteúdo não foi alterado depois de emitido.
+    </p>
+  </header>
+
+  <form method="post" class="card p-6">
+    {% csrf_token %}
+    <label for="codigo" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Código de verificação</label>
+    <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+      <input type="text" id="codigo" name="codigo" value="{{ codigo }}" autofocus
+             placeholder="A1B2-C3D4-E5F6-7890" maxlength="24" autocomplete="off"
+             class="flex-1 rounded-lg border-0 py-3 px-4 text-center font-mono text-lg tracking-widest shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)] focus:ring-2 focus:ring-[var(--kronus-primary-500)]">
+      <button type="submit" class="btn btn-primary px-6">{% icone "lupa" classe="h-4 w-4" %} Verificar</button>
+    </div>
+    <p class="mt-2 text-xs text-[var(--kronus-gray-500)]">
+      Pode digitar com ou sem hífen. O código fica no rodapé do documento.
+    </p>
+  </form>
+
+  {% if erro %}
+    <div class="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <p class="flex items-start gap-2">{% icone "alerta" classe="mt-0.5 h-4 w-4 shrink-0" %}<span>{{ erro }}</span></p>
+    </div>
+  {% endif %}
+
+  {% if nao_encontrado %}
+    <div class="mt-6 card border border-[var(--kronus-gray-300)] p-6 text-center">
+      {% icone "fechar" classe="mx-auto h-8 w-8 text-[var(--kronus-gray-400)]" %}
+      <h2 class="mt-2 font-display text-lg font-semibold text-[var(--kronus-gray-800)]">Documento não encontrado</h2>
+      <p class="mx-auto mt-2 max-w-md text-sm text-[var(--kronus-gray-600)]">
+        Nenhum documento corresponde a este código. Confira a digitação — o código tem
+        16 caracteres. Se o documento for antigo, ele pode ter sido emitido por outro
+        sistema.
+      </p>
+    </div>
+  {% endif %}
+
+  {% if resultado %}
+    <div class="mt-6 card overflow-hidden">
+      <div class="{% if resultado.integro %}bg-emerald-50 border-b border-emerald-200{% else %}bg-red-50 border-b border-red-200{% endif %} px-6 py-5 text-center">
+        {% if resultado.integro %}
+          {% icone "check" classe="mx-auto h-10 w-10 text-emerald-600" %}
+          <h2 class="mt-2 font-display text-lg font-semibold text-emerald-800">Documento autêntico</h2>
+          <p class="mt-1 text-sm text-emerald-700">
+            O conteúdo confere com o registrado na emissão.
+          </p>
+        {% else %}
+          {% icone "alerta" classe="mx-auto h-10 w-10 text-red-600" %}
+          <h2 class="mt-2 font-display text-lg font-semibold text-red-800">Divergência encontrada</h2>
+          <p class="mt-1 text-sm text-red-700">
+            O documento existe, mas o conteúdo atual <strong>não corresponde</strong> ao
+            que foi registrado na emissão. Procure o RH da empresa.
+          </p>
+        {% endif %}
+      </div>
+
+      <dl class="divide-y divide-[var(--kronus-gray-100)] text-sm">
+        <div class="flex justify-between gap-4 px-6 py-3">
+          <dt class="text-[var(--kronus-gray-500)]">Tipo</dt>
+          <dd class="text-right font-medium text-[var(--kronus-gray-800)]">{{ resultado.tipo }}</dd>
+        </div>
+        <div class="flex justify-between gap-4 px-6 py-3">
+          <dt class="text-[var(--kronus-gray-500)]">Referência</dt>
+          <dd class="text-right font-mono text-xs">{{ resultado.referencia }}</dd>
+        </div>
+        <div class="flex justify-between gap-4 px-6 py-3">
+          <dt class="text-[var(--kronus-gray-500)]">Titular</dt>
+          <dd class="text-right">{{ resultado.pessoa }} · <span class="font-mono text-xs">{{ resultado.cpf }}</span></dd>
+        </div>
+        <div class="flex justify-between gap-4 px-6 py-3">
+          <dt class="text-[var(--kronus-gray-500)]">Empresa</dt>
+          <dd class="text-right">{{ resultado.empresa }}</dd>
+        </div>
+        <div class="flex justify-between gap-4 px-6 py-3">
+          <dt class="text-[var(--kronus-gray-500)]">Emitido em</dt>
+          <dd class="text-right font-mono text-xs">{{ resultado.emitido_em|date:"d/m/Y H:i" }}</dd>
+        </div>
+        {% if resultado.assinado %}
+          <div class="flex justify-between gap-4 px-6 py-3">
+            <dt class="text-[var(--kronus-gray-500)]">Assinado pelo titular</dt>
+            <dd class="text-right text-emerald-700">{{ resultado.assinado_em|date:"d/m/Y H:i" }}</dd>
+          </div>
+        {% endif %}
+        {% if resultado.cancelado %}
+          <div class="flex justify-between gap-4 bg-amber-50 px-6 py-3">
+            <dt class="text-amber-800">Situação</dt>
+            <dd class="text-right font-medium text-amber-800">Marcação cancelada por ajuste</dd>
+          </div>
+        {% endif %}
+      </dl>
+
+      <div class="border-t border-[var(--kronus-gray-200)] bg-[var(--kronus-gray-50)] px-6 py-4">
+        <p class="text-xs text-[var(--kronus-gray-500)]">Impressão digital do documento (SHA-256)</p>
+        <p class="mt-1 break-all font-mono text-[10px] leading-relaxed text-[var(--kronus-gray-600)]">{{ resultado.hash }}</p>
+      </div>
+    </div>
+
+    <p class="mt-4 text-center text-xs text-[var(--kronus-gray-500)]">
+      Esta consulta mostra apenas o suficiente para conferir o documento que você tem em
+      mãos. Marcações, saldos e dados completos não são exibidos aqui.
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

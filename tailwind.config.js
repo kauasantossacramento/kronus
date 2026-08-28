@@ -13,7 +13,7 @@ module.exports = {
       fontFamily: {
         display: ["Outfit", "system-ui", "sans-serif"],
         sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+        mono: ["Roboto", "ui-monospace", "monospace"],
       },
       colors: {
         kronus: {

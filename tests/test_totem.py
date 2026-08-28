@@ -225,7 +225,9 @@ class RecognizeTests(BaseTotemTestCase):
         dados = self.post(
             "api:totem:totem_recognize", {"image": como_base64(imagem_bytes(10))}
         ).json()
-        self.assertEqual(dados["colaborador"]["cpf_mascarado"], "***.982.247-25")
+        self.assertEqual(dados["colaborador"]["cpf_mascarado"], "***.***.247-25")
+        # Nem os tres primeiros nem os do meio podem aparecer.
+        self.assertNotIn("982", dados["colaborador"]["cpf_mascarado"])
         self.assertNotIn("52998224725", json.dumps(dados))
 
     def test_rosto_desconhecido_oferece_fallback(self):

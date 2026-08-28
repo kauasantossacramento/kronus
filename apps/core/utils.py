@@ -61,15 +61,20 @@ def formatar_cpf(cpf: str) -> str:
 
 def mascarar_cpf(cpf: str) -> str:
     """
-    ***.456.789-00 — formato exibido no totem e nos comprovantes.
+    ***.***.789-00 — formato exibido no totem e nos comprovantes.
 
-    Oculta os tres primeiros digitos, mantendo rastreabilidade visual
-    sem expor o documento completo (LGPD, Secao 10 do plano).
+    Oculta o **inicio e o meio**, deixando visiveis apenas os cinco
+    ultimos caracteres. Isso basta para o colaborador se reconhecer na
+    tela e para o RH distinguir homonimos, sem expor o documento.
+
+    Mascarar so os tres primeiros digitos — como era antes — deixava
+    oito dos onze a mostra. Num totem instalado em corredor, quem esta
+    atras na fila le a tela.
     """
     cpf = apenas_digitos(cpf)
     if len(cpf) != 11:
         return "***"
-    return f"***.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+    return f"***.***.{cpf[6:9]}-{cpf[9:]}"
 
 
 # ==============================================================

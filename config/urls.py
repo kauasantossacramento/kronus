@@ -14,6 +14,7 @@ Mapa de rotas (Secao 6 do plano):
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.views.generic import RedirectView
 from django.urls import include, path
 
 urlpatterns = [
@@ -31,6 +32,14 @@ urlpatterns = [
     path("totem/", include("apps.totem.urls", namespace="totem")),
     path("facial/", include("apps.facial.urls", namespace="facial")),
     path("relatorios/", include("apps.relatorios.urls", namespace="relatorios")),
+    # Atalho publico da verificacao: o codigo vai impresso em documento,
+    # e "kronus.online/verificar" cabe melhor num rodape do que
+    # "kronus.online/relatorios/verificar".
+    path(
+        "verificar/",
+        RedirectView.as_view(pattern_name="relatorios:verificar", permanent=False),
+        name="verificar_atalho",
+    ),
     path("notificacoes/", include("apps.notificacoes.urls", namespace="notificacoes")),
     path("api/v1/", include("apps.api.urls", namespace="api")),
 ]
