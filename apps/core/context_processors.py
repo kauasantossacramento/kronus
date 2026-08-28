@@ -98,3 +98,25 @@ def _pendencias(user, empresa) -> dict:
             ).count()
 
     return dados
+
+
+def aparencia(request):
+    """
+    Tamanho das marcas no painel administrativo.
+
+    Vem da configuracao, e nao do CSS: e ajuste de gosto e de monitor, e
+    exigir deploy para mudar a altura de uma logo e desproporcional.
+    """
+    from apps.comercial.models import ConfiguracaoComercial
+
+    try:
+        config = ConfiguracaoComercial.carregar()
+    except Exception:
+        # Antes da primeira migracao a tabela pode nao existir; o painel
+        # nao pode deixar de abrir por causa do tamanho de uma logo.
+        return {"LOGO_KRONUS_PX": 32, "LOGO_KSTEC_PX": 16}
+
+    return {
+        "LOGO_KRONUS_PX": config.logo_kronus_altura_px,
+        "LOGO_KSTEC_PX": config.logo_kstec_altura_px,
+    }

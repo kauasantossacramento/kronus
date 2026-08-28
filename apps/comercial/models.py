@@ -14,6 +14,7 @@ Duas coisas moram aqui:
 """
 import secrets
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -56,6 +57,23 @@ class ConfiguracaoComercial(BaseModel):
         "Limite de demonstrações por dia",
         default=20,
         help_text="Protege contra criação automatizada em massa.",
+    )
+
+    # -- aparencia do painel -----------------------------------
+    #
+    # Tamanho das marcas no administrativo. Fixos no CSS, eles ficavam
+    # pequenos demais numa tela grande e grandes demais numa pequena, e
+    # trocar exigia deploy — para um ajuste que e questao de gosto e de
+    # monitor.
+    logo_kronus_altura_px = models.PositiveSmallIntegerField(
+        "Altura da marca Kronus no painel (px)",
+        default=32,
+        validators=[MinValueValidator(16), MaxValueValidator(96)],
+    )
+    logo_kstec_altura_px = models.PositiveSmallIntegerField(
+        "Altura da marca KS TEC no painel (px)",
+        default=16,
+        validators=[MinValueValidator(10), MaxValueValidator(72)],
     )
 
     class Meta:

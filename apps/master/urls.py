@@ -90,6 +90,7 @@ urlpatterns = [
     ),
     path("gateway/", views_saas.gateway, name="gateway"),
     path("assinaturas/", views_saas.assinaturas, name="assinaturas"),
+    path("assinaturas/custos/", views_saas.custos, name="custos"),
     path(
         "assinaturas/<int:pk>/",
         views_saas.assinatura_detalhe,

@@ -51,6 +51,8 @@ def configuracao(request):
         for campo, minimo, maximo, padrao in (
             ("demo_horas", 1, 720, 24),
             ("demo_limite_diario", 0, 500, 20),
+            ("logo_kronus_altura_px", 16, 96, 32),
+            ("logo_kstec_altura_px", 10, 72, 16),
         ):
             try:
                 valor = int(request.POST.get(campo, padrao))

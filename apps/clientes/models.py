@@ -390,9 +390,13 @@ class Empresa(BaseModel):
 
     # -- Identidade visual do totem ----------------------------
     logo_altura_px = models.PositiveSmallIntegerField(
-        "Altura da logo no totem (px)",
+        "Altura da marca no totem (px)",
         default=64,
         validators=[MinValueValidator(24), MaxValueValidator(240)],
+        help_text=(
+            "Vale para a logo da empresa e, quando ela não tiver logo, "
+            "para a marca do Kronus que aparece no lugar."
+        ),
     )
     logo_deslocamento_px = models.SmallIntegerField(
         "Deslocamento vertical da logo (px)",

@@ -221,3 +221,21 @@ h1, h2, h3, .font-display {
     transition-duration: .01ms !important;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Tamanho das marcas no painel
+
+   A altura vinha de classes utilitarias fixas — pequena demais num
+   monitor grande, grande demais num pequeno — e trocar exigia deploy,
+   para um ajuste que e questao de gosto e de tela. Passa a vir da
+   configuracao, por variavel CSS.
+   ══════════════════════════════════════════════════════════════ */
+.kronus-marca-painel svg {
+  height: var(--kronus-marca-px, 32px);
+  width: auto;
+}
+.kronus-marca-painel span {
+  /* O texto acompanha o simbolo, mantendo a proporcao original. */
+  font-size: calc(var(--kronus-marca-px, 32px) * 0.62);
+  line-height: 1.1;
+}

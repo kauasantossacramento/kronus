@@ -80,15 +80,52 @@ class LoginColaboradorView(KronusLoginView):
 
 
 def logout_view(request):
+    """
+    Encerra a sessao e devolve o usuario a **porta por onde ele entrou**.
+
+    Quem usa o app de uma empresa entra por `kronus.online/<empresa>`,
+    com a logo e as cores dela. Jogar essa pessoa na capa comercial do
+    Kronus ao sair troca a marca do empregador pela nossa no unico
+    momento em que ela nao pediu nada — e, na pratica, ela perde o
+    endereco de volta.
+    """
+    empresa = None
     if request.user.is_authenticated:
         registrar_log(
             request=request,
             acao=LogAcesso.Acao.LOGOUT,
             descricao=f"Logout de {request.user.nome_completo}",
         )
+        empresa = _empresa_de_entrada(request)
+
     auth_logout(request)
     messages.info(request, "Sessão encerrada.")
+
+    if empresa is not None:
+        return redirect("clientes:portal", slug=empresa.slug)
     return redirect("landing:index")
+
+
+def _empresa_de_entrada(request):
+    """
+    Empresa cuja pagina de acesso serve a este usuario.
+
+    Preferencia para a empresa ativa na sessao; na falta dela, a unica
+    empresa do usuario. Com mais de uma e sem escolha feita, nao ha
+    resposta certa — e mandar para a errada seria pior do que mandar
+    para a capa.
+    """
+    from apps.core.constants import TipoUsuario
+
+    if request.user.tipo == TipoUsuario.MASTER:
+        return None
+
+    empresa = getattr(request, "empresa_ativa", None)
+    if empresa is None:
+        disponiveis = list(request.user.empresas.filter(ativo=True)[:2])
+        empresa = disponiveis[0] if len(disponiveis) == 1 else None
+
+    return empresa if empresa is not None and empresa.slug else None
 
 
 @login_required

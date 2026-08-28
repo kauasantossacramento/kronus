@@ -61,6 +61,33 @@ class ConfiguracaoGateway(BaseModel):
     dias_ate_vencimento = models.PositiveSmallIntegerField(
         "Dias até o primeiro vencimento", default=7
     )
+    # -- custos por transacao ----------------------------------
+    #
+    # A tabela do ASAAS muda, e varia por conta negociada. Numero fixo no
+    # codigo vira margem errada em silencio — o relatorio continua
+    # somando, so que errado, e ninguem percebe ate fechar o mes.
+    custo_pix = models.DecimalField(
+        "Custo por Pix recebido (R$)", max_digits=6, decimal_places=2, default=0
+    )
+    custo_boleto = models.DecimalField(
+        "Custo por boleto compensado (R$)", max_digits=6, decimal_places=2, default=0
+    )
+    custo_cartao_percentual = models.DecimalField(
+        "Taxa do cartão (%)", max_digits=5, decimal_places=2, default=0
+    )
+    custo_cartao_fixo = models.DecimalField(
+        "Custo fixo por transação no cartão (R$)",
+        max_digits=6, decimal_places=2, default=0,
+    )
+    custo_nota_fiscal = models.DecimalField(
+        "Custo por nota fiscal (R$)", max_digits=6, decimal_places=2, default=0
+    )
+    custo_mensal_fixo = models.DecimalField(
+        "Custo fixo mensal da operação (R$)",
+        max_digits=10, decimal_places=2, default=0,
+        help_text="VPS, domínio, e-mail — rateado no relatório de margem.",
+    )
+
     emitir_nota_fiscal = models.BooleanField(
         "Emitir nota fiscal automaticamente",
         default=False,
@@ -350,3 +377,37 @@ class EventoGateway(BaseModel):
 
     def __str__(self):
         return f"{self.evento} — {self.identificador_externo}"
+
+
+def custo_da_cobranca(cobranca, config=None):
+    """
+    Quanto a KS TEC paga para receber esta cobranca.
+
+    Fica fora do modelo `Cobranca` de proposito: o custo depende da
+    tabela vigente, que muda, e congelar o valor no registro faria o
+    historico mentir quando a tabela fosse atualizada. Recalcular a cada
+    leitura mantem o relatorio coerente com o que se paga hoje.
+    """
+    from decimal import Decimal
+
+    config = config or ConfiguracaoGateway.carregar()
+    forma = (cobranca.assinatura.forma_pagamento or "").upper()
+
+    if forma == "PIX":
+        custo = config.custo_pix
+    elif forma == "BOLETO":
+        custo = config.custo_boleto
+    elif forma in ("CREDIT_CARD", "CARTAO"):
+        custo = (
+            cobranca.valor * config.custo_cartao_percentual / Decimal("100")
+            + config.custo_cartao_fixo
+        )
+    else:
+        # Forma indefinida: o cliente escolhe na hora de pagar. Assumir o
+        # mais barato subestimaria o custo; assumir o mais caro assustaria
+        # sem motivo. O boleto e o caso mais comum na base.
+        custo = config.custo_boleto
+
+    if cobranca.url_nota:
+        custo += config.custo_nota_fiscal
+    return custo

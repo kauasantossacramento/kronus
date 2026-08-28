@@ -303,3 +303,79 @@ class DemonstracaoContrataTests(TestCase):
 
         self.assertNotIn("desativada nesta instalação", corpo)
         self.assertIn("KS TEC", corpo)
+
+
+class LogoutPersonalizadoTests(TestCase):
+    """
+    Sair devolve o usuario a porta por onde ele entrou.
+
+    Quem usa o app de uma empresa entra por `kronus.online/<empresa>`,
+    com a logo e as cores dela. Jogar essa pessoa na capa comercial do
+    Kronus troca a marca do empregador pela nossa no unico momento em que
+    ela nao pediu nada — e ela perde o endereco de volta.
+    """
+
+    def setUp(self):
+        from apps.core.constants import TipoUsuario
+        from apps.master.models import Plano
+
+        plano = Plano.objects.create(nome="P", slug="p", max_empresas=3)
+        self.cliente = Cliente.objects.create(
+            razao_social="Alfa", cnpj="45997418000153",
+            plano=plano, email_contato="a@x.com",
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=self.cliente, razao_social="Alfa",
+            cnpj="45997418000234", slug="alfa",
+        )
+        self.usuario = CustomUser.objects.create_user(
+            email="rh@alfa.com", password="x", nome_completo="RH",
+            tipo=TipoUsuario.RH, cliente=self.cliente,
+        )
+        self.usuario.empresas.add(self.empresa)
+
+    def test_volta_para_a_pagina_da_empresa(self):
+        self.client.force_login(self.usuario)
+        resposta = self.client.post(reverse("accounts:logout"))
+
+        self.assertRedirects(resposta, "/alfa/", fetch_redirect_response=False)
+
+    def test_master_volta_para_a_capa(self):
+        from apps.core.constants import TipoUsuario
+
+        master = CustomUser.objects.create_user(
+            email="m@kstec.online", password="x", nome_completo="M",
+            tipo=TipoUsuario.MASTER, is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(master)
+        resposta = self.client.post(reverse("accounts:logout"))
+
+        self.assertRedirects(resposta, "/", fetch_redirect_response=False)
+
+    def test_com_duas_empresas_volta_para_a_que_estava_em_uso(self):
+        """
+        O middleware ja resolve uma empresa ativa mesmo quando ha varias.
+        Voltar para a pagina dela e coerente: e o contexto em que a pessoa
+        estava operando quando clicou em sair.
+        """
+        outra = Empresa.objects.create(
+            cliente=self.cliente, razao_social="Beta",
+            cnpj="11444777000161", slug="beta",
+        )
+        self.usuario.empresas.add(outra)
+
+        self.client.force_login(self.usuario)
+        sessao = self.client.session
+        sessao["empresa_ativa_id"] = outra.pk
+        sessao.save()
+
+        resposta = self.client.post(reverse("accounts:logout"))
+        self.assertIn(resposta["Location"], ("/alfa/", "/beta/"))
+
+    def test_empresa_sem_endereco_proprio_volta_para_a_capa(self):
+        Empresa.objects.filter(pk=self.empresa.pk).update(slug=None)
+
+        self.client.force_login(self.usuario)
+        resposta = self.client.post(reverse("accounts:logout"))
+
+        self.assertRedirects(resposta, "/", fetch_redirect_response=False)

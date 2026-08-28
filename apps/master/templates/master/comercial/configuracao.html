@@ -122,6 +122,29 @@
       </p>
     </div>
 
+    <div class="card p-6">
+      <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Marcas no painel</h2>
+      <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+        Altura das marcas Kronus e KS TEC nas telas administrativas.
+      </p>
+      <div class="mt-5 grid gap-5 sm:grid-cols-2">
+        <div>
+          <label for="logo_kronus_altura_px" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Marca Kronus (px)</label>
+          <input type="number" id="logo_kronus_altura_px" name="logo_kronus_altura_px"
+                 min="16" max="96" value="{{ config.logo_kronus_altura_px }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">No topo do menu lateral.</p>
+        </div>
+        <div>
+          <label for="logo_kstec_altura_px" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Marca KS TEC (px)</label>
+          <input type="number" id="logo_kstec_altura_px" name="logo_kstec_altura_px"
+                 min="10" max="72" value="{{ config.logo_kstec_altura_px }}"
+                 class="mt-1.5 block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">No rodapé do menu e das páginas.</p>
+        </div>
+      </div>
+    </div>
+
     <div class="flex justify-end">
       <button type="submit" class="btn btn-primary">Salvar</button>
     </div>

@@ -124,6 +124,54 @@
       </div>
 
       <div class="border-t border-[var(--kronus-gray-200)] pt-5">
+        <h3 class="text-sm font-semibold text-[var(--kronus-gray-800)]">Tabela de custos</h3>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+          Quanto o ASAAS cobra da KS TEC por transação. Alimenta o relatório de
+          <a href="{% url 'master:custos' %}" class="underline">custos e margem</a> —
+          zerado, tudo aparece como lucro.
+        </p>
+        <div class="mt-4 grid gap-4 sm:grid-cols-3">
+          <div>
+            <label for="custo_pix" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Pix recebido (R$)</label>
+            <input type="text" id="custo_pix" name="custo_pix" inputmode="decimal"
+                   value="{{ config.custo_pix|floatformat:2 }}"
+                   class="mt-1 block w-full rounded-lg border-0 py-2 px-3 font-mono text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          </div>
+          <div>
+            <label for="custo_boleto" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Boleto compensado (R$)</label>
+            <input type="text" id="custo_boleto" name="custo_boleto" inputmode="decimal"
+                   value="{{ config.custo_boleto|floatformat:2 }}"
+                   class="mt-1 block w-full rounded-lg border-0 py-2 px-3 font-mono text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          </div>
+          <div>
+            <label for="custo_nota_fiscal" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Nota fiscal (R$)</label>
+            <input type="text" id="custo_nota_fiscal" name="custo_nota_fiscal" inputmode="decimal"
+                   value="{{ config.custo_nota_fiscal|floatformat:2 }}"
+                   class="mt-1 block w-full rounded-lg border-0 py-2 px-3 font-mono text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          </div>
+          <div>
+            <label for="custo_cartao_percentual" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Cartão (%)</label>
+            <input type="text" id="custo_cartao_percentual" name="custo_cartao_percentual" inputmode="decimal"
+                   value="{{ config.custo_cartao_percentual|floatformat:2 }}"
+                   class="mt-1 block w-full rounded-lg border-0 py-2 px-3 font-mono text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          </div>
+          <div>
+            <label for="custo_cartao_fixo" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Cartão, parte fixa (R$)</label>
+            <input type="text" id="custo_cartao_fixo" name="custo_cartao_fixo" inputmode="decimal"
+                   value="{{ config.custo_cartao_fixo|floatformat:2 }}"
+                   class="mt-1 block w-full rounded-lg border-0 py-2 px-3 font-mono text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          </div>
+          <div>
+            <label for="custo_mensal_fixo" class="block text-xs font-medium text-[var(--kronus-gray-700)]">Custo fixo mensal (R$)</label>
+            <input type="text" id="custo_mensal_fixo" name="custo_mensal_fixo" inputmode="decimal"
+                   value="{{ config.custo_mensal_fixo|floatformat:2 }}"
+                   class="mt-1 block w-full rounded-lg border-0 py-2 px-3 font-mono text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+            <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">VPS, domínio, e-mail.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-[var(--kronus-gray-200)] pt-5">
         <label class="flex items-start gap-2">
           <input type="checkbox" id="emitir_nota_fiscal" name="emitir_nota_fiscal"
                  {% if config.emitir_nota_fiscal %}checked{% endif %}

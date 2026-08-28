@@ -15,6 +15,8 @@ ao banco. O preço disso é que o Master é a credencial mais poderosa do
 sistema — e por isso cada ação aqui grava `LogAcessoMaster`, que é
 imutável por construção.
 """
+from decimal import Decimal, InvalidOperation
+
 import logging
 
 from django.contrib import messages
@@ -86,6 +88,19 @@ def gateway(request):
             except ValueError:
                 messages.error(request, "Os prazos devem ser números inteiros.")
                 return redirect("master:gateway")
+
+            # Tabela de custos: digitacao ruim mantem o valor anterior em
+            # vez de zerar. Zerar em silencio faria o relatorio de margem
+            # mostrar tudo como lucro.
+            for campo in (
+                "custo_pix", "custo_boleto", "custo_cartao_percentual",
+                "custo_cartao_fixo", "custo_nota_fiscal", "custo_mensal_fixo",
+            ):
+                bruto = (request.POST.get(campo) or "").replace(",", ".").strip()
+                try:
+                    setattr(config, campo, Decimal(bruto) if bruto else Decimal("0"))
+                except (InvalidOperation, TypeError):
+                    pass
 
             config.emitir_nota_fiscal = request.POST.get("emitir_nota_fiscal") == "on"
             config.nota_fiscal_descricao = (
@@ -281,6 +296,99 @@ def assinatura_detalhe(request, pk):
             "cobrancas": assinatura.cobrancas.order_by("-vencimento")[:36],
         },
     )
+
+
+@master_required
+def custos(request):
+    """
+    Quanto entra, quanto sai e o que sobra.
+
+    A receita bruta ja aparece em Assinaturas; o que faltava era o outro
+    lado. Sem os custos, "R$ 3.200 no mes" parece margem — e nao e: cada
+    boleto compensado, cada nota emitida e a propria VPS saem dai.
+    """
+    from datetime import date
+
+    from apps.faturamento.models import Cobranca, custo_da_cobranca
+
+    config = ConfiguracaoGateway.carregar()
+
+    try:
+        ano = int(request.GET.get("ano", timezone.localdate().year))
+        mes = int(request.GET.get("mes", timezone.localdate().month))
+    except (TypeError, ValueError):
+        hoje = timezone.localdate()
+        ano, mes = hoje.year, hoje.month
+
+    pagas = (
+        Cobranca.objects.filter(
+            status=Cobranca.Status.PAGA,
+            pago_em__year=ano,
+            pago_em__month=mes,
+        )
+        .select_related("assinatura", "assinatura__cliente", "assinatura__plano")
+        .order_by("-pago_em")
+    )
+
+    linhas = []
+    receita = Decimal("0")
+    custo_variavel = Decimal("0")
+    for cobranca in pagas:
+        custo = custo_da_cobranca(cobranca, config)
+        receita += cobranca.valor
+        custo_variavel += custo
+        linhas.append({
+            "cobranca": cobranca,
+            "cliente": cobranca.assinatura.cliente,
+            "custo": custo,
+            "liquido": cobranca.valor - custo,
+        })
+
+    custo_fixo = config.custo_mensal_fixo
+    total_custo = custo_variavel + custo_fixo
+    liquido = receita - total_custo
+    margem = (liquido / receita * 100) if receita else None
+
+    # Doze meses para o grafico: um mes isolado nao mostra se a operacao
+    # esta melhorando ou piorando, que e a pergunta real.
+    historico = []
+    referencia = date(ano, mes, 1)
+    for recuo in range(11, -1, -1):
+        alvo_mes = referencia.month - recuo
+        alvo_ano = referencia.year
+        while alvo_mes <= 0:
+            alvo_mes += 12
+            alvo_ano -= 1
+        do_mes = Cobranca.objects.filter(
+            status=Cobranca.Status.PAGA,
+            pago_em__year=alvo_ano, pago_em__month=alvo_mes,
+        ).select_related("assinatura")
+        bruto = sum((c.valor for c in do_mes), Decimal("0"))
+        gasto = sum((custo_da_cobranca(c, config) for c in do_mes), Decimal("0"))
+        historico.append({
+            "rotulo": f"{alvo_mes:02d}/{str(alvo_ano)[2:]}",
+            "receita": bruto,
+            "custo": gasto + custo_fixo,
+            "liquido": bruto - gasto - custo_fixo,
+        })
+
+    return render(request, "master/saas/custos.html", {
+        "titulo": "Custos e margem",
+        "menu_ativo": "assinaturas",
+        "config": config,
+        "ano": ano,
+        "mes": mes,
+        "linhas": linhas,
+        "receita": receita,
+        "custo_variavel": custo_variavel,
+        "custo_fixo": custo_fixo,
+        "total_custo": total_custo,
+        "liquido": liquido,
+        "margem": round(margem) if margem is not None else None,
+        "historico": historico,
+        "meses": range(1, 13),
+        "anos": range(timezone.localdate().year - 2, timezone.localdate().year + 1),
+    })
 
 
 # ══════════════════════════════════════════════════════════════
