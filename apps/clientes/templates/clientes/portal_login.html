@@ -1,4 +1,4 @@
-{% load static kronus_icons %}<!DOCTYPE html>
+{% load static kronus_icons kronus_tags %}<!DOCTYPE html>
 <html lang="pt-BR" class="h-full">
 <head>
   <meta charset="UTF-8">
@@ -32,9 +32,12 @@
       --kronus-primary-600: {{ empresa_portal.cor_primaria }};
       --kronus-gold-500: {{ empresa_portal.cor_secundaria }};
     }
-    {% if empresa_portal.logo_css %}
-      [data-kronus-logo], [data-kronus-logo] img { {{ empresa_portal.logo_css }} }
-    {% endif %}
+    body { background: {{ empresa_portal.cor_fundo_login }}; }
+    {% with css_logo=empresa_portal|css_logo_login %}
+      {% if css_logo %}
+        [data-kronus-logo], [data-kronus-logo] img { {{ css_logo }} }
+      {% endif %}
+    {% endwith %}
   </style>
 </head>
 <body class="min-h-full bg-[var(--kronus-gray-50)] font-sans antialiased">

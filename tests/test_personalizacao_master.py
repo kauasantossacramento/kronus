@@ -58,6 +58,7 @@ class PersonalizacaoPeloMasterTests(TestCase):
     def _post(self, **extra):
         dados = {
             "cor_primaria": "#1E3A5F", "cor_secundaria": "#D4A017",
+            "cor_fundo_login": "#F8FAFC",
             "logo_altura_px": 40, "logo_deslocamento_px": 0, "logo_css": "",
             "msg_boas_vindas": "Registre seu ponto",
             "msg_sucesso_ponto": "Ponto registrado!",
@@ -152,3 +153,86 @@ class PersonalizacaoPeloMasterTests(TestCase):
             reverse("master:empresa_editar", args=[self.empresa.pk])
         )
         self.assertContains(resposta, self.url)
+
+
+@override_settings(MEDIA_ROOT=MIDIA)
+class LogoBrancaPorTelaTests(TestCase):
+    """
+    A regra pronta, por tela.
+
+    Antes so existia um campo de CSS livre, que exigia saber CSS e valia
+    para o sistema inteiro de uma vez. Mas a necessidade real e quase
+    sempre a mesma — a logo escura some no fundo escuro do totem — e ela
+    nao vale nas duas telas ao mesmo tempo: a tela de login costuma ter
+    fundo claro, onde a logo branca sumiria.
+    """
+
+    def setUp(self):
+        plano = Plano.objects.create(nome="P", slug="p", max_empresas=2)
+        cliente = Cliente.objects.create(
+            razao_social="Alfa", cnpj="45997418000153",
+            plano=plano, email_contato="a@x.com",
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="Alfa", cnpj="45997418000234",
+            slug="alfa",
+        )
+
+    def test_sem_marcar_nada_nao_ha_regra(self):
+        self.assertEqual(self.empresa.css_da_logo("totem"), "")
+        self.assertEqual(self.empresa.css_da_logo("login"), "")
+
+    def test_branca_so_no_totem(self):
+        self.empresa.logo_branca_totem = True
+
+        self.assertIn("invert(1)", self.empresa.css_da_logo("totem"))
+        self.assertEqual(self.empresa.css_da_logo("login"), "")
+
+    def test_branca_so_no_login(self):
+        self.empresa.logo_branca_login = True
+
+        self.assertIn("invert(1)", self.empresa.css_da_logo("login"))
+        self.assertEqual(self.empresa.css_da_logo("totem"), "")
+
+    def test_css_livre_vale_nas_duas_telas(self):
+        self.empresa.logo_css = "opacity: .8"
+
+        for tela in ("totem", "login"):
+            self.assertIn("opacity: .8", self.empresa.css_da_logo(tela))
+
+    def test_opcao_e_css_livre_se_somam(self):
+        self.empresa.logo_branca_totem = True
+        self.empresa.logo_css = "opacity: .8"
+
+        regra = self.empresa.css_da_logo("totem")
+        self.assertIn("invert(1)", regra)
+        self.assertIn("opacity: .8", regra)
+
+    def test_a_api_do_totem_manda_a_regra_ja_resolvida(self):
+        """O JS do totem nao precisa saber quais opcoes existem."""
+        from apps.api.serializers import ConfigTotemSerializer
+        from apps.totem.models import Totem
+
+        self.empresa.logo_branca_totem = True
+        self.empresa.logo_branca_login = False
+        self.empresa.save()
+        totem = Totem.objects.create(empresa=self.empresa, ativo=True)
+
+        dados = ConfigTotemSerializer(totem).data
+        self.assertIn("invert(1)", dados["empresa"]["logo_css"])
+
+    def test_a_tela_de_login_usa_a_cor_de_fundo_escolhida(self):
+        self.empresa.cor_fundo_login = "#101827"
+        self.empresa.logo_branca_login = True
+        self.empresa.save()
+
+        corpo = self.client.get("/alfa/").content.decode()
+        self.assertIn("#101827", corpo)
+        self.assertIn("invert(1)", corpo)
+
+    def test_login_com_fundo_claro_nao_recebe_logo_branca(self):
+        self.empresa.logo_branca_totem = True
+        self.empresa.save()
+
+        corpo = self.client.get("/alfa/").content.decode()
+        self.assertNotIn("invert(1)", corpo)

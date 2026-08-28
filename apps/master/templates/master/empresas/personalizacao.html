@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load kronus_icons %}
+{% load kronus_icons kronus_tags %}
 
 {% block cabecalho %}
 <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -55,11 +55,19 @@
 
         <div class="mt-5 grid gap-5 sm:grid-cols-2">
           {% for campo in form %}
-            {% if campo.name == "logo" or campo.name == "logo_altura_px" or campo.name == "logo_deslocamento_px" or campo.name == "logo_css" %}
-              <div class="{% if campo.name == 'logo' or campo.name == 'logo_css' %}sm:col-span-2{% endif %}">
+            {% if campo.name == "logo" or campo.name == "logo_altura_px" or campo.name == "logo_deslocamento_px" or campo.name == "logo_css" or campo.name == "logo_branca_totem" or campo.name == "logo_branca_login" %}
+              <div class="{% if campo.name == 'logo' or campo.name == 'logo_css' %}sm:col-span-2{% endif %}{% if campo.field.widget.input_type == 'checkbox' %} flex items-start gap-2{% endif %}">
+                {% if campo.field.widget.input_type == 'checkbox' %}
+                  {{ campo }}
+                  <span>
+                    <label for="{{ campo.id_for_label }}" class="text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
+                    {% if campo.help_text %}<span class="block text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</span>{% endif %}
+                  </span>
+                {% else %}
                 <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
                 <div class="mt-1.5">{{ campo }}</div>
-                {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
+                {% endif %}
+                {% if campo.help_text and campo.field.widget.input_type != 'checkbox' %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
                 {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
               </div>
             {% endif %}
@@ -75,7 +83,7 @@
 
         <div class="mt-5 grid gap-5 sm:grid-cols-2">
           {% for campo in form %}
-            {% if campo.name == "cor_primaria" or campo.name == "cor_secundaria" %}
+            {% if campo.name == "cor_primaria" or campo.name == "cor_secundaria" or campo.name == "cor_fundo_login" %}
               <div>
                 <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
                 <div class="mt-1.5">{{ campo }}</div>
@@ -186,10 +194,11 @@
       </p>
 
       <div class="mt-4 overflow-hidden rounded-xl border border-[var(--kronus-gray-200)]"
-           style="background: {{ empresa.cor_primaria }}12">
+           style="background: {{ empresa.cor_fundo_login }}">
         <div class="px-5 py-8 text-center">
           {% if empresa.logo %}
-            <img src="{{ empresa.logo.url }}" alt="" class="mx-auto max-h-16 w-auto object-contain">
+            <img src="{{ empresa.logo.url }}" alt="" class="mx-auto max-h-16 w-auto object-contain"
+                 style="{{ empresa|css_logo_login }}">
           {% else %}
             <div class="mx-auto grid h-14 w-14 place-items-center rounded-2xl"
                  style="background: {{ empresa.cor_primaria }}">
@@ -216,6 +225,13 @@
           <dd class="flex items-center gap-2 font-mono">
             <span class="h-4 w-4 rounded ring-1 ring-black/10" style="background: {{ empresa.cor_primaria }}"></span>
             {{ empresa.cor_primaria }}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Fundo do login</dt>
+          <dd class="flex items-center gap-2 font-mono">
+            <span class="h-4 w-4 rounded ring-1 ring-black/10" style="background: {{ empresa.cor_fundo_login }}"></span>
+            {{ empresa.cor_fundo_login }}
           </dd>
         </div>
         <div class="flex items-center justify-between">

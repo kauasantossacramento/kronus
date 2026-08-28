@@ -108,3 +108,78 @@ class ConviteDeInstalacaoTests(TestCase):
 
     def test_nao_aparece_para_quem_ja_instalou(self):
         self.assertIn("display-mode: standalone", self.fonte)
+
+
+class InstalacaoDoTotemTests(TestCase):
+    """
+    O totem e o aparelho onde a instalacao mais importa: sem ela a tela
+    fica com barra de navegador, e barra de navegador convida o
+    colaborador a sair da pagina.
+    """
+
+    def setUp(self):
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+        from apps.totem.models import Totem
+
+        plano = Plano.objects.create(nome="P", slug="p", max_totems=3)
+        cliente = Cliente.objects.create(
+            razao_social="Alfa", cnpj="45997418000153",
+            plano=plano, email_contato="a@x.com",
+        )
+        empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="Alfa", cnpj="45997418000234",
+        )
+        self.totem = Totem.objects.create(empresa=empresa, ativo=True)
+        self.pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+
+    def test_o_convite_esta_na_pagina(self):
+        self.assertIn("totem-instalar", self.pagina)
+
+    def test_reconhece_o_ipad(self):
+        """
+        Sem este ramo o convite nunca aparecia em tablet da Apple — que e
+        justamente um aparelho comum de totem. Desde o iPadOS 13 o Safari
+        do iPad se identifica como "Macintosh".
+        """
+        self.assertIn("maxTouchPoints", self.pagina)
+        self.assertIn("Macintosh", self.pagina)
+
+    def test_ensina_o_gesto_manual(self):
+        self.assertIn("Adicionar à Tela de Início", self.pagina)
+
+    def test_declara_capacidade_de_app_no_ios(self):
+        """Sem isto, o atalho do iPad abre dentro do Safari, com barra."""
+        self.assertIn("apple-mobile-web-app-capable", self.pagina)
+        self.assertIn("apple-touch-icon", self.pagina)
+
+    def test_manifesto_do_totem_tem_icone_valido(self):
+        dados = self.client.get(
+            f"/totem/{self.totem.token_acesso}/manifest.json"
+        ).json()
+
+        self.assertTrue(dados["icons"])
+        self.assertIn(dados["display"], ("fullscreen", "standalone", "minimal-ui"))
+        for icone in dados["icons"]:
+            self.assertEqual(icone["type"], mimetypes.guess_type(icone["src"])[0])
+
+    def test_o_escopo_do_manifesto_cobre_a_pagina(self):
+        """`start_url` fora do `scope` torna o app nao instalavel."""
+        dados = self.client.get(
+            f"/totem/{self.totem.token_acesso}/manifest.json"
+        ).json()
+        self.assertTrue(dados["start_url"].startswith(dados["scope"]))
+
+    def test_hidden_vence_o_display_do_css(self):
+        """
+        `hidden` vale `display: none` pelo navegador, mas qualquer
+        `display` do autor vence. Sem a regra, o ramo do Android aparecia
+        junto com o do iPad — um botao "Instalar" visivel no iPhone que
+        nao faz nada, porque la o evento nao existe.
+        """
+        css = (
+            RAIZ / "apps" / "totem" / "static" / "totem" / "css" / "totem.css"
+        ).read_text(encoding="utf-8")
+        self.assertIn(".totem-instalar [hidden]", css)

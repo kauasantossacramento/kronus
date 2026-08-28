@@ -148,7 +148,9 @@ class ConfigTotemSerializer(serializers.Serializer):
             "logo": empresa.logo.url if empresa.logo else None,
             "logo_altura_px": empresa.logo_altura_px,
             "logo_deslocamento_px": empresa.logo_deslocamento_px,
-            "logo_css": empresa.logo_css,
+            # Ja resolvido para a tela do totem: o JS nao precisa
+            # saber quais opcoes existem nem em que ordem aplicar.
+            "logo_css": empresa.css_da_logo("totem"),
             # Mantido por compatibilidade com totens que ainda nao
             # atualizaram o app.
             "idle_screen": slides[0]["url"] if slides else None,

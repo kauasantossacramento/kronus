@@ -187,3 +187,17 @@ def estatico(caminho):
     from apps.core.versao import versao_dos_estaticos
 
     return f"{static(caminho)}?v={versao_dos_estaticos()}"
+
+
+@register.filter(name="css_logo_login")
+def css_logo_login(empresa):
+    """
+    Regras CSS da logo na tela de login da empresa.
+
+    Filtro em vez de chamada direta no template porque `css_da_logo`
+    recebe argumento, e o Django nao permite passar argumento a metodo
+    dentro de `{{ }}`.
+    """
+    if empresa is None:
+        return ""
+    return empresa.css_da_logo("login")

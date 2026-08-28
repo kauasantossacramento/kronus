@@ -293,35 +293,52 @@
 
 {% comment %}
   ═══════ Instalacao do totem como aplicativo ═══════
-   Diferente do painel: aqui quem instala e o tecnico montando o
-   equipamento, uma unica vez. O convite pode ser mais explicito, e a
-   recomendacao de tela cheia importa — um totem com barra de navegador
-   convida o colaborador a sair da pagina.
+
+  Quem instala aqui e o tecnico montando o equipamento, uma unica vez —
+  entao o convite pode ser explicito, e a recomendacao de tela cheia
+  importa: um totem com barra de navegador convida o colaborador a sair
+  da pagina.
+
+  Dois caminhos, porque os navegadores nao sao iguais:
+  · Android/Chrome dispara `beforeinstallprompt` e instala com um toque.
+  · iPad nao dispara evento nenhum. La so existe o gesto manual, e sem
+    este ramo o convite simplesmente nunca aparecia em tablet da Apple —
+    que e justamente um aparelho comum de totem.
 {% endcomment %}
-<div id="totem-instalar" hidden
-     class="fixed inset-x-0 bottom-0 z-50 p-6">
-  <div class="mx-auto max-w-lg rounded-2xl bg-white/95 p-5 shadow-2xl backdrop-blur">
-    <div class="flex items-start gap-4">
-      <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[var(--kronus-primary-600)] text-white">
-        {% icone "totem" classe="h-7 w-7" %}
-      </span>
-      <div class="min-w-0 flex-1">
-        <p class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">
-          Instalar este totem como aplicativo
-        </p>
-        <p class="mt-1 text-sm leading-relaxed text-[var(--kronus-gray-600)]">
-          Abre em tela cheia, sem barra de navegador, e volta sozinho depois
-          de uma queda de energia. Recomendado para o equipamento fixo.
+<div id="totem-instalar" class="totem-instalar" hidden>
+  <div class="totem-instalar__caixa">
+    <div class="totem-instalar__topo">
+      <span class="totem-instalar__icone">{% icone "totem" classe="h-7 w-7" %}</span>
+      <div>
+        <p class="totem-instalar__titulo">Instalar este totem como aplicativo</p>
+        <p class="totem-instalar__texto">
+          Abre em tela cheia, sem barra de navegador, e volta sozinho depois de
+          uma queda de energia. Recomendado para o equipamento fixo.
         </p>
       </div>
     </div>
-    <div class="mt-4 flex gap-2">
-      <button type="button" id="totem-instalar-botao" class="btn btn-primary flex-1 py-3">
-        {% icone "download" classe="h-4 w-4" %} Instalar
+
+    <div id="totem-instalar-auto" hidden class="totem-instalar__acoes">
+      <button type="button" id="totem-instalar-botao" class="totem-instalar__btn">
+        Instalar
       </button>
-      <button type="button" id="totem-instalar-depois" class="btn btn-outline px-4 py-3">
+      <button type="button" id="totem-instalar-depois"
+              class="totem-instalar__btn totem-instalar__btn--secundario">
         Agora não
       </button>
+    </div>
+
+    <div id="totem-instalar-ios" hidden>
+      <ul class="totem-instalar__passos">
+        <li>1. Toque em <strong>Compartilhar</strong> na barra do Safari</li>
+        <li>2. Escolha <strong>Adicionar à Tela de Início</strong></li>
+        <li>3. Confirme em <strong>Adicionar</strong></li>
+      </ul>
+      <div class="totem-instalar__acoes">
+        <button type="button" id="totem-instalar-ios-fechar"
+                class="totem-instalar__btn totem-instalar__btn--secundario"
+                style="flex: 1">Entendi</button>
+      </div>
     </div>
   </div>
 </div>
@@ -333,32 +350,73 @@
   var caixa = document.getElementById('totem-instalar');
   if (!caixa) return;
 
-  var jaInstalado =
-    window.matchMedia('(display-mode: fullscreen)').matches
-    || window.matchMedia('(display-mode: standalone)').matches;
-  if (jaInstalado) return;
+  // Ja instalado: o totem roda fora do navegador.
+  if (window.matchMedia('(display-mode: fullscreen)').matches
+      || window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true) return;
 
-  try { if (localStorage.getItem(CHAVE) === '1') return; } catch (e) {}
+  function recusado() {
+    try { return localStorage.getItem(CHAVE) === '1'; } catch (e) { return false; }
+  }
+  function guardar() {
+    try { localStorage.setItem(CHAVE, '1'); } catch (e) {}
+  }
+  if (recusado()) return;
 
+  function abrir(id) {
+    var ramo = document.getElementById(id);
+    if (ramo) ramo.hidden = false;
+    caixa.hidden = false;
+  }
+  function fechar(lembrar) {
+    caixa.hidden = true;
+    if (lembrar) guardar();
+  }
+
+  // -- Android / Chrome ------------------------------------------
   var evento = null;
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     evento = e;
-    caixa.hidden = false;
+    abrir('totem-instalar-auto');
   });
 
-  document.getElementById('totem-instalar-botao').addEventListener('click', function () {
-    if (!evento) return;
-    evento.prompt();
-    evento.userChoice.then(function () { evento = null; caixa.hidden = true; });
-  });
+  document.getElementById('totem-instalar-botao')
+    .addEventListener('click', function () {
+      if (!evento) return;
+      evento.prompt();
+      evento.userChoice.then(function (escolha) {
+        evento = null;
+        fechar(escolha && escolha.outcome !== 'accepted');
+      });
+    });
 
-  document.getElementById('totem-instalar-depois').addEventListener('click', function () {
-    caixa.hidden = true;
-    try { localStorage.setItem(CHAVE, '1'); } catch (e) {}
-  });
+  document.getElementById('totem-instalar-depois')
+    .addEventListener('click', function () { fechar(true); });
 
-  window.addEventListener('appinstalled', function () { caixa.hidden = true; });
+  document.getElementById('totem-instalar-ios-fechar')
+    .addEventListener('click', function () { fechar(true); });
+
+  window.addEventListener('appinstalled', function () { fechar(true); });
+
+  // -- iPad e iPhone ---------------------------------------------
+  // Nenhum evento e disparado: o convite depende de reconhecer o
+  // aparelho. Desde o iPadOS 13 o Safari do iPad se identifica como
+  // "Macintosh" — o que separa um iPad de um Mac e a tela sensivel ao
+  // toque, porque Mac nenhum reporta `maxTouchPoints > 1`.
+  var ua = navigator.userAgent;
+  var ehIPad = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  var ehIOS = (/iPad|iPhone|iPod/.test(ua) || ehIPad) && !window.MSStream;
+  var ehSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+
+  if (ehIOS && ehSafari) {
+    // Espera: um convite que aparece junto com a pagina e fechado antes
+    // de alguem ler o que ele oferece.
+    setTimeout(function () {
+      if (!caixa.hidden || recusado()) return;
+      abrir('totem-instalar-ios');
+    }, 6000);
+  }
 })();
 </script>
 {% endblock %}

@@ -591,3 +591,104 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .totem-slide { transition: opacity .2s ease, visibility .2s !important; transform: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Convite para instalar o totem como aplicativo
+
+   O tema do totem nao carrega o design system nem o Tailwind — as
+   classes usadas no resto do sistema nao existem aqui. Por isso o
+   convite tem estilo proprio, e nao classes utilitarias que sairiam
+   sem efeito.
+   ══════════════════════════════════════════════════════════════ */
+.totem-instalar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  padding: 1.5rem;
+  /* `env(safe-area-inset-*)`: no iPad em tela cheia o convite ficaria
+     por baixo da barra de gestos sem isto. */
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+.totem-instalar[hidden] { display: none; }
+
+.totem-instalar__caixa {
+  max-width: 36rem;
+  margin: 0 auto;
+  background: var(--totem-surface);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 20px 40px rgb(0 0 0 / .5);
+}
+
+.totem-instalar__topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.totem-instalar__icone {
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: .75rem;
+  background: var(--totem-glow-idle);
+  display: grid;
+  place-items: center;
+  color: var(--totem-gold-accent);
+}
+.totem-instalar__titulo {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--totem-text);
+}
+.totem-instalar__texto {
+  margin-top: .25rem;
+  font-size: .875rem;
+  line-height: 1.5;
+  color: var(--totem-text-muted);
+}
+
+.totem-instalar__acoes {
+  display: flex;
+  gap: .5rem;
+  margin-top: 1rem;
+}
+.totem-instalar__btn {
+  flex: 1;
+  border: 0;
+  border-radius: .625rem;
+  padding: .85rem 1rem;
+  font-size: .95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--totem-glow);
+  color: #0A1628;
+}
+.totem-instalar__btn--secundario {
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--totem-text-muted);
+  border: 1px solid rgba(255, 255, 255, .2);
+}
+
+.totem-instalar__passos {
+  margin: 1rem 0 0;
+  padding: .9rem 1rem;
+  list-style: none;
+  background: rgba(0, 0, 0, .25);
+  border-radius: .625rem;
+  font-size: .85rem;
+  line-height: 1.7;
+  color: var(--totem-text-muted);
+}
+.totem-instalar__passos strong { color: var(--totem-text); }
+
+/* O atributo `hidden` vale `display: none` pelo navegador, mas qualquer
+   `display` declarado pelo autor vence — e `.totem-instalar__acoes` usa
+   `display: flex`. Sem esta regra, o ramo do Android aparecia junto com
+   o do iPad: um botao "Instalar" visivel no iPhone que nao faz nada,
+   porque la o evento de instalacao nao existe. */
+.totem-instalar [hidden] { display: none !important; }

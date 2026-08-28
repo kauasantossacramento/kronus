@@ -400,14 +400,42 @@ class Empresa(BaseModel):
         validators=[MinValueValidator(-200), MaxValueValidator(200)],
         help_text="Negativo sobe, positivo desce. Ajusta a logo sobre a câmera.",
     )
+    #: A regra pronta, por tela.
+    #:
+    #: Antes so existia o campo livre `logo_css`, que exigia saber CSS e
+    #: valia para o sistema inteiro de uma vez. Mas a necessidade real e
+    #: quase sempre a mesma — a logo e escura e some no fundo escuro do
+    #: totem — e ela nao vale nas duas telas ao mesmo tempo: a tela de
+    #: login costuma ter fundo claro, onde a logo branca sumiria.
+    logo_branca_totem = models.BooleanField(
+        "Logo branca no totem",
+        default=False,
+        help_text="Marque se a logo some no fundo escuro do totem.",
+    )
+    logo_branca_login = models.BooleanField(
+        "Logo branca na tela de login",
+        default=False,
+        help_text="Marque se a tela de login tiver fundo escuro.",
+    )
     logo_css = models.TextField(
-        "CSS da logo",
+        "CSS adicional da logo",
         blank=True,
         help_text=(
-            "Regras aplicadas à logo em todo o sistema — totem, painel e "
-            "e-mails. Ex.: filter: brightness(0) invert(1); deixa a logo "
-            "toda branca."
+            "Só para ajustes que as opções acima não cobrem. "
+            "Ex.: opacity: .8; — vale em todas as telas."
         ),
+    )
+
+    #: Fundo da pagina de acesso da empresa.
+    #:
+    #: Separado da cor primaria: a primaria pinta botao e destaque, e uma
+    #: cor forte o suficiente para um botao costuma ser escura demais
+    #: para cobrir a tela inteira.
+    cor_fundo_login = models.CharField(
+        "Cor de fundo da tela de login",
+        max_length=7,
+        default="#F8FAFC",
+        help_text="Fundo da página onde o colaborador entra.",
     )
 
     # -- Tela de ociosidade ------------------------------------
@@ -562,6 +590,29 @@ class Empresa(BaseModel):
         super().save(*args, **kwargs)
         if criando:
             ConfiguracaoEmpresa.objects.get_or_create(empresa=self)
+
+    #: Regra que deixa a logo branca preservando a forma.
+    #:
+    #: `brightness(0)` achata tudo para preto, `invert(1)` inverte para
+    #: branco. Trocar a cor no CSS nao funcionaria: a logo e uma imagem,
+    #: nao um vetor que o navegador saiba recolorir.
+    CSS_LOGO_BRANCA = "filter: brightness(0) invert(1);"
+
+    def css_da_logo(self, tela: str = "") -> str:
+        """
+        Regras CSS da logo para a tela indicada (`totem` ou `login`).
+
+        Devolve string vazia quando nao ha nada a aplicar, para que o
+        template possa omitir a tag `<style>` inteira.
+        """
+        regras = []
+        if tela == "totem" and self.logo_branca_totem:
+            regras.append(self.CSS_LOGO_BRANCA)
+        elif tela == "login" and self.logo_branca_login:
+            regras.append(self.CSS_LOGO_BRANCA)
+        if self.logo_css:
+            regras.append(self.logo_css.strip().rstrip(";") + ";")
+        return " ".join(regras)
 
     @property
     def nome_exibicao(self) -> str:

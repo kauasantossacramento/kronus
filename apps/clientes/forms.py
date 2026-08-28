@@ -126,9 +126,12 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             "logo",
             "logo_altura_px",
             "logo_deslocamento_px",
+            "logo_branca_totem",
+            "logo_branca_login",
             "logo_css",
             "cor_primaria",
             "cor_secundaria",
+            "cor_fundo_login",
             # Capa unica do totem. Continua valendo como reserva: a API
             # so a usa quando nao ha nenhum slide cadastrado.
             "idle_screen_img",
@@ -141,6 +144,9 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
                 attrs={"type": "color", "class": "h-10 w-20 rounded border-slate-300"}
             ),
             "cor_secundaria": forms.TextInput(
+                attrs={"type": "color", "class": "h-10 w-20 rounded border-slate-300"}
+            ),
+            "cor_fundo_login": forms.TextInput(
                 attrs={"type": "color", "class": "h-10 w-20 rounded border-slate-300"}
             ),
             "logo_css": forms.Textarea(
