@@ -230,3 +230,25 @@ class JargaoInternoTests(SimpleTestCase):
             "texto visivel citando o documento de planejamento:\n  "
             + "\n  ".join(ofensores),
         )
+
+
+class LarguraEmCelularTests(SimpleTestCase):
+    """
+    Item de grade ou flex nasce com `min-width: auto` e nao encolhe
+    abaixo da largura do conteudo. Sem `min-width: 0` no `.card`, a
+    tabela empurrava o card, o card empurrava a grade, e o navegador
+    alargava o viewport de 390 para 465 — a pagina inteira rolava de
+    lado no celular, inclusive o convite de instalacao, que acompanha a
+    largura da janela.
+    """
+
+    def test_card_pode_encolher(self):
+        css = (RAIZ / "static" / "css" / "kronus-design-system.css").read_text(
+            encoding="utf-8"
+        )
+        bloco = css.split(".card {", 1)[1].split("}", 1)[0]
+        self.assertIn(
+            "min-width: 0", bloco,
+            "sem `min-width: 0` no .card, toda tabela larga volta a "
+            "empurrar a pagina de lado no celular",
+        )

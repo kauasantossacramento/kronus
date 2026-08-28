@@ -37,7 +37,17 @@
       <tbody class="divide-y divide-[var(--kronus-gray-100)]">
         {% for empresa in empresas %}
           <tr class="hover:bg-[var(--kronus-gray-50)]">
-            <td class="px-5 py-3 font-medium text-[var(--kronus-gray-800)]">{{ empresa.nome_exibicao }}</td>
+            <td class="px-5 py-3">
+              <p class="font-medium text-[var(--kronus-gray-800)]">{{ empresa.nome_exibicao }}</p>
+              {% if empresa.slug %}
+                <a href="/{{ empresa.slug }}/" target="_blank" rel="noopener"
+                   class="font-mono text-xs text-[var(--kronus-primary-600)] hover:underline">
+                  kronus.online/{{ empresa.slug }}
+                </a>
+              {% else %}
+                <span class="text-xs text-[var(--kronus-gray-400)]">sem endereço próprio</span>
+              {% endif %}
+            </td>
             <td class="px-5 py-3 font-mono text-xs">{{ empresa.cnpj_formatado }}</td>
             <td class="px-5 py-3"><a href="{% url 'master:cliente_detalhe' empresa.cliente_id %}" class="text-[var(--kronus-primary-600)] hover:underline">{{ empresa.cliente }}</a></td>
             <td class="px-5 py-3 font-mono">{{ empresa.qtd_colaboradores }}</td>

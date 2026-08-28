@@ -13,6 +13,27 @@
 
 {% block conteudo %}
 
+{% if empresa.slug %}
+  <div class="card mb-6 p-5">
+    <h2 class="flex items-center gap-2 font-display text-base font-semibold text-[var(--kronus-gray-900)]">
+      {% icone "link" classe="h-4 w-4 text-[var(--kronus-primary-600)]" %}
+      Endereço de acesso da sua equipe
+    </h2>
+    <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+      É por aqui que os colaboradores entram e instalam o aplicativo no celular.
+      A página abre com a sua logo e as suas cores.
+    </p>
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+      <code id="link-empresa"
+            class="flex-1 overflow-x-auto whitespace-nowrap rounded-lg bg-[var(--kronus-gray-900)] px-3 py-2.5 font-mono text-sm text-[var(--kronus-gold-300)]">{{ request.scheme }}://{{ request.get_host }}/{{ empresa.slug }}/</code>
+      <button type="button" class="btn btn-outline shrink-0 text-xs"
+              onclick="navigator.clipboard.writeText(document.getElementById('link-empresa').textContent.trim()); this.textContent='Copiado';">Copiar</button>
+      <a href="/{{ empresa.slug }}/" target="_blank" rel="noopener"
+         class="btn btn-outline shrink-0 text-xs">Abrir</a>
+    </div>
+  </div>
+{% endif %}
+
 <div class="mb-6 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
   {% icone "alerta" classe="mt-0.5 h-5 w-5 shrink-0" %}
   <span>

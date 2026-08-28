@@ -2,7 +2,7 @@
 from django import forms
 
 from apps.clientes.models import Cliente, ConfiguracaoEmpresa, Empresa
-from apps.core.form_fields import CNPJFormField
+from apps.core.form_fields import CNPJouCPFFormField
 
 CLASSES_INPUT = (
     "block w-full rounded-lg border-0 py-2 px-3 text-slate-900 shadow-sm "
@@ -36,7 +36,7 @@ class EstiloTailwindMixin:
 
 
 class ClienteForm(EstiloTailwindMixin, forms.ModelForm):
-    cnpj = CNPJFormField()
+    cnpj = CNPJouCPFFormField()
 
     class Meta:
         model = Cliente
@@ -76,7 +76,20 @@ class ClienteForm(EstiloTailwindMixin, forms.ModelForm):
 
 
 class EmpresaForm(EstiloTailwindMixin, forms.ModelForm):
-    cnpj = CNPJFormField()
+    cnpj = CNPJouCPFFormField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # O endereco personalizado existia desde sempre — gerado no save —
+        # mas nao aparecia em formulario nenhum. Na pratica, ninguem
+        # conseguia ver nem divulgar o link do proprio cliente.
+        self.fields["slug"].required = False
+        self.fields["slug"].label = "Endereço de acesso da empresa"
+        self.fields["slug"].help_text = (
+            "kronus.online/<endereço>. É por aqui que os colaboradores "
+            "entram e instalam o aplicativo. Deixe em branco para gerar "
+            "a partir do nome."
+        )
 
     class Meta:
         model = Empresa
@@ -87,6 +100,7 @@ class EmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             "cnpj",
             "inscricao_estadual",
             "cei_caepf",
+            "slug",
             "cep",
             "logradouro",
             "numero",

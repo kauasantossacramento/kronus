@@ -437,7 +437,11 @@ class AFDGenerator:
             {
                 "nsr": 0,                    # "000000000"
                 "tipo": "1",
-                "tipo_identificador": "1",   # CNPJ
+                # 1 = CNPJ, 2 = CPF. Derivado do documento da empresa:
+                # empregador domestico e produtor rural pessoa fisica
+                # registram ponto e entram aqui como CPF. Fixar "1"
+                # produzia um AFD que declara CNPJ e traz onze digitos.
+                "tipo_identificador": self.empresa.tipo_identificador_afd,
                 "identificador": apenas_digitos(self.empresa.cnpj),
                 "cno_caepf": apenas_digitos(self.empresa.cei_caepf),
                 "razao_social": self._ascii(self.empresa.razao_social),
@@ -470,7 +474,7 @@ class AFDGenerator:
                 # e emitido pelo proprio sistema na geracao do arquivo,
                 # sem pessoa responsavel: fica zerado.
                 "cpf_responsavel": "",
-                "tipo_identificador": "1",
+                "tipo_identificador": self.empresa.tipo_identificador_afd,
                 "identificador": apenas_digitos(self.empresa.cnpj),
                 "cno_caepf": apenas_digitos(self.empresa.cei_caepf),
                 "razao_social": self._ascii(self.empresa.razao_social),

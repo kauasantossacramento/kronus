@@ -334,7 +334,9 @@ class AEJGenerator:
         self._contagem["01"] += 1
         return montar_linha("01", {
             "tipoReg": "01",
-            "tpIdtEmpregador": "1",          # CNPJ
+            # 1 = CNPJ, 2 = CPF. Mesmo motivo do AFD: empregador pessoa
+            # fisica existe e precisa sair identificado como tal.
+            "tpIdtEmpregador": self.empresa.tipo_identificador_afd,
             "idtEmpregador": apenas_digitos(self.empresa.cnpj),
             "caepf": apenas_digitos(self.empresa.cei_caepf),
             "cno": "",

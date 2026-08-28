@@ -329,3 +329,53 @@ def obter_ip(request) -> str | None:
 
 def obter_user_agent(request) -> str:
     return (request.META.get("HTTP_USER_AGENT") or "")[:500]
+
+
+# ==============================================================
+# Documento do empregador: CNPJ ou CPF
+# ==============================================================
+#: Codigos do campo `tipo_identificador` do AFD (Anexo V) e do AEJ.
+TIPO_IDENTIFICADOR_CNPJ = "1"
+TIPO_IDENTIFICADOR_CPF = "2"
+
+
+def tipo_identificador(documento: str) -> str:
+    """
+    `1` para CNPJ, `2` para CPF, conforme os anexos da Portaria 671.
+
+    Derivado do proprio documento, e nao de um campo separado: um campo
+    "tipo de pessoa" ao lado do numero e uma segunda verdade que pode
+    contradizer a primeira — e quem descobre a divergencia e o auditor,
+    lendo um AFD que declara CNPJ e traz onze digitos.
+    """
+    return (
+        TIPO_IDENTIFICADOR_CPF
+        if len(apenas_digitos(documento)) == 11
+        else TIPO_IDENTIFICADOR_CNPJ
+    )
+
+
+def validar_cnpj_ou_cpf(valor: str) -> str:
+    """
+    Aceita empregador pessoa juridica **ou** pessoa fisica.
+
+    O empregador doméstico e o produtor rural pessoa fisica registram
+    ponto e sao alcancados pela Portaria 671 como qualquer outro; exigir
+    CNPJ deles deixaria essa faixa inteira de fora do sistema.
+    """
+    digitos = apenas_digitos(valor)
+    if len(digitos) == 11:
+        if not cpf_valido(digitos):
+            raise ValidationError("CPF inválido.", code="cpf_invalido")
+        return digitos
+    if not cnpj_valido(digitos):
+        raise ValidationError(
+            "Informe um CNPJ válido (14 dígitos) ou um CPF válido (11 dígitos).",
+            code="documento_invalido",
+        )
+    return digitos
+
+
+def formatar_cnpj_ou_cpf(valor: str) -> str:
+    digitos = apenas_digitos(valor)
+    return formatar_cpf(digitos) if len(digitos) == 11 else formatar_cnpj(digitos)

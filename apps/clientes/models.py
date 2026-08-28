@@ -23,9 +23,11 @@ from apps.core.models import BaseModel
 from apps.core.utils import (
     apenas_digitos,
     formatar_cnpj,
+    formatar_cnpj_ou_cpf,
     gerar_token,
     hash_api_key,
-    validar_cnpj,
+    tipo_identificador,
+    validar_cnpj_ou_cpf,
 )
 
 
@@ -34,8 +36,16 @@ class Cliente(BaseModel):
 
     razao_social = models.CharField("Razão social", max_length=200)
     nome_fantasia = models.CharField("Nome fantasia", max_length=200, blank=True)
+    #: CNPJ (14 digitos) **ou** CPF (11).
+    #:
+    #: O empregador domestico e o produtor rural pessoa fisica registram
+    #: ponto e sao alcancados pela Portaria 671 como qualquer outro.
+    #: Exigir CNPJ deixaria essa faixa inteira de fora — e o AFD ja
+    #: prevê o caso, com `tipo_identificador` 1 para CNPJ e 2 para CPF.
     cnpj = models.CharField(
-        "CNPJ", max_length=14, unique=True, validators=[validar_cnpj], db_index=True
+        "CNPJ ou CPF", max_length=14, unique=True,
+        validators=[validar_cnpj_ou_cpf], db_index=True,
+        help_text="CNPJ para empresa, CPF para empregador pessoa física.",
     )
     plano = models.ForeignKey(
         "master.Plano",
@@ -134,7 +144,15 @@ class Cliente(BaseModel):
     # -- apresentacao ------------------------------------------
     @property
     def cnpj_formatado(self) -> str:
-        return formatar_cnpj(self.cnpj)
+        return formatar_cnpj_ou_cpf(self.cnpj)
+
+    @property
+    def pessoa_fisica(self) -> bool:
+        return len(apenas_digitos(self.cnpj)) == 11
+
+    @property
+    def rotulo_documento(self) -> str:
+        return "CPF" if self.pessoa_fisica else "CNPJ"
 
     @property
     def status(self) -> str:
@@ -292,14 +310,20 @@ class Empresa(BaseModel):
     razao_social = models.CharField("Razão social", max_length=200)
     nome_fantasia = models.CharField("Nome fantasia", max_length=200, blank=True)
     cnpj = models.CharField(
-        "CNPJ", max_length=14, unique=True, validators=[validar_cnpj], db_index=True
+        "CNPJ ou CPF", max_length=14, unique=True,
+        validators=[validar_cnpj_ou_cpf], db_index=True,
+        help_text="CNPJ para empresa, CPF para empregador pessoa física.",
     )
     inscricao_estadual = models.CharField("Inscrição estadual", max_length=30, blank=True)
     cei_caepf = models.CharField(
-        "CEI/CAEPF",
+        "CEI/CAEPF/CNO",
         max_length=20,
         blank=True,
-        help_text="Usado no cabeçalho do AFD quando aplicável.",
+        help_text=(
+            "Vai no cabeçalho do AFD. Obrigatório na prática para "
+            "empregador pessoa física — é o que identifica a matrícula "
+            "junto à Previdência."
+        ),
     )
 
     # -- Endereco ----------------------------------------------
@@ -545,7 +569,20 @@ class Empresa(BaseModel):
 
     @property
     def cnpj_formatado(self) -> str:
-        return formatar_cnpj(self.cnpj)
+        return formatar_cnpj_ou_cpf(self.cnpj)
+
+    @property
+    def pessoa_fisica(self) -> bool:
+        return len(apenas_digitos(self.cnpj)) == 11
+
+    @property
+    def rotulo_documento(self) -> str:
+        return "CPF" if self.pessoa_fisica else "CNPJ"
+
+    @property
+    def tipo_identificador_afd(self) -> str:
+        """`1` para CNPJ, `2` para CPF — campo do cabeçalho do AFD."""
+        return tipo_identificador(self.cnpj)
 
     @property
     def endereco_completo(self) -> str:

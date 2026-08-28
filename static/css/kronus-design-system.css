@@ -163,6 +163,12 @@ h1, h2, h3, .font-display {
 .btn-danger:hover { filter: brightness(.92); }
 
 .card {
+  /* Item de grade ou flex nasce com `min-width: auto` e se recusa a
+     encolher abaixo da largura intrinseca do conteudo. Como quase todo
+     card do sistema envolve uma tabela com rolagem propria, sem isto a
+     tabela empurrava o card, o card empurrava a grade, e quem rolava
+     era a pagina inteira — o overflow horizontal no celular. */
+  min-width: 0;
   background-color: #fff;
   border-radius: .75rem;
   border: 1px solid var(--kronus-gray-200);

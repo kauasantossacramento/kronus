@@ -68,3 +68,34 @@ class PISFormField(DocumentoFormField):
         super().__init__(**kwargs)
         self.widget.attrs.setdefault("placeholder", "000.00000.00-0")
         self.widget.attrs.setdefault("inputmode", "numeric")
+
+
+class CNPJouCPFFormField(DocumentoFormField):
+    """
+    Documento do empregador: CNPJ (14) ou CPF (11).
+
+    Um unico campo, e nao um seletor "tipo de pessoa" ao lado: o proprio
+    numero ja diz o que e, e um seletor separado pode contradizer o
+    numero digitado — divergencia que so aparece no AFD, para o auditor.
+    """
+
+    mensagem_invalido = (
+        "Informe um CNPJ válido (14 dígitos) ou um CPF válido (11 dígitos)."
+    )
+    # O maior dos dois: a mascara do CNPJ e a que precisa caber.
+    tamanho = 14
+
+    @staticmethod
+    def validador(valor: str) -> bool:
+        from apps.core.utils import apenas_digitos, cnpj_valido, cpf_valido
+
+        digitos = apenas_digitos(valor)
+        if len(digitos) == 11:
+            return cpf_valido(digitos)
+        return cnpj_valido(digitos)
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("label", "CNPJ ou CPF")
+        super().__init__(**kwargs)
+        self.widget.attrs.setdefault("placeholder", "CNPJ ou CPF")
+        self.widget.attrs.setdefault("inputmode", "numeric")
