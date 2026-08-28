@@ -57,10 +57,134 @@
     </tbody>
   </table>
 
+  <h2>Instalação como aplicativo</h2>
+  {% comment %}
+    Por que existe esta seção: o Chrome só oferece a instalação quando o
+    app cumpre TODOS os critérios, e não diz qual falhou. Sem isto, o
+    suporte fica adivinhando por que o convite não apareceu num aparelho
+    específico. Aqui o próprio equipamento responde.
+  {% endcomment %}
+  <table id="diag-pwa">
+    <tr><th>Conexão segura (HTTPS)</th><td id="pwa-https">verificando…</td></tr>
+    <tr><th>Manifesto</th><td id="pwa-manifesto">verificando…</td></tr>
+    <tr><th>Ícones do manifesto</th><td id="pwa-icones">verificando…</td></tr>
+    <tr><th>Service Worker</th><td id="pwa-sw">verificando…</td></tr>
+    <tr><th>Convite de instalação</th><td id="pwa-evento">aguardando até 5s…</td></tr>
+    <tr><th>Já instalado</th><td id="pwa-instalado">verificando…</td></tr>
+    <tr><th>Convite recusado antes</th><td id="pwa-recusado">verificando…</td></tr>
+    <tr><th>Navegador</th><td id="pwa-navegador" class="totem-mono"></td></tr>
+  </table>
+
+  <p id="pwa-conclusao" style="margin-top:1rem;color:var(--totem-text-muted)"></p>
+
+  <p style="margin-top:1rem">
+    <button type="button" id="pwa-instalar" class="totem-botao"
+            style="display:none;width:auto;padding:.6rem 1.4rem">Instalar agora</button>
+    <button type="button" id="pwa-limpar" class="totem-botao"
+            style="width:auto;padding:.6rem 1.4rem;background:transparent;border:1px solid rgba(255,255,255,.25);color:var(--totem-text-muted)">
+      Voltar a oferecer o convite
+    </button>
+  </p>
+
   <p style="margin-top:2rem">
     <a href="{% url 'totem:kiosk' totem.token_acesso %}" class="totem-botao" style="display:inline-block;width:auto;padding:.6rem 1.4rem;text-decoration:none">
       Voltar ao totem
     </a>
   </p>
 </div>
+
+<script>
+(function () {
+  'use strict';
+  var evento = null;
+  function diz(id, texto, ok) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = texto;
+    el.style.color = ok === undefined ? '' :
+      (ok ? 'var(--totem-success)' : 'var(--totem-danger)');
+  }
+
+  var seguro = location.protocol === 'https:' || location.hostname === 'localhost';
+  diz('pwa-https', seguro ? 'sim' : 'NÃO — o Chrome exige HTTPS', seguro);
+
+  var instalado = window.matchMedia('(display-mode: fullscreen)').matches
+    || window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+  diz('pwa-instalado', instalado ? 'sim — já está rodando como app' : 'não', instalado);
+
+  var recusado = false;
+  try { recusado = localStorage.getItem('kronus-totem-instalar-recusado') === '1'; } catch (e) {}
+  diz('pwa-recusado', recusado ? 'sim — por isso o convite não aparece' : 'não', !recusado);
+
+  diz('pwa-navegador', navigator.userAgent);
+
+  // Manifesto: buscar de verdade. Um 404 aqui e a causa mais comum de
+  // "o convite nao aparece" e nao produz erro visivel na tela do totem.
+  var link = document.querySelector('link[rel="manifest"]');
+  if (!link) {
+    diz('pwa-manifesto', 'NÃO declarado na página', false);
+  } else {
+    fetch(link.href).then(function (r) {
+      if (!r.ok) { diz('pwa-manifesto', 'ERRO HTTP ' + r.status, false); return null; }
+      return r.json();
+    }).then(function (m) {
+      if (!m) return;
+      diz('pwa-manifesto', 'ok · display: ' + m.display, true);
+      var icones = m.icons || [];
+      var grande = icones.some(function (i) {
+        return (i.sizes || '').split(' ').some(function (s) {
+          return parseInt(s, 10) >= 192;
+        });
+      });
+      diz('pwa-icones', icones.length + ' ícone(s)' + (grande ? '' : ' — falta um de 192px+'), grande);
+    }).catch(function (e) {
+      diz('pwa-manifesto', 'falha ao ler: ' + e, false);
+    });
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistration().then(function (reg) {
+      if (reg) diz('pwa-sw', 'registrado · escopo ' + reg.scope, true);
+      else diz('pwa-sw', 'NÃO registrado', false);
+    });
+  } else {
+    diz('pwa-sw', 'navegador não suporta', false);
+  }
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    evento = e;
+    diz('pwa-evento', 'disparado — instalação disponível', true);
+    document.getElementById('pwa-instalar').style.display = 'inline-block';
+  });
+
+  document.getElementById('pwa-instalar').addEventListener('click', function () {
+    if (!evento) return;
+    evento.prompt();
+  });
+
+  document.getElementById('pwa-limpar').addEventListener('click', function () {
+    try { localStorage.removeItem('kronus-totem-instalar-recusado'); } catch (e) {}
+    location.reload();
+  });
+
+  setTimeout(function () {
+    if (evento) return;
+    diz('pwa-evento', 'não disparado', false);
+    var texto;
+    if (instalado) {
+      texto = 'O app já está instalado — por isso o convite não aparece.';
+    } else if (recusado) {
+      texto = 'O convite foi recusado neste aparelho. Use o botão acima para voltar a oferecê-lo.';
+    } else {
+      texto = 'O navegador não ofereceu a instalação automática. '
+            + 'No Chrome do Android, instale pelo menu ⋮ → "Instalar aplicativo" '
+            + '(ou "Adicionar à tela inicial"). O item existe mesmo quando o '
+            + 'convite automático não aparece.';
+    }
+    document.getElementById('pwa-conclusao').textContent = texto;
+  }, 5000);
+})();
+</script>
 {% endblock %}

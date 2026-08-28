@@ -27,8 +27,28 @@
       this.config = empresa;
       this._cores(empresa);
       this._logo(empresa, elementos);
+      this._textos(empresa);
       this._slides_iniciar(empresa, elementos);
       this._som_preparar(empresa);
+    },
+
+    // ── Textos e assinatura ──────────────────────────────────
+    // Aplicados aqui, e nao so no HTML renderizado, para que uma
+    // alteracao no painel apareca na recarga da configuracao — sem
+    // ninguem precisar reiniciar o tablet da portaria.
+    _textos: function (empresa) {
+      if (empresa.slogan) {
+        var frase = document.querySelector('.totem-idle__tagline');
+        if (frase) frase.textContent = empresa.slogan;
+      }
+      if (empresa.assinatura_altura_px) {
+        var assinatura = document.querySelector('.totem-assinatura');
+        if (assinatura) {
+          assinatura.style.setProperty(
+            '--totem-assinatura-altura', empresa.assinatura_altura_px + 'px'
+          );
+        }
+      }
     },
 
     // ── Cores ────────────────────────────────────────────────

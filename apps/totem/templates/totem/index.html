@@ -41,7 +41,7 @@
       {% endif %}
     </div>
     <p class="totem-idle__mensagem">{{ empresa.msg_boas_vindas }}</p>
-    <p class="totem-idle__tagline">{{ KRONUS.TAGLINE_TOTEM }}</p>
+    <p class="totem-idle__tagline">{% firstof empresa.slogan_totem KRONUS.TAGLINE_TOTEM %}</p>
   </div>
 
   <div class="totem-relogio">
@@ -328,6 +328,19 @@
       </button>
     </div>
 
+    <div id="totem-instalar-android" hidden>
+      <ul class="totem-instalar__passos">
+        <li>1. Toque no menu <strong>⋮</strong> no canto do navegador</li>
+        <li>2. Escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong></li>
+        <li>3. Confirme em <strong>Instalar</strong></li>
+      </ul>
+      <div class="totem-instalar__acoes">
+        <button type="button" id="totem-instalar-android-fechar"
+                class="totem-instalar__btn totem-instalar__btn--secundario"
+                style="flex: 1">Entendi</button>
+      </div>
+    </div>
+
     <div id="totem-instalar-ios" hidden>
       <ul class="totem-instalar__passos">
         <li>1. Toque em <strong>Compartilhar</strong> na barra do Safari</li>
@@ -397,6 +410,9 @@
   document.getElementById('totem-instalar-ios-fechar')
     .addEventListener('click', function () { fechar(true); });
 
+  document.getElementById('totem-instalar-android-fechar')
+    .addEventListener('click', function () { fechar(true); });
+
   window.addEventListener('appinstalled', function () { fechar(true); });
 
   // -- iPad e iPhone ---------------------------------------------
@@ -409,14 +425,23 @@
   var ehIOS = (/iPad|iPhone|iPod/.test(ua) || ehIPad) && !window.MSStream;
   var ehSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
 
-  if (ehIOS && ehSafari) {
-    // Espera: um convite que aparece junto com a pagina e fechado antes
-    // de alguem ler o que ele oferece.
-    setTimeout(function () {
-      if (!caixa.hidden || recusado()) return;
+  // -- Reserva: o evento pode simplesmente nao vir --------------
+  // No Android, `beforeinstallprompt` so dispara quando o Chrome
+  // considera o app instalavel — e ele nao diz o que faltou. Em tablet
+  // de baixo custo, com Chrome antigo ou WebView, o evento as vezes
+  // nunca chega. O item "Instalar aplicativo" continua existindo no
+  // menu do navegador; entao, se o convite automatico nao vier, o totem
+  // ensina o caminho manual em vez de nao oferecer nada.
+  var toque = (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
+
+  setTimeout(function () {
+    if (!caixa.hidden || recusado() || evento) return;
+    if (ehIOS && ehSafari) {
       abrir('totem-instalar-ios');
-    }, 6000);
-  }
+    } else if (toque) {
+      abrir('totem-instalar-android');
+    }
+  }, 6000);
 })();
 </script>
 {% endblock %}

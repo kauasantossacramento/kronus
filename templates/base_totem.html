@@ -27,7 +27,8 @@
   {% block conteudo %}{% endblock %}
 
   {# Assinatura KS TEC — sempre presente (Seção 3.5) #}
-  <div class="totem-assinatura">
+  <div class="totem-assinatura"
+       style="--totem-assinatura-altura: {% firstof empresa.assinatura_altura_px 16 %}px">
     <img src="{{ KSTEC_LOGO }}" alt="KS TEC" class="kstec-logo-white">
   </div>
 

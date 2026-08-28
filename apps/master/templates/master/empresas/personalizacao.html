@@ -20,6 +20,7 @@
     {% endif %}
   </div>
 </div>
+
 {% endblock %}
 
 {% block conteudo %}
@@ -108,8 +109,8 @@
 
         <div class="mt-5 grid gap-5 sm:grid-cols-2">
           {% for campo in form %}
-            {% if campo.name == "idle_screen_img" or campo.name == "msg_boas_vindas" or campo.name == "msg_sucesso_ponto" or campo.name == "som_confirmacao" %}
-              <div class="{% if campo.field.widget.input_type == 'checkbox' %}sm:col-span-2 flex items-center gap-2{% elif campo.name == 'idle_screen_img' %}sm:col-span-2{% endif %}">
+            {% if campo.name == "idle_screen_img" or campo.name == "msg_boas_vindas" or campo.name == "slogan_totem" or campo.name == "assinatura_altura_px" or campo.name == "msg_sucesso_ponto" or campo.name == "som_confirmacao" %}
+              <div class="{% if campo.field.widget.input_type == 'checkbox' %}sm:col-span-2 flex items-center gap-2{% elif campo.name == 'idle_screen_img' or campo.name == 'slogan_totem' %}sm:col-span-2{% endif %}">
                 {% if campo.field.widget.input_type == 'checkbox' %}
                   {{ campo }}
                   <label for="{{ campo.id_for_label }}" class="text-sm text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
@@ -193,11 +194,12 @@
         Aproximação da tela de acesso do colaborador.
       </p>
 
-      <div class="mt-4 overflow-hidden rounded-xl border border-[var(--kronus-gray-200)]"
+      <div id="previa-fundo" class="mt-4 overflow-hidden rounded-xl border border-[var(--kronus-gray-200)]"
            style="background: {{ empresa.cor_fundo_login }}">
         <div class="px-5 py-8 text-center">
           {% if empresa.logo %}
-            <img src="{{ empresa.logo.url }}" alt="" class="mx-auto max-h-16 w-auto object-contain"
+            <img id="previa-logo" src="{{ empresa.logo.url }}" alt=""
+                 class="mx-auto max-h-16 w-auto object-contain"
                  style="{{ empresa|css_logo_login }}">
           {% else %}
             <div class="mx-auto grid h-14 w-14 place-items-center rounded-2xl"
@@ -213,7 +215,7 @@
           <div class="mx-auto mt-5 max-w-[220px] space-y-2 text-left">
             <div class="h-9 rounded-lg bg-white ring-1 ring-[var(--kronus-gray-200)]"></div>
             <div class="h-9 rounded-lg bg-white ring-1 ring-[var(--kronus-gray-200)]"></div>
-            <div class="grid h-9 place-items-center rounded-lg text-xs font-semibold text-white"
+            <div id="previa-botao" class="grid h-9 place-items-center rounded-lg text-xs font-semibold text-white"
                  style="background: {{ empresa.cor_primaria }}">Entrar</div>
           </div>
         </div>
@@ -263,4 +265,39 @@
     </div>
   </div>
 </div>
+<script>
+(function () {
+  'use strict';
+  // A previa reage enquanto se mexe no formulario. Sem isto, a unica
+  // forma de saber se a logo branca resolve era salvar e abrir a pagina
+  // da empresa — e voltar para desmarcar quando nao resolvia.
+  var BRANCA = 'brightness(0) invert(1)';
+
+  function ligar(id, aoMudar) {
+    var campo = document.getElementById(id);
+    if (campo) {
+      campo.addEventListener('input', aoMudar);
+      campo.addEventListener('change', aoMudar);
+    }
+    return campo;
+  }
+
+  var logo = document.getElementById('previa-logo');
+  var fundo = document.getElementById('previa-fundo');
+  var botao = document.getElementById('previa-botao');
+
+  var caixaLogin = ligar('id_logo_branca_login', function () {
+    if (!logo) return;
+    logo.style.filter = caixaLogin && caixaLogin.checked ? BRANCA : '';
+  });
+
+  var corFundo = ligar('id_cor_fundo_login', function () {
+    if (fundo && corFundo) fundo.style.background = corFundo.value;
+  });
+
+  var corPrimaria = ligar('id_cor_primaria', function () {
+    if (botao && corPrimaria) botao.style.background = corPrimaria.value;
+  });
+})();
+</script>
 {% endblock %}

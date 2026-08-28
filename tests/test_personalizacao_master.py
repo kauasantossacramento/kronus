@@ -56,13 +56,26 @@ class PersonalizacaoPeloMasterTests(TestCase):
         self.url = reverse("master:empresa_personalizacao", args=[self.empresa.pk])
 
     def _post(self, **extra):
-        dados = {
-            "cor_primaria": "#1E3A5F", "cor_secundaria": "#D4A017",
-            "cor_fundo_login": "#F8FAFC",
-            "logo_altura_px": 40, "logo_deslocamento_px": 0, "logo_css": "",
-            "msg_boas_vindas": "Registre seu ponto",
-            "msg_sucesso_ponto": "Ponto registrado!",
-        }
+        """
+        Envia o formulario inteiro a partir dos valores atuais da empresa.
+
+        Montar o dicionario a mao obrigava a lembrar de cada campo novo:
+        o teste quebrava por dado faltando, e nao pelo comportamento que
+        ele deveria cobrir.
+        """
+        from apps.clientes.forms import PersonalizacaoEmpresaForm
+
+        form = PersonalizacaoEmpresaForm(instance=self.empresa)
+        dados = {}
+        for nome, campo in form.fields.items():
+            valor = form.initial.get(nome, campo.initial)
+            if hasattr(valor, "field"):    # campo de arquivo
+                continue
+            if isinstance(valor, bool):
+                if valor:
+                    dados[nome] = "on"
+                continue
+            dados[nome] = "" if valor is None else valor
         dados.update(extra)
         return self.client.post(self.url, dados, follow=True)
 

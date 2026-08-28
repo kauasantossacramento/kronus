@@ -89,6 +89,11 @@ class TotemForm(forms.ModelForm):
             "local_instalacao",
             "modelo_tablet",
             "serial_tablet",
+            # Marcado ja no cadastro: sem isto o equipamento nascia como
+            # "proprio" e so mudava de situacao se alguem lembrasse de
+            # abrir a tela de comodato depois. O contrato e as datas
+            # continuam la — o que falta aqui e so a marcacao.
+            "em_comodato",
             "permite_fallback_cpf",
             "segundos_tela_sucesso",
             "segundos_countdown_offline",
@@ -116,6 +121,10 @@ class TotemForm(forms.ModelForm):
             ativo=True
         ).select_related("cliente").order_by("cliente__razao_social", "nome")
         self.fields["grupo"].required = False
+        self.fields["em_comodato"].help_text = (
+            "O equipamento é da KS TEC e fica com o cliente. "
+            "O contrato e as datas são registrados na tela de Comodato."
+        )
 
     def clean(self):
         dados = super().clean()

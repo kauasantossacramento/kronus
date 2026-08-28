@@ -426,6 +426,34 @@ class Empresa(BaseModel):
         ),
     )
 
+    #: Frase sob a mensagem de boas-vindas, na tela ociosa do totem.
+    #:
+    #: Vinha de uma constante do sistema ("Seu tempo, registrado com
+    #: precisao"), igual para todo cliente. E texto de vitrine numa tela
+    #: ligada o dia inteiro na portaria — quem conhece a operacao sabe o
+    #: que escrever ali melhor do que nos.
+    slogan_totem = models.CharField(
+        "Frase do totem",
+        max_length=120,
+        blank=True,
+        help_text=(
+            "Aparece sob a mensagem de boas-vindas. "
+            "Em branco, usa a frase padrão do Kronus."
+        ),
+    )
+
+    #: Altura da assinatura no rodape do totem (KS TEC ou Kronus).
+    #:
+    #: Fixa em 1rem, ela some numa tela de 7 polegadas vista a um metro
+    #: de distancia — que e exatamente a distancia de quem passa pela
+    #: portaria.
+    assinatura_altura_px = models.PositiveSmallIntegerField(
+        "Altura da assinatura no totem (px)",
+        default=16,
+        validators=[MinValueValidator(10), MaxValueValidator(72)],
+        help_text="Tamanho da marca no rodapé da tela do totem.",
+    )
+
     #: Fundo da pagina de acesso da empresa.
     #:
     #: Separado da cor primaria: a primaria pinta botao e destaque, e uma

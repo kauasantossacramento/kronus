@@ -440,7 +440,13 @@ html, body {
   opacity: .55;
   z-index: 5;
 }
-.totem-assinatura img { height: 1rem; width: auto; }
+/* Altura vem do painel: fixa em 1rem, a marca some numa tela de 7
+   polegadas vista a um metro — a distancia de quem passa pela
+   portaria. */
+.totem-assinatura img {
+  height: var(--totem-assinatura-altura, 1rem);
+  width: auto;
+}
 .kstec-logo-white { filter: brightness(0) invert(1); }
 
 .totem-marca {
