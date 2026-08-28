@@ -4,7 +4,7 @@
 {% block conteudo %}
 
 {# ── Linha 1: cards de resumo (Seção 6.7 do plano) ───────── #}
-<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
   {% include "components/stats_card.html" with rotulo="Clientes ativos" valor=total_clientes_ativos icone_nome="predio" rodape=total_clientes|stringformat:"s"|add:" no total" url="/master/clientes/" %}
   {% include "components/stats_card.html" with rotulo="Empresas vinculadas" valor=total_empresas icone_nome="pasta" url="/master/empresas/" %}
   {% include "components/stats_card.html" with rotulo="Colaboradores" valor=total_colaboradores icone_nome="usuarios" %}

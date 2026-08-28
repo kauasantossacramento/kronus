@@ -72,6 +72,16 @@
 /* ══════════════════════════════════════════════════════════════
    Base
    ══════════════════════════════════════════════════════════════ */
+
+/* O atributo `hidden` vale `display: none` pelo navegador, mas qualquer
+   `display` declarado pelo autor vence — e `flex`, `grid` e `block` sao
+   classes utilitarias que aparecem em quase todo modal. O efeito e uma
+   camada invisivel cobrindo a tela e engolindo todos os cliques, sem
+   nada na tela que denuncie a causa.
+
+   Esta regra faz o atributo valer, que e o comportamento que qualquer
+   pessoa espera ao escrever `hidden`. */
+[hidden] { display: none !important; }
 body {
   font-family: var(--font-body);
   color: var(--kronus-gray-800);

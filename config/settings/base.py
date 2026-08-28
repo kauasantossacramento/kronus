@@ -121,6 +121,7 @@ TEMPLATES = [
                 "apps.core.context_processors.marca",
                 "apps.core.context_processors.tenant",
                 "apps.core.context_processors.aparencia",
+                "apps.core.context_processors.ajuda_da_tela",
             ],
         },
     },

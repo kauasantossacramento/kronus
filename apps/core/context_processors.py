@@ -120,3 +120,28 @@ def aparencia(request):
         "LOGO_KRONUS_PX": config.logo_kronus_altura_px,
         "LOGO_KSTEC_PX": config.logo_kstec_altura_px,
     }
+
+
+def ajuda_da_tela(request):
+    """
+    Conteudo de ajuda da tela atual.
+
+    Resolvido por context processor porque a ajuda precisa existir em
+    **todas** as telas: exigir que cada view lembre de passa-la garantiria
+    que algumas ficassem sem — e um botao de ajuda que some em parte do
+    sistema ensina o usuario a nao procurar por ele.
+    """
+    import json
+
+    from apps.core.ajuda import para_rota
+
+    if not getattr(request, "resolver_match", None):
+        return {}
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return {}
+
+    conteudo = para_rota(request.resolver_match.view_name)
+    return {
+        "ajuda": conteudo,
+        "ajuda_passos_json": json.dumps(conteudo["passos"], ensure_ascii=False),
+    }

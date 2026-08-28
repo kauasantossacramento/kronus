@@ -6,7 +6,13 @@
 <div class="card p-5">
   <div class="flex items-start justify-between gap-3">
     <div class="min-w-0">
-      <p class="truncate text-xs font-medium uppercase tracking-wide text-[var(--kronus-gray-500)]">{{ rotulo }}</p>
+      {% comment %}
+        `truncate` cortava o rótulo em qualquer grade apertada —
+        "Receita mensal estimada" virava "RECEITA ME…", que não diz
+        nada. O rótulo é curto por natureza: deixar quebrar em duas
+        linhas custa alguns pixels de altura e devolve o significado.
+      {% endcomment %}
+      <p class="text-xs font-medium uppercase leading-tight tracking-wide text-[var(--kronus-gray-500)]">{{ rotulo }}</p>
       <p class="mt-1 font-mono text-2xl font-bold
         {% if cor == 'sucesso' %}text-emerald-600
         {% elif cor == 'alerta' %}text-amber-600
