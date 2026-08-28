@@ -1,4 +1,4 @@
-/**
+{% load kronus_tags %}/**
  * Kronus — Service Worker do totem (Seção 6.5.3 do plano).
  *
  * Estratégia:
@@ -13,22 +13,37 @@
 const VERSAO = 'kronus-totem-{{ versao_estaticos|default:"v1" }}';
 const CACHE_ESTATICO = VERSAO + '-estatico';
 
+// Com o carimbo de versao, e nao sem ele.
+//
+// A pagina pede `totem-app.js?v=abc`; a lista guardava
+// `totem-app.js` puro, e `caches.match` compara a URL inteira. Nenhuma
+// das duas se encontrava: o pre-cache existia e nunca era usado, e so o
+// cache de runtime — que so enche depois da primeira visita com rede —
+// segurava o totem offline.
 const ASSETS = [
   '/totem/offline/',
-  '/static/totem/css/totem.css',
-  '/static/totem/js/totem-app.js',
-  '/static/totem/js/face-detector.js',
-  '/static/totem/js/camera-manager.js',
-  '/static/totem/js/offline-handler.js',
-  '/static/totem/js/ui-controller.js',
-  '/static/img/logo-kronus-branco.svg',
-  '/static/img/favicon.svg'
+  '{% estatico "totem/css/totem.css" %}',
+  '{% estatico "totem/js/totem-app.js" %}',
+  '{% estatico "totem/js/face-detector.js" %}',
+  '{% estatico "totem/js/camera-manager.js" %}',
+  '{% estatico "totem/js/offline-handler.js" %}',
+  '{% estatico "totem/js/ui-controller.js" %}',
+  '{% estatico "totem/js/fila-offline.js" %}',
+  '{% estatico "totem/js/personalizacao.js" %}',
+  // A biblioteca de deteccao facial. Ficava de fora porque vinha de um
+  // CDN — e o comentario ao lado dela na pagina dizia que o Service
+  // Worker a cacheava, o que nunca foi verdade: resposta de outro host
+  // e opaca. Offline, o totem ficava sem detector nenhum.
+  '{% estatico "totem/js/vendor/face-api.min.js" %}',
+  '{% estatico "img/logo-kronus-branco.svg" %}',
+  '{% estatico "img/ks-tec-logo.png" %}',
+  '{% estatico "img/favicon.svg" %}'
 ];
 
 /** Modelos do face-api.js — grandes; cacheados sem bloquear a instalação. */
 const MODELOS = [
-  '/static/totem/js/models/tiny_face_detector_model-weights_manifest.json',
-  '/static/totem/js/models/tiny_face_detector_model-shard1'
+  '{% estatico "totem/js/models/tiny_face_detector_model-weights_manifest.json" %}',
+  '{% estatico "totem/js/models/tiny_face_detector_model-shard1" %}'
 ];
 
 self.addEventListener('install', function (evento) {
