@@ -1,5 +1,16 @@
+/*
+ * Kronus — entrada do build do Tailwind.
+ *
+ * O `@import` vem PRIMEIRO, e isso nao e estilo de escrita: a
+ * especificacao do CSS exige que `@import` preceda qualquer outra
+ * regra, e o Tailwind respeita isso. Com o import no fim do arquivo,
+ * ele era silenciosamente ignorado — o build passava, o CSS saia com
+ * 33 KB de aparencia saudavel, e o design system inteiro (`.card`,
+ * `.btn`, `.regua-ouro`, as variaveis de cor) simplesmente nao existia
+ * em producao. O site subiu como HTML sem estilo.
+ */
+@import "./kronus-design-system.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import "./kronus-design-system.css";
