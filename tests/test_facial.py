@@ -611,7 +611,14 @@ class TelaCadastroTests(BaseFacialTestCase):
         self.assertEqual(resposta.json()["codigo"], "qualidade_baixa")
 
     def test_limite_de_amostras_e_respeitado(self):
-        for ruido in range(60, 65):
+        # Contado a partir do limite configurado, e nao de um numero
+        # escrito aqui: ele mudou de cinco para sete quando o cadastro
+        # ganhou espaco para as amostras aprendidas, e um numero fixo no
+        # teste teria reprovado a mudanca em vez de acompanha-la.
+        from django.conf import settings
+
+        limite = settings.FACE_AMOSTRAS_MAXIMAS
+        for ruido in range(60, 60 + limite):
             self.servico.cadastrar_amostra(
                 self.joao, como_base64(imagem_bytes(ruido=ruido)), exigir_qualidade=False
             )
