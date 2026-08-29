@@ -212,6 +212,10 @@ class DeepFaceProvider(ProvedorFacial):
                 detector_backend=self.detector,
                 enforce_detection=True,
                 align=True,
+                # Cada modelo foi treinado com um pre-processamento
+                # proprio. Deixar no "base" do DeepFace nao da erro — da
+                # embedding pior, silenciosamente.
+                normalization=NORMALIZACAO_POR_MODELO.get(self.modelo, "base"),
             )
         except ValueError as erro:
             # O DeepFace sinaliza ausência de rosto com ValueError.
@@ -232,6 +236,18 @@ class DeepFaceProvider(ProvedorFacial):
         vetor = np.asarray(resultados[0]["embedding"], dtype=np.float32)
         norma = np.linalg.norm(vetor)
         return (vetor / norma).astype(np.float32) if norma else vetor
+
+
+#: Pre-processamento que cada modelo espera na entrada.
+#:
+#: O DeepFace aceita `normalization` e usa "base" por padrao — o que
+#: nao levanta erro nenhum, so entrega um vetor pior.
+NORMALIZACAO_POR_MODELO = {
+    "ArcFace": "ArcFace",
+    "Facenet": "Facenet",
+    "Facenet512": "Facenet2018",
+    "VGG-Face": "VGGFace",
+}
 
 
 #: Nome do arquivo de pesos por modelo do DeepFace.

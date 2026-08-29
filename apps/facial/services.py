@@ -529,7 +529,7 @@ class FaceRecognitionService:
         Devolve `{colaborador_id: [vetor, vetor, ...]}` — cada captura
         entra como referência própria, e não diluída numa média.
         """
-        chave = f"{CACHE_PREFIXO}:empresa:{empresa_id}:v3"
+        chave = f"{CACHE_PREFIXO}:empresa:{empresa_id}:v4:{settings.DEEPFACE_MODEL}"
         cacheado = cache.get(chave)
         if cacheado is not None:
             return self._limpar(cacheado)
@@ -547,8 +547,18 @@ class FaceRecognitionService:
         por_colaborador = {}
 
         # As amostras individuais sao a referencia principal.
+        #
+        # Filtradas pelo modelo em uso: um vetor gerado por outro modelo
+        # tem as mesmas 512 posicoes e nenhum significado comparavel. Nao
+        # daria erro — daria reconhecimento por sorteio, que e pior,
+        # porque parece funcionar. Depois de trocar o modelo, rode
+        # `manage.py reembutir_faces`.
         amostras = (
-            FaceRegistro.objects.filter(colaborador__in=elegiveis, ativo=True)
+            FaceRegistro.objects.filter(
+                colaborador__in=elegiveis,
+                ativo=True,
+                modelo=settings.DEEPFACE_MODEL,
+            )
             .exclude(embedding__isnull=True)
             .values_list("colaborador_id", "embedding")
         )
@@ -564,8 +574,18 @@ class FaceRecognitionService:
         # cai numa regiao generica do espaco, perto de rostos em geral. E
         # como vale a menor distancia, esse ponto medio funcionava como
         # mais uma porta.
-        sem_amostras = [pk for pk in elegiveis.values_list("pk", flat=True)
-                        if pk not in por_colaborador]
+        # E so para quem nao tem NENHUMA amostra: quem tem amostra de
+        # outro modelo esta desatualizado, e cair na media (que tambem e
+        # do modelo antigo) seria o mesmo problema por outro caminho.
+        com_amostra_de_outro_modelo = set(
+            FaceRegistro.objects.filter(colaborador__in=elegiveis, ativo=True)
+            .exclude(modelo=settings.DEEPFACE_MODEL)
+            .values_list("colaborador_id", flat=True)
+        )
+        sem_amostras = [
+            pk for pk in elegiveis.values_list("pk", flat=True)
+            if pk not in por_colaborador and pk not in com_amostra_de_outro_modelo
+        ]
         if sem_amostras:
             for pk, dados in elegiveis.filter(pk__in=sem_amostras).exclude(
                 face_embedding__isnull=True
@@ -595,6 +615,10 @@ class FaceRecognitionService:
         cache.delete(f"{CACHE_PREFIXO}:empresa:{empresa_id}")
         cache.delete(f"{CACHE_PREFIXO}:empresa:{empresa_id}:v2")
         cache.delete(f"{CACHE_PREFIXO}:empresa:{empresa_id}:v3")
+        cache.delete(
+            f"{CACHE_PREFIXO}:empresa:{empresa_id}:v4:"
+            f"{settings.DEEPFACE_MODEL}"
+        )
 
     # ══════════════════════════════════════════════════════════
     # Auditoria

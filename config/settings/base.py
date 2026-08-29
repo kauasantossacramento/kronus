@@ -391,7 +391,23 @@ KRONUS = {
 }
 
 # -- Reconhecimento facial (Secao 8.2) -------------------------
-DEEPFACE_MODEL = config("DEEPFACE_MODEL", default="ArcFace")
+#: Trocado de ArcFace para Facenet512 apos medicao com duas pessoas
+#: reais cadastradas no proprio totem — as mesmas fotos, os tres
+#: caminhos, a mesma deteccao (MTCNN, recorte conferido):
+#:
+#:     modelo                    pior legitimo   melhor impostor
+#:     ArcFace (base)                    0,601             0,141
+#:     ArcFace (normalizacao propria)    0,648             0,146
+#:     Facenet512                        0,464             0,617
+#:
+#: Com ArcFace as duas faixas se sobrepoem: a pose "esquerda" de duas
+#: pessoas diferentes ficava a 0,141 — mais perto do que duas poses da
+#: mesma pessoa. Nenhum limiar separa isso, e foi a causa dos falsos
+#: positivos relatados; o que se via como "limiar mal escolhido" era o
+#: modelo nao discriminando neste conjunto de imagens.
+#:
+#: O Facenet512 separa com folga de 0,15 entre as duas faixas.
+DEEPFACE_MODEL = config("DEEPFACE_MODEL", default="Facenet512")
 
 #: DESVIO DELIBERADO DO PLANO — detector.
 #:
@@ -434,12 +450,14 @@ DEEPFACE_DETECTOR = config("DEEPFACE_DETECTOR", default="mtcnn")
 #: espalhadas (0,18 a 0,51 entre si) e numa camera diferente da que
 #: registra o ponto.
 #:
-#: 0,45 fica abaixo do falso positivo medido e acima do reconhecimento
-#: legitimo de um cadastro bem feito (0,24 a 0,41, medido antes). O
-#: efeito colateral e assumido: cadastro ruim deixa de ser reconhecido, e
-#: a pessoa usa o CPF. Preferimos o incomodo a registrar ponto no nome
-#: de outro — e a saida definitiva e cadastrar no proprio totem.
-FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.45, cast=float)
+#: 0,52 vem da medicao com o Facenet512, entre as duas faixas reais:
+#:
+#:     pior caso legitimo (mesma pessoa, poses opostas)   0,464
+#:     melhor caso impostor (duas pessoas, pose igual)    0,617
+#:
+#: Encostado no lado legitimo de proposito. Um falso negativo custa uma
+#: digitacao de CPF; um falso positivo custa ponto no nome de outro.
+FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.52, cast=float)
 
 #: Espalhamento maximo entre as poses de um cadastro saudavel.
 #:

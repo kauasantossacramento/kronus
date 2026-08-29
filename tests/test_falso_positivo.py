@@ -307,3 +307,86 @@ class AuditoriaTests(TestCase):
         call_command("auditar_amostras", stdout=StringIO())
         ruim.refresh_from_db()
         self.assertTrue(ruim.ativo)
+
+
+class TrocaDeModeloTests(TestCase):
+    """
+    Um vetor gerado por outro modelo tem as mesmas 512 posicoes e nenhum
+    significado comparavel. Compara-lo nao levanta erro — devolve
+    reconhecimento por sorteio, que e pior, porque parece funcionar.
+    """
+
+    def setUp(self):
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+        from apps.rh.models import Colaborador
+        from datetime import date
+        from django.core.cache import cache
+
+        cache.clear()
+        plano = Plano.objects.create(nome="P", slug="p")
+        cliente = Cliente.objects.create(
+            razao_social="C", cnpj="45997418000153",
+            plano=plano, email_contato="c@x.com",
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="E", cnpj="45997418000234",
+        )
+        self.pessoa = Colaborador.objects.create(
+            empresa=self.empresa, nome_completo="Ana", cpf="52998224725",
+            data_nascimento=date(1990, 1, 1), data_admissao=date(2024, 1, 1),
+            face_registrada=True,
+        )
+
+    def _amostra(self, modelo):
+        from apps.facial.models import FaceRegistro
+
+        r = FaceRegistro(colaborador=self.pessoa, angulo="frontal",
+                         modelo=modelo, detector="mtcnn", qualidade=90)
+        r.definir_embedding(vetor(1), salvar=False)
+        r.save()
+        return r
+
+    def test_amostra_de_outro_modelo_nao_entra_na_comparacao(self):
+        from django.test import override_settings
+        from apps.facial.services import FaceRecognitionService
+
+        self._amostra("ArcFace")
+        with override_settings(DEEPFACE_MODEL="Facenet512"):
+            FaceRecognitionService.invalidar_cache(self.empresa.pk)
+            candidatos = FaceRecognitionService().candidatos([self.empresa])
+        self.assertEqual(
+            candidatos, {},
+            "amostra de outro modelo entrou: o reconhecimento vira sorteio",
+        )
+
+    def test_amostra_do_modelo_certo_entra(self):
+        from django.test import override_settings
+        from apps.facial.services import FaceRecognitionService
+
+        self._amostra("Facenet512")
+        with override_settings(DEEPFACE_MODEL="Facenet512"):
+            FaceRecognitionService.invalidar_cache(self.empresa.pk)
+            candidatos = FaceRecognitionService().candidatos([self.empresa])
+        self.assertEqual(len(candidatos), 1)
+
+    def test_a_media_legada_tambem_e_ignorada_se_o_modelo_mudou(self):
+        # A media foi calculada com os vetores do modelo antigo: cair
+        # nela seria o mesmo problema por outro caminho.
+        from django.test import override_settings
+        from apps.facial.services import FaceRecognitionService
+
+        self._amostra("ArcFace")
+        self.pessoa.definir_embedding(vetor(2))
+        with override_settings(DEEPFACE_MODEL="Facenet512"):
+            FaceRecognitionService.invalidar_cache(self.empresa.pk)
+            candidatos = FaceRecognitionService().candidatos([self.empresa])
+        self.assertEqual(candidatos, {})
+
+    def test_cada_modelo_tem_a_sua_normalizacao(self):
+        # Deixar no "base" do DeepFace nao da erro: da embedding pior, em
+        # silencio. Foi metade do caminho ate o falso positivo.
+        from apps.facial.providers import NORMALIZACAO_POR_MODELO
+
+        self.assertEqual(NORMALIZACAO_POR_MODELO["Facenet512"], "Facenet2018")
+        self.assertEqual(NORMALIZACAO_POR_MODELO["ArcFace"], "ArcFace")
