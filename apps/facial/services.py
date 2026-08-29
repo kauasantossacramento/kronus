@@ -215,10 +215,20 @@ class FaceRecognitionService:
             for vetores in galeria.values()
             for outro in vetores
         )
-        # Confortavel quando ha folga de margem sobre o limiar: e a
-        # mesma folga que o reconhecimento vai exigir na hora do ponto.
-        folga = self.threshold + self.margem_minima
-        return {"distancia": round(menor, 3), "confortavel": menor >= folga}
+        # O convite a refazer so aparece quando refazer muda o resultado.
+        #
+        # Exigir folga acima do limiar marcava todo cadastro — medido em
+        # producao, cinco pessoas ficaram entre 0,46 e 0,57, e um aviso
+        # que aparece sempre e um aviso que ninguem le.
+        #
+        # A conta que importa: no reconhecimento, uma captura da pessoa
+        # cai perto das amostras dela e a uma distancia proxima de
+        # `menor` das amostras alheias. A margem separa as duas enquanto
+        # sobrar folga; abaixo de `limiar - margem` ela deixa de sobrar,
+        # e o totem passa a recusar com frequencia. E ai que refazer vale
+        # o tempo de quem esta na frente da camera.
+        piso = self.threshold - self.margem_minima
+        return {"distancia": round(menor, 3), "confortavel": menor >= piso}
 
     def _recusar_se_for_outro_rosto(self, colaborador, vetor) -> None:
         """
