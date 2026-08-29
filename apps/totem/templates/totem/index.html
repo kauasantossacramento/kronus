@@ -829,7 +829,15 @@
       || window.navigator.standalone === true) return;
 
   function recusado() {
-    try { return localStorage.getItem(CHAVE) === '1'; } catch (e) { return false; }
+    try {
+      if (localStorage.getItem(CHAVE) === '1') return true;
+      // Quem ja ativou a tela cheia alguma vez respondeu a pergunta,
+      // mesmo que por outro caminho — pelo atalho de canto, por
+      // exemplo. Perguntar de novo seria ignorar a resposta.
+      return localStorage.getItem('kronus-totem-fullscreen') === '1';
+    } catch (e) {
+      return false;
+    }
   }
   function guardar() {
     try { localStorage.setItem(CHAVE, '1'); } catch (e) {}
@@ -887,7 +895,14 @@
       global.KronusTelaCheia.pedir().then(function () {
         global.KronusTelaCheia.lembrar();
         global.KronusTelaCheia.ajustar();
-        fechar(false);
+        // `true`: pergunta respondida, nao se pergunta de novo.
+        //
+        // Era `false`, e o convite voltava a cada carregamento — mesmo
+        // para quem tinha acabado de ligar a tela cheia ali. Uma
+        // pergunta ja respondida que reaparece le-se como sistema que
+        // nao guarda nada, e o atalho de canto ja resolve o caso de
+        // quem sair da tela cheia depois.
+        fechar(true);
       }).catch(function () {
         botaoFS.textContent = 'Este navegador não permite tela cheia';
         botaoFS.disabled = true;

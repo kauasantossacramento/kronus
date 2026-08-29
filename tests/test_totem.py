@@ -897,3 +897,88 @@ class ModoDeExibicaoTests(BaseTotemTestCase):
         ).content.decode()
         self.assertIn("Atualização automática", pagina)
         self.assertIn("aberto numa aba", pagina)
+
+
+class RecargaDaPaginaTests(BaseTotemTestCase):
+    """
+    Recarregar a pagina e diferente de atualizar a configuracao.
+
+    A atualizacao ao vivo cobre cores, logo, mensagens e slides sem
+    derrubar a tela cheia. Nao traz codigo novo — e quando o problema
+    esta no codigo, so uma pagina limpa resolve.
+    """
+
+    def test_o_pedido_chega_pelo_heartbeat(self):
+        self.totem.pedir_recarga_total()
+        dados = self.post("api:totem:totem_heartbeat", {}).json()
+        self.assertIsNotNone(dados["config"]["recarga_total_em"])
+
+    def test_o_pedido_tambem_mexe_no_campo_antigo(self):
+        # Um totem em versao anterior ignora `recarga_total_em`, mas
+        # entende este — e ao menos reaplica a configuracao, em vez de o
+        # clique nao fazer absolutamente nada.
+        self.totem.pedir_recarga_total()
+        self.totem.refresh_from_db()
+        self.assertIsNotNone(self.totem.recarga_solicitada_em)
+
+    def test_totem_em_versao_antiga_e_reconhecivel(self):
+        """
+        `modo_exibicao` so passou a ser enviado na versao que sabe
+        recarregar. Quem nunca mandou o campo esta rodando codigo
+        anterior — e ali o botao nao teria efeito.
+        """
+        self.assertFalse(self.totem.recebeu_a_atualizacao)
+
+        self.post("api:totem:totem_heartbeat", {"modo_exibicao": "fullscreen"})
+        self.totem.refresh_from_db()
+        self.assertTrue(self.totem.recebeu_a_atualizacao)
+
+    def test_a_ficha_avisa_quando_o_botao_nao_vai_funcionar(self):
+        from django.urls import reverse
+        from apps.accounts.models import CustomUser
+
+        master = CustomUser.objects.create_superuser(
+            email="m@x.test", password="Prova!12345", nome_completo="M",
+        )
+        self.client.force_login(master)
+        pagina = self.client.get(
+            reverse("master:totem_detalhe", args=[self.totem.pk])
+        ).content.decode()
+
+        self.assertIn("ainda não recebeu a atualização", pagina)
+        self.assertIn("disabled", pagina)
+
+
+class ConviteDeTelaCheiaTests(BaseTotemTestCase):
+    """
+    Uma pergunta ja respondida nao se repete.
+
+    O convite voltava a cada carregamento, inclusive para quem tinha
+    acabado de ligar a tela cheia por ele. Isso le-se como sistema que
+    nao guarda nada — e o atalho de canto ja cobre quem sair da tela
+    cheia depois.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+
+    def test_ativar_pelo_convite_encerra_a_pergunta(self):
+        # `fechar(true)` grava a resposta; `false` deixava o convite
+        # voltar no proximo carregamento.
+        trecho = self.pagina[self.pagina.index("totem-fullscreen-botao"):]
+        trecho = trecho[: trecho.index("depoisFS")]
+        self.assertIn("fechar(true)", trecho)
+        self.assertNotIn("fechar(false)", trecho)
+
+    def test_quem_ja_usa_tela_cheia_nao_e_perguntado(self):
+        self.assertIn("kronus-totem-fullscreen", self.pagina)
+        trecho = self.pagina[self.pagina.index("function recusado()"):][:600]
+        self.assertIn("kronus-totem-fullscreen", trecho)
+
+    def test_o_atalho_de_canto_continua_existindo(self):
+        # E o caminho de volta para quem sair da tela cheia por engano —
+        # sem ele, encerrar a pergunta deixaria a pessoa sem saida.
+        self.assertIn('id="totem-fs-atalho"', self.pagina)

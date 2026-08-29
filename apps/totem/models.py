@@ -318,8 +318,28 @@ class Totem(BaseModel):
         nao traz arquivo novo. O totem espera ficar ocioso antes de
         recarregar, entao ninguem e interrompido no meio de uma batida.
         """
-        self.recarga_total_em = timezone.now()
-        self.save(update_fields=["recarga_total_em", "updated_at"])
+        agora = timezone.now()
+        self.recarga_total_em = agora
+        # Tambem o campo antigo: um totem que ainda nao recebeu esta
+        # versao ignora `recarga_total_em`, mas entende este — e ao
+        # menos reaplica a configuracao em vez de o clique nao fazer
+        # absolutamente nada.
+        self.recarga_solicitada_em = agora
+        self.save(update_fields=[
+            "recarga_total_em", "recarga_solicitada_em", "updated_at",
+        ])
+
+    @property
+    def recebeu_a_atualizacao(self) -> bool:
+        """
+        O totem ja carregou uma versao que sabe se atualizar sozinha?
+
+        `modo_exibicao` so passou a ser enviado nessa versao. Um totem
+        que nunca mandou o campo esta rodando codigo anterior — e nele o
+        pedido de recarga da pagina nao tem efeito, porque o mecanismo
+        que o escuta ainda nao chegou la.
+        """
+        return bool(self.modo_exibicao)
 
     def regenerar_token(self) -> str:
         self.token_acesso = gerar_token(32)

@@ -56,13 +56,34 @@
       <form method="post" action="{% url 'master:totem_recarregar' totem.pk %}"
             class="mt-4 border-t border-[var(--kronus-gray-200)] pt-4">
         {% csrf_token %}
-        <p class="text-xs text-[var(--kronus-gray-500)]">
-          Recarrega a página do totem assim que ele ficar ocioso. Use
-          quando houver versão nova ou a tela estiver travada.
-        </p>
-        <button type="submit" class="btn btn-outline mt-2 text-xs">
-          {% icone "raio" classe="h-3.5 w-3.5" %} Recarregar a página
-        </button>
+        {% if totem.recebeu_a_atualizacao %}
+          <p class="text-xs text-[var(--kronus-gray-500)]">
+            Recarrega a página do totem assim que ele ficar ocioso. Use
+            quando houver versão nova ou a tela estiver travada.
+          </p>
+          <button type="submit" class="btn btn-outline mt-2 text-xs">
+            {% icone "raio" classe="h-3.5 w-3.5" %} Recarregar a página
+          </button>
+        {% else %}
+          {% comment %}
+            Este totem carregou a página antes de o mecanismo de recarga
+            existir, e nela não há nada escutando o pedido. Oferecer o
+            botão seria oferecer um clique sem efeito — pior do que não
+            oferecer, porque some a explicação junto.
+          {% endcomment %}
+          <p class="text-xs text-amber-700">
+            <strong>Este totem ainda não recebeu a atualização.</strong>
+            Ele carregou a página antes de o mecanismo de recarga
+            existir, então o pedido não chega até lá. Recarregue a tela
+            uma vez no próprio equipamento — puxando de cima para baixo,
+            ou fechando e abrindo o aplicativo. Desta vez em diante, o
+            botão passa a funcionar.
+          </p>
+          <button type="submit" class="btn btn-outline mt-2 text-xs" disabled
+                  title="Disponível depois da primeira recarga manual">
+            {% icone "raio" classe="h-3.5 w-3.5" %} Recarregar a página
+          </button>
+        {% endif %}
       </form>
 
       <form method="post" action="{% url 'master:totem_regenerar_token' totem.pk %}" class="mt-4 border-t border-[var(--kronus-gray-200)] pt-4"
