@@ -18,6 +18,9 @@ decide que uma fatura foi paga: ele registra o que o ASAAS informou, com
 o id do evento que o disse. Se a nossa cópia divergir, a verdade é a
 deles — e `EventoGateway` guarda a trilha para reconciliar.
 """
+from decimal import Decimal
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -234,6 +237,35 @@ class Assinatura(BaseModel):
     data_inicio = models.DateField("Início", default=timezone.localdate)
     data_fim_teste = models.DateField("Fim do período de teste", null=True, blank=True)
     proxima_cobranca = models.DateField("Próxima cobrança", null=True, blank=True)
+    # -- Desconto comercial ------------------------------------
+    #
+    # Concedido pelo master, e nao pelo cliente. Fica na assinatura
+    # porque e o contrato: muda com a renegociacao, e nao com o cadastro
+    # da empresa.
+    desconto_percentual = models.DecimalField(
+        "Desconto (%)",
+        max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Sobre o total do ciclo, adicionais inclusos.",
+    )
+    desconto_valor = models.DecimalField(
+        "Desconto fixo (R$)",
+        max_digits=10, decimal_places=2, default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Somado ao percentual, quando houver os dois.",
+    )
+    desconto_motivo = models.CharField(
+        "Motivo do desconto", max_length=200, blank=True,
+        help_text=(
+            "Por que foi concedido. Quem for renovar daqui a um ano "
+            "precisa saber se o desconto era permanente ou de campanha."
+        ),
+    )
+    desconto_ate = models.DateField(
+        "Desconto válido até", null=True, blank=True,
+        help_text="Em branco, vale enquanto a assinatura durar.",
+    )
+
     cancelada_em = models.DateTimeField("Cancelada em", null=True, blank=True)
     motivo_cancelamento = models.CharField("Motivo", max_length=255, blank=True)
 
@@ -265,8 +297,40 @@ class Assinatura(BaseModel):
         return max(0, (self.data_fim_teste - timezone.localdate()).days)
 
     def valor_total(self):
-        """Valor do ciclo somado aos adicionais contratados."""
-        return self.valor + self.valor_dos_adicionais()
+        """
+        O que o cliente paga: ciclo mais adicionais, menos o desconto.
+
+        O desconto entra por ultimo, sobre a soma. Aplicar so no plano e
+        deixar os adicionais cheios daria um numero que nem o comercial
+        nem o cliente reconhecem como o combinado.
+        """
+        bruto = self.valor + self.valor_dos_adicionais()
+        return max(bruto - self.desconto_aplicado(bruto), Decimal("0.00"))
+
+    def desconto_aplicado(self, bruto=None):
+        """
+        Quanto o desconto tira deste ciclo.
+
+        Percentual e valor fixo somam: um acordo pode ser "10% e mais R$
+        50 nos tres primeiros meses", e obrigar a escolher um so faria
+        alguem converter na mao e errar.
+
+        Vencido, nao desconta nada — mas continua gravado, porque a
+        pergunta "por que o valor mudou?" precisa de resposta.
+        """
+        if self.desconto_ate and self.desconto_ate < timezone.localdate():
+            return Decimal("0.00")
+
+        if bruto is None:
+            bruto = self.valor + self.valor_dos_adicionais()
+
+        de_percentual = bruto * (self.desconto_percentual or 0) / Decimal("100")
+        total = de_percentual + (self.desconto_valor or 0)
+        return min(total.quantize(Decimal("0.01")), bruto)
+
+    @property
+    def tem_desconto(self) -> bool:
+        return bool(self.desconto_percentual or self.desconto_valor)
 
     def valor_dos_adicionais(self):
         """

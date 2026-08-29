@@ -102,6 +102,54 @@
         </p>
       </form>
 
+      {% comment %}
+        Desconto comercial, concedido aqui e em nenhum outro lugar.
+
+        O motivo e obrigatorio quando ha desconto: um numero sem
+        explicacao vira, um ano depois, uma pergunta que ninguem sabe
+        responder na hora de renovar — e o valor acaba mantido por nao
+        se saber se podia sair.
+      {% endcomment %}
+      <form method="post" class="mt-5 border-t border-[var(--kronus-gray-200)] pt-4">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="desconto">
+        <p class="text-xs font-medium text-[var(--kronus-gray-700)]">Desconto comercial</p>
+
+        <div class="mt-2 grid gap-2 sm:grid-cols-2">
+          <label class="block">
+            <span class="text-[11px] text-[var(--kronus-gray-500)]">Percentual (%)</span>
+            <input type="text" inputmode="decimal" name="desconto_percentual"
+                   value="{{ assinatura.desconto_percentual }}"
+                   class="mt-0.5 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm">
+          </label>
+          <label class="block">
+            <span class="text-[11px] text-[var(--kronus-gray-500)]">Valor fixo (R$)</span>
+            <input type="text" inputmode="decimal" name="desconto_valor"
+                   value="{{ assinatura.desconto_valor }}"
+                   class="mt-0.5 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm">
+          </label>
+          <label class="block sm:col-span-2">
+            <span class="text-[11px] text-[var(--kronus-gray-500)]">Motivo</span>
+            <input type="text" name="desconto_motivo" maxlength="200"
+                   value="{{ assinatura.desconto_motivo }}"
+                   placeholder="Ex.: campanha de lançamento, 3 primeiros meses"
+                   class="mt-0.5 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm">
+          </label>
+          <label class="block">
+            <span class="text-[11px] text-[var(--kronus-gray-500)]">Válido até</span>
+            <input type="date" name="desconto_ate"
+                   value="{{ assinatura.desconto_ate|date:'Y-m-d' }}"
+                   class="mt-0.5 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm">
+          </label>
+        </div>
+
+        <p class="mt-1 text-[11px] text-[var(--kronus-gray-400)]">
+          Os dois somam. Em branco na data, vale enquanto a assinatura durar.
+          Zerar os dois remove o desconto.
+        </p>
+        <button type="submit" class="btn btn-outline mt-2 text-xs">Aplicar desconto</button>
+      </form>
+
       <dl class="mt-4 space-y-1.5 border-t border-[var(--kronus-gray-200)] pt-4 text-xs">
         <div class="flex justify-between">
           <dt class="text-[var(--kronus-gray-500)]">Plano</dt>
@@ -111,6 +159,15 @@
           <dt class="text-[var(--kronus-gray-500)]">Adicionais</dt>
           <dd class="font-mono">R$ {{ assinatura.valor_dos_adicionais }}</dd>
         </div>
+        {% if assinatura.tem_desconto %}
+          <div class="flex justify-between text-emerald-700">
+            <dt>Desconto{% if assinatura.desconto_ate %} (até {{ assinatura.desconto_ate|date:"d/m/Y" }}){% endif %}</dt>
+            <dd class="font-mono">− R$ {{ assinatura.desconto_aplicado }}</dd>
+          </div>
+          {% if assinatura.desconto_motivo %}
+            <div class="text-[11px] text-[var(--kronus-gray-500)]">{{ assinatura.desconto_motivo }}</div>
+          {% endif %}
+        {% endif %}
         <div class="flex justify-between border-t border-[var(--kronus-gray-200)] pt-1.5 font-semibold">
           <dt>Total do ciclo</dt>
           <dd class="font-mono">R$ {{ assinatura.valor_total }}</dd>

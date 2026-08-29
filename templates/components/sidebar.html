@@ -31,6 +31,7 @@
       <a href="{% url 'master:empresa_lista' %}" class="sidebar-link {% if menu_ativo == 'empresas' %}ativo{% endif %}">{% icone "pasta" classe="h-[18px] w-[18px] shrink-0" %}<span>Empresas</span></a>
       <a href="{% url 'master:plano_lista' %}"   class="sidebar-link {% if menu_ativo == 'planos' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Planos</span></a>
       <a href="{% url 'master:totem_lista' %}"   class="sidebar-link {% if menu_ativo == 'totens' %}ativo{% endif %}">{% icone "totem" classe="h-[18px] w-[18px] shrink-0" %}<span>Totens</span></a>
+      <a href="{% url 'master:reconhecimentos' %}" class="sidebar-link {% if menu_ativo == 'reconhecimentos' %}ativo{% endif %}">{% icone "rosto" classe="h-[18px] w-[18px] shrink-0" %}<span>Reconhecimentos</span></a>
       <a href="{% url 'master:comercial_demos' %}" class="sidebar-link {% if menu_ativo == 'comercial' %}ativo{% endif %}">{% icone "estrela" classe="h-[18px] w-[18px] shrink-0" %}<span>Comercial</span></a>
       <a href="{% url 'master:assinaturas' %}"   class="sidebar-link {% if menu_ativo == 'assinaturas' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Assinaturas</span></a>
       <a href="{% url 'master:custos' %}"        class="sidebar-link {% if menu_ativo == 'custos' %}ativo{% endif %}">{% icone "grafico" classe="h-[18px] w-[18px] shrink-0" %}<span>Custos e margem</span></a>

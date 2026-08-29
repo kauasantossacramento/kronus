@@ -242,6 +242,8 @@ def assinatura_detalhe(request, pk):
             elif acao == "reavaliar":
                 novo = AssinaturaService.avaliar_inadimplencia(assinatura)
                 messages.info(request, f"Situação reavaliada: {novo}.")
+            elif acao == "desconto":
+                _aplicar_desconto(request, assinatura)
             elif acao == "adicionais":
                 totens = max(0, min(50, int(request.POST.get("totens_contratados", 0))))
                 anterior = assinatura.totens_contratados
@@ -660,4 +662,68 @@ def auditoria(request):
             "cliente_atual": request.GET.get("cliente", ""),
             "desde": request.GET.get("desde", ""),
         },
+    )
+
+
+def _aplicar_desconto(request, assinatura):
+    """
+    Concede ou remove o desconto comercial da assinatura.
+
+    Registra o motivo junto com o numero. Um desconto sem motivo vira,
+    um ano depois, uma pergunta que ninguem sabe responder na hora de
+    renovar — e o valor acaba mantido por nao se saber se podia sair.
+
+    Guardado como decimal, e nao como texto: a virgula do teclado
+    brasileiro chega aqui como "10,00", e `Decimal("10,00")` estoura.
+    """
+    from decimal import Decimal, InvalidOperation
+
+    def numero(campo):
+        bruto = (request.POST.get(campo) or "0").strip().replace(",", ".")
+        try:
+            return max(Decimal(bruto or "0"), Decimal("0"))
+        except InvalidOperation:
+            return None
+
+    percentual = numero("desconto_percentual")
+    valor = numero("desconto_valor")
+
+    if percentual is None or valor is None:
+        messages.error(request, "Informe números válidos para o desconto.")
+        return
+    if percentual > 100:
+        messages.error(request, "O desconto percentual não pode passar de 100%.")
+        return
+
+    motivo = (request.POST.get("desconto_motivo") or "").strip()
+    if (percentual or valor) and not motivo:
+        messages.error(
+            request,
+            "Descreva o motivo do desconto — quem renovar daqui a um ano "
+            "precisa saber se ele era permanente ou de campanha.",
+        )
+        return
+
+    ate = request.POST.get("desconto_ate") or None
+
+    antes = assinatura.valor_total()
+    assinatura.desconto_percentual = percentual
+    assinatura.desconto_valor = valor
+    assinatura.desconto_motivo = motivo[:200]
+    assinatura.desconto_ate = ate
+    assinatura.save(update_fields=[
+        "desconto_percentual", "desconto_valor", "desconto_motivo",
+        "desconto_ate", "updated_at",
+    ])
+
+    _log(
+        request,
+        LogAcessoMaster.Acao.CLIENTE_EDITADO,
+        assinatura.cliente,
+        f"Desconto da assinatura: {percentual}% + R$ {valor} — {motivo or 'removido'}",
+    )
+    messages.success(
+        request,
+        f"Desconto aplicado. O ciclo passa de R$ {antes} para "
+        f"R$ {assinatura.valor_total()}.",
     )
