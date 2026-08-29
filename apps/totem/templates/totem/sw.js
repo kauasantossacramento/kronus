@@ -74,9 +74,54 @@ self.addEventListener('activate', function (evento) {
       );
     }).then(function () {
       return self.clients.claim();
-    })
+    }).then(avisarOuRecarregar)
   );
 });
+
+/**
+ * Leva o codigo novo ate uma tela que ja esta aberta.
+ *
+ * Um totem de parede fica com a mesma pagina carregada por dias. O
+ * deploy troca os arquivos no servidor e nao alcanca quem ja esta
+ * rodando — e, num equipamento instalado longe, ninguem vai la recarregar.
+ *
+ * Duas etapas, porque as duas geracoes de pagina convivem:
+ *
+ *   1. Avisa. A pagina nova entende o recado e recarrega **quando
+ *      estiver ociosa**, sem interromper quem esta batendo o ponto.
+ *   2. Se ninguem responder em alguns segundos, e porque a pagina
+ *      aberta e antiga e nao sabe ouvir. Ai navegamos nos: e brusco,
+ *      mas deixar um totem preso numa versao com defeito e pior.
+ */
+function avisarOuRecarregar() {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then(function (janelas) {
+      return Promise.all(janelas.map(function (janela) {
+        if (janela.url.indexOf('/totem/') === -1) return null;
+        return new Promise(function (resolver) {
+          var respondeu = false;
+          var canal = new MessageChannel();
+          canal.port1.onmessage = function () {
+            respondeu = true;
+            resolver(null);
+          };
+          try {
+            janela.postMessage({ tipo: 'kronus-atualizado' }, [canal.port2]);
+          } catch (e) {
+            // Nem postMessage passou: so resta navegar.
+          }
+          setTimeout(function () {
+            if (respondeu) return resolver(null);
+            if (janela.navigate) {
+              janela.navigate(janela.url).catch(function () {}).then(resolver);
+            } else {
+              resolver(null);
+            }
+          }, 6000);
+        });
+      }));
+    });
+}
 
 self.addEventListener('fetch', function (evento) {
   const requisicao = evento.request;

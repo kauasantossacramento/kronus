@@ -962,6 +962,15 @@ class ConfiguracaoEmpresa(BaseModel):
     )
 
     # -- LGPD --------------------------------------------------
+    guardar_frames_reconhecimento = models.BooleanField(
+        "Guardar as fotos das batidas",
+        default=False,
+        help_text=(
+            "Guarda a imagem de cada tentativa no totem. Serve para "
+            "diagnosticar reconhecimento — e dado biométrico sensível "
+            "(LGPD Art. 11): mantenha ligado apenas durante a análise."
+        ),
+    )
     apagar_foto_apos_encoding = models.BooleanField(
         "Descartar fotos após gerar o embedding",
         default=False,

@@ -100,6 +100,19 @@ class BaseTotemTestCase(TestCase):
             HTTP_AUTHORIZATION=f"Token {token or self.totem.token_acesso}",
         )
 
+    def reconhecer(self, ruido, token=None):
+        """
+        Envia o mesmo quadro duas vezes.
+
+        O servidor so grava o ponto quando dois quadros seguidos apontam
+        a mesma pessoa: um acerto por acaso vem de um quadro especifico e
+        nao se repete, um reconhecimento verdadeiro se repete. O primeiro
+        envio devolve "confirmando"; o segundo e o que registra.
+        """
+        dados = {"image": como_base64(imagem_bytes(ruido))}
+        self.post("api:totem:totem_recognize", dados, token=token)
+        return self.post("api:totem:totem_recognize", dados, token=token)
+
 
 # ══════════════════════════════════════════════════════════════
 # Autenticação
@@ -204,9 +217,7 @@ class RecognizeTests(BaseTotemTestCase):
 
     def test_reconhece_e_registra_o_ponto(self):
         with self.captureOnCommitCallbacks(execute=True):
-            resposta = self.post(
-                "api:totem:totem_recognize", {"image": como_base64(imagem_bytes(10))}
-            )
+            resposta = self.reconhecer(10)
         self.assertEqual(resposta.status_code, 200)
 
         dados = resposta.json()
@@ -222,9 +233,7 @@ class RecognizeTests(BaseTotemTestCase):
 
     def test_cpf_sai_mascarado_na_resposta(self):
         """A tela do totem é visível para quem estiver na fila."""
-        dados = self.post(
-            "api:totem:totem_recognize", {"image": como_base64(imagem_bytes(10))}
-        ).json()
+        dados = self.reconhecer(10).json()
         self.assertEqual(dados["colaborador"]["cpf_mascarado"], "***.***.247-25")
         # Nem os tres primeiros nem os do meio podem aparecer.
         self.assertNotIn("982", dados["colaborador"]["cpf_mascarado"])
@@ -256,17 +265,13 @@ class RecognizeTests(BaseTotemTestCase):
         self.totem.save(update_fields=["grupo"])
 
         self.cadastrar_face(self.carlos, ruido=30)
-        dados = self.post(
-            "api:totem:totem_recognize", {"image": como_base64(imagem_bytes(30))}
-        ).json()
+        dados = self.reconhecer(30).json()
         self.assertTrue(dados["ok"])
         self.assertEqual(dados["colaborador"]["nome"], "Carlos Ramos")
 
     def test_batida_duplicada_e_recusada(self):
-        self.post("api:totem:totem_recognize", {"image": como_base64(imagem_bytes(10))})
-        dados = self.post(
-            "api:totem:totem_recognize", {"image": como_base64(imagem_bytes(10))}
-        ).json()
+        self.reconhecer(10)
+        dados = self.reconhecer(10).json()
         self.assertFalse(dados["ok"])
         self.assertEqual(dados["codigo"], "intervalo_minimo")
         self.assertEqual(RegistroPonto.objects.count(), 1)
@@ -285,7 +290,7 @@ class RecognizeTests(BaseTotemTestCase):
         )
 
     def test_sucesso_gera_evento_no_diario_do_equipamento(self):
-        self.post("api:totem:totem_recognize", {"image": como_base64(imagem_bytes(10))})
+        self.reconhecer(10)
         self.assertTrue(
             EventoTotem.objects.filter(
                 totem=self.totem, tipo=EventoTotem.Tipo.RECONHECIMENTO_OK
@@ -303,9 +308,7 @@ class RecognizeTests(BaseTotemTestCase):
     def test_mensagem_motivacional_acompanha_o_sucesso(self):
         from apps.core.constants import MENSAGENS_TOTEM
 
-        dados = self.post(
-            "api:totem:totem_recognize", {"image": como_base64(imagem_bytes(10))}
-        ).json()
+        dados = self.reconhecer(10).json()
         self.assertIn(dados["mensagem"], MENSAGENS_TOTEM)
 
 
@@ -583,3 +586,96 @@ class MonitoramentoOfflineTests(BaseTotemTestCase):
                 destinatario=gestor, evento=Notificacao.Evento.TOTEM_OFFLINE
             ).exists()
         )
+
+
+class DuplaConfirmacaoTests(BaseTotemTestCase):
+    """
+    Dois quadros seguidos precisam apontar a mesma pessoa.
+
+    Existe porque o totem confundia pessoas parecidas — mulheres entre
+    si, no caso relatado. Um acerto por acaso vem de um quadro
+    especifico: angulo, sombra, movimento. No quadro seguinte ele nao se
+    repete; um reconhecimento verdadeiro, sim.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # Duas pessoas na MESMA empresa: e entre elas que a troca pode
+        # acontecer, porque as duas sao candidatas no mesmo totem.
+        self.maria = Colaborador.objects.create(
+            empresa=self.empresa,
+            cpf="11144477735",
+            nome_completo="Maria Oliveira",
+            data_nascimento=date(1992, 7, 4),
+            data_admissao=date(2024, 1, 1),
+            consentimento_biometrico=True,
+        )
+        self.cadastrar_face(self.joao, ruido=10)
+        self.cadastrar_face(self.maria, ruido=20)
+
+    def _um_quadro(self, ruido):
+        return self.post(
+            "api:totem:totem_recognize",
+            {"image": como_base64(imagem_bytes(ruido))},
+        ).json()
+
+    def test_o_primeiro_quadro_nao_grava_ponto(self):
+        dados = self._um_quadro(10)
+        self.assertEqual(dados["codigo"], "confirmando")
+        self.assertFalse(dados["identificado"])
+        self.assertFalse(
+            RegistroPonto.objects.exists(),
+            "um quadro sozinho gravou ponto — a confirmacao nao esta valendo",
+        )
+
+    def test_o_segundo_quadro_igual_grava(self):
+        self._um_quadro(10)
+        dados = self._um_quadro(10)
+        self.assertTrue(dados["ok"])
+        self.assertEqual(RegistroPonto.objects.count(), 1)
+
+    def test_quadros_com_pessoas_diferentes_nao_gravam_nada(self):
+        """
+        Um nome no primeiro quadro e outro no segundo e o sistema
+        dizendo que nao sabe. Escolher qualquer um dos dois seria
+        escolher no acaso — e foi assim que o ponto foi parar no nome
+        errado.
+        """
+        self._um_quadro(10)
+        dados = self._um_quadro(20)
+
+        self.assertFalse(dados["ok"])
+        self.assertEqual(dados["codigo"], "discordancia")
+        self.assertFalse(RegistroPonto.objects.exists())
+
+    def test_apos_discordancia_a_contagem_recomeca(self):
+        # Os dois quadros sao descartados: o seguinte e um primeiro
+        # quadro de novo, e nao a confirmacao do que foi descartado.
+        self._um_quadro(10)
+        self._um_quadro(20)
+        dados = self._um_quadro(10)
+        self.assertEqual(dados["codigo"], "confirmando")
+        self.assertFalse(RegistroPonto.objects.exists())
+
+    def test_identificar_sem_registrar_nao_exige_confirmacao(self):
+        # A consulta nao grava nada, entao nao ha o que confirmar.
+        dados = self.post(
+            "api:totem:totem_recognize",
+            {"image": como_base64(imagem_bytes(10)), "registrar_ponto": False},
+        ).json()
+        self.assertTrue(dados["identificado"])
+
+    def test_a_confirmacao_e_por_totem(self):
+        """
+        Dois totens no mesmo lugar sao dois fluxos independentes: o
+        quadro de um nao pode confirmar o do outro.
+        """
+        outro = Totem.objects.create(empresa=self.empresa, ativo=True)
+        self._um_quadro(10)
+        dados = self.post(
+            "api:totem:totem_recognize",
+            {"image": como_base64(imagem_bytes(10))},
+            token=outro.token_acesso,
+        ).json()
+        self.assertEqual(dados["codigo"], "confirmando")
+        self.assertFalse(RegistroPonto.objects.exists())

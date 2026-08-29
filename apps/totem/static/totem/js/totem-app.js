@@ -88,6 +88,21 @@
         self.irParaIdle();
       });
 
+      // O Service Worker avisa quando ha versao nova. Responder pelo
+      // canal e o que diz a ele "esta pagina sabe se atualizar" — sem
+      // resposta, ele navega a forca, que e o certo para uma pagina
+      // antiga demais para ouvir.
+      if (global.navigator && global.navigator.serviceWorker) {
+        global.navigator.serviceWorker.addEventListener('message', function (evento) {
+          var dados = evento.data || {};
+          if (dados.tipo !== 'kronus-atualizado') return;
+          if (evento.ports && evento.ports[0]) {
+            evento.ports[0].postMessage({ tratado: true });
+          }
+          self.recarregarQuandoLivre();
+        });
+      }
+
       // Libera a câmera ao fechar a aba/app.
       global.addEventListener('pagehide', function () {
         self.camera.fechar();
@@ -135,6 +150,22 @@
       this.pausado = true;
       this._pararLoop();
       this.camera.fechar();
+
+      // Cancelar o que ja estava agendado, e nao so parar o laco.
+      //
+      // Sem isto, um `agendar(irParaFallback)` disparado antes da pausa
+      // trazia a tela de CPF de volta por cima da manutencao — e quem
+      // estava cadastrando digitava ali achando que fazia parte do
+      // fluxo, batendo o proprio ponto sem querer.
+      this.ui.limparTimers();
+      if (this._timeoutFallback) {
+        clearTimeout(this._timeoutFallback);
+        this._timeoutFallback = null;
+      }
+      // Uma resposta em voo tambem nao pode virar tela de sucesso.
+      this.enviando = false;
+      this.ultimoEnvio = Date.now();
+
       var telas = this.config.elementos.telas;
       Object.keys(telas).forEach(function (nome) {
         if (telas[nome]) telas[nome].hidden = true;
@@ -144,6 +175,42 @@
     retomar: function () {
       this.pausado = false;
       this.irParaIdle();
+    },
+
+    /**
+     * Recarrega quando ninguém estiver usando.
+     *
+     * O deploy troca os arquivos no servidor e não alcança uma tela já
+     * aberta — e um totem de parede fica dias com a mesma página. A
+     * recarga é o único jeito de o código novo chegar; o cuidado é
+     * escolher a hora.
+     *
+     * Espera o estado ocioso: ali não há ninguém na frente da câmera,
+     * ninguém digitando CPF, e a manutenção não está aberta. A tela
+     * cheia cai na recarga — o navegador não deixa reentrar sem gesto —
+     * mas o primeiro toque a devolve, e num totem esse toque acontece
+     * em segundos.
+     */
+    recarregarQuandoLivre: function () {
+      var self = this;
+      if (this._recargaDeVersao) return;
+      this._recargaDeVersao = true;
+      console.info('[Kronus] Versão nova disponível — recarrego ao ficar ocioso.');
+
+      var tentar = function () {
+        var livre = (self.estado === 'idle' || self.estado === 'offline')
+          && !self.pausado
+          && !self.enviando;
+
+        // Fila offline pendente nao impede: ela vive no localStorage e
+        // sobrevive a recarga. Ja provado em ferramentas/prova_offline.py.
+        if (livre) {
+          global.location.reload();
+          return;
+        }
+        setTimeout(tentar, 4000);
+      };
+      setTimeout(tentar, 4000);
     },
 
     _ligarEventos: function () {
@@ -262,8 +329,15 @@
             self.ui.definirInstrucao(
               self.detector.instrucaoPara(resultado.motivo), false
             );
+            // A moldura vira o retorno: amarela enquanto falta ajustar,
+            // e nada e enviado ao servidor ate ela fechar em verde.
+            self.ui.enquadramento(
+              resultado.presenca ? 'ajustar' : null
+            );
             return;
           }
+
+          self.ui.enquadramento('pronto');
 
           self.ui.definirInstrucao('Identificando…', true);
           // Zera a contagem: sem isso o proximo frame do mesmo rosto
@@ -356,6 +430,7 @@
     // Estado 2 — câmera ativa
     // ══════════════════════════════════════════════════════════
     irParaCamera: function () {
+      if (this.pausado) return;
       var self = this;
       this.estado = 'camera';
       // Zera a contagem de leituras herdada do ocioso: la o criterio e
@@ -390,6 +465,9 @@
     },
 
     enviarFrame: function () {
+      // A manutencao usa a mesma camera e o mesmo servidor: um quadro
+      // enviado dali gravaria ponto de quem esta cadastrando.
+      if (this.pausado) return;
       var agora = Date.now();
       if (this.enviando || agora - this.ultimoEnvio < this.DEBOUNCE_ENVIO_MS) return;
 
@@ -411,8 +489,22 @@
         .then(function (resposta) { return resposta.json(); })
         .then(function (dados) {
           self.enviando = false;
-          if (dados.ok) {
+
+          // O servidor pede um segundo quadro antes de gravar. A
+          // resposta vem com `ok: true` porque nada falhou — mas
+          // `identificado: false`, e tratar isso como sucesso mostraria
+          // a tela de confirmacao de um ponto que ainda nao existe.
+          if (dados.codigo === 'confirmando') {
+            self.ui.definirInstrucao('Confirmando… fique parado', true);
+            return;
+          }
+
+          if (dados.ok && dados.identificado !== false) {
             self.irParaSucesso(dados);
+          } else if (dados.codigo === 'discordancia') {
+            // Dois quadros, dois nomes: o sistema esta dizendo que nao
+            // sabe. Pedir para repetir e melhor do que escolher um.
+            self.ui.definirInstrucao(dados.mensagem, false);
           } else if (dados.codigo === 'intervalo_minimo') {
             // Batida duplicada: avisa e volta ao ocioso, sem insistir.
             self.ui.mostrarErro(dados.mensagem, false);
@@ -454,6 +546,7 @@
     // Estado 3 — sucesso
     // ══════════════════════════════════════════════════════════
     irParaSucesso: function (dados) {
+      if (this.pausado) return;
       this.estado = 'sucesso';
       this._pararLoop();
       this.camera.fechar();
@@ -481,6 +574,7 @@
     // Estado 4 — fallback por CPF
     // ══════════════════════════════════════════════════════════
     irParaFallback: function () {
+      if (this.pausado) return;
       // Zera aqui e no retorno ao ocioso: sem isso, a proxima pessoa na
       // fila herdaria as falhas da anterior e cairia direto na digitacao.
       this.tentativasFalhas = 0;

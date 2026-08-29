@@ -20,6 +20,21 @@
       return this;
     },
 
+    /**
+     * Pinta a moldura da câmera conforme o enquadramento.
+     *
+     * `null` volta ao repouso, 'ajustar' avisa que falta posicionar,
+     * 'pronto' fecha em verde. É o único retorno que a pessoa tem antes
+     * de o quadro ser enviado — sem ele, ficava adivinhando se devia se
+     * aproximar ou esperar.
+     */
+    enquadramento: function (estado) {
+      var guia = document.querySelector('#tela-camera .totem-camera__guia');
+      if (!guia) return;
+      guia.classList.toggle('totem-camera__guia--pronto', estado === 'pronto');
+      guia.classList.toggle('totem-camera__guia--ajustar', estado === 'ajustar');
+    },
+
     /** Troca o estado visível. Cancela timers do estado anterior. */
     mostrar: function (estado) {
       this.limparTimers();

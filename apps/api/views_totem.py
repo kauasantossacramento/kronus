@@ -19,6 +19,7 @@ import random
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -82,6 +83,52 @@ def _registrar_evento(totem, tipo, detalhes="", metadados=None):
         )
     except Exception:
         logger.exception("Falha ao registrar evento do totem %s", totem.pk)
+
+
+def _conferir_segunda_opiniao(totem, colaborador):
+    """
+    Guarda o primeiro reconhecimento e cobra a confirmacao no proximo.
+
+    Devolve `(confirmado, resposta)`. Quando ainda falta confirmar, a
+    resposta leva `identificado=False` de proposito: o totem mostra
+    "confirmando" e continua enviando quadros, e nenhum ponto e gravado
+    ate os dois concordarem.
+
+    A discordancia apaga os dois. Um nome no primeiro quadro e outro no
+    segundo e o sistema dizendo que nao sabe — e nesse caso escolher
+    qualquer um dos dois seria escolher no acaso.
+    """
+    chave = f"kronus:totem:confirmacao:{totem.pk}"
+    pendente = cache.get(chave)
+
+    if pendente == colaborador.pk:
+        cache.delete(chave)
+        return True, None
+
+    if pendente is not None and pendente != colaborador.pk:
+        cache.delete(chave)
+        _registrar_evento(
+            totem,
+            EventoTotem.Tipo.RECONHECIMENTO_FALHA,
+            "Quadros seguidos apontaram pessoas diferentes",
+            {"primeiro": pendente, "segundo": colaborador.pk},
+        )
+        return False, _resposta_erro(
+            "discordancia",
+            "Não foi possível confirmar. Fique parado e tente de novo.",
+            permite_fallback=totem.permite_fallback_cpf,
+        )
+
+    cache.set(chave, colaborador.pk, settings.FACE_SEGUNDOS_CONFIRMACAO)
+    return False, Response(
+        {
+            "ok": True,
+            "identificado": False,
+            "codigo": "confirmando",
+            "mensagem": "Confirmando…",
+            "aguardando_confirmacao": True,
+        }
+    )
 
 
 def _registrar_degradacao(totem, motivo: str) -> None:
@@ -222,7 +269,10 @@ def recognize(request):
         serializer.validated_data["image"],
         empresas=totem.empresas_atendidas(),
         totem=totem,
-        guardar_frame=settings.FACE_GUARDAR_FRAME_TENTATIVA,
+        guardar_frame=(
+            settings.FACE_GUARDAR_FRAME_TENTATIVA
+            or totem.empresa.configuracao.guardar_frames_reconhecimento
+        ),
         ip=obter_ip(request),
     )
 
@@ -241,6 +291,20 @@ def recognize(request):
         )
 
     colaborador = resultado.colaborador
+
+    # -- segunda opiniao antes de registrar --------------------
+    #
+    # Um acerto por acaso vem de um quadro especifico — angulo, sombra,
+    # movimento — e nao se repete no seguinte. Um reconhecimento
+    # verdadeiro se repete. Exigir que dois quadros apontem a mesma
+    # pessoa custa cerca de um segundo e derruba o falso positivo de um
+    # quadro isolado, que e o que confunde pessoas parecidas.
+    if settings.FACE_DUPLA_CONFIRMACAO and serializer.validated_data.get(
+        "registrar_ponto", True
+    ):
+        confirmado, resposta = _conferir_segunda_opiniao(totem, colaborador)
+        if not confirmado:
+            return resposta
 
     if not serializer.validated_data.get("registrar_ponto", True):
         return Response(

@@ -474,7 +474,29 @@ FACE_ESPALHAMENTO_ACEITAVEL = config(
 #: parecidas num sorteio: quem estiver um milesimo mais perto leva o
 #: ponto. Sem folga clara, o totem prefere pedir o CPF — errar para o
 #: lado do incomodo, e nao para o lado da fraude.
-FACE_MARGEM_MINIMA = config("FACE_MARGEM_MINIMA", default=0.06, cast=float)
+FACE_MARGEM_MINIMA = config("FACE_MARGEM_MINIMA", default=0.10, cast=float)
+
+#: Exigir que dois quadros seguidos apontem a MESMA pessoa.
+#:
+#: A defesa mais forte contra a confusao entre pessoas parecidas. Um
+#: acerto por acaso vem de um quadro especifico — angulo, sombra,
+#: movimento — e nao se repete no quadro seguinte; um reconhecimento
+#: verdadeiro se repete. Custa cerca de um segundo a mais e derruba o
+#: falso positivo de um quadro isolado.
+#:
+#: Quando os dois quadros discordam, os dois sao descartados: uma troca
+#: de nome entre um quadro e outro e o sistema dizendo que nao sabe.
+FACE_DUPLA_CONFIRMACAO = config(
+    "FACE_DUPLA_CONFIRMACAO", default=True, cast=bool
+)
+
+#: Janela para o segundo quadro chegar.
+#:
+#: Curta: e a mesma pessoa parada na frente da camera. Longa demais,
+#: confirmaria com o rosto de quem entrou na fila depois.
+FACE_SEGUNDOS_CONFIRMACAO = config(
+    "FACE_SEGUNDOS_CONFIRMACAO", default=8, cast=int
+)
 
 #: Distancia mediana acima da qual uma amostra nao e do mesmo rosto.
 #:

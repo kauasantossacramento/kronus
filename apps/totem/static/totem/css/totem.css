@@ -172,12 +172,25 @@ html, body {
   transform: scaleX(-1);
 }
 
+/* A moldura diz se o rosto ja esta no lugar.
+   Sem esse retorno, a pessoa nao sabia se devia se aproximar ou
+   esperar — e o totem tentava reconhecer um rosto pequeno demais,
+   que e onde ele confunde pessoas parecidas. */
 .totem-camera__guia {
   position: absolute;
-  inset: 10% 20%;
-  border: 2px dashed rgba(212, 160, 23, .5);
+  inset: 8% 16%;
+  border: 3px dashed rgba(212, 160, 23, .55);
   border-radius: 50%;
   pointer-events: none;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.totem-camera__guia--pronto {
+  border-style: solid;
+  border-color: #34D399;
+  box-shadow: 0 0 0 9999px rgba(2, 12, 27, .35), 0 0 24px rgba(52, 211, 153, .45);
+}
+.totem-camera__guia--ajustar {
+  border-color: #FBBF24;
 }
 
 @keyframes glow-idle {
