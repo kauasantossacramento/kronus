@@ -933,3 +933,11 @@ html, body {
   color: var(--totem-text-muted);
   opacity: .75;
 }
+
+/* Explica que a foto sai sozinha. Sem isso, quem está sendo cadastrado
+   fica esperando alguém apertar algo. */
+.totem-manut-dica {
+  margin-top: .35rem;
+  font-size: .78rem;
+  color: var(--totem-text-muted);
+}

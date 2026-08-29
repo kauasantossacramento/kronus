@@ -22,6 +22,33 @@
   var JANELA_TOQUES_MS = 1500;
   var TOQUES = 3;
 
+  //: Faixa de luz aceitavel na imagem, em nivel medio (0 a 255).
+  //:
+  //: Abaixo do minimo o rosto vira sombra e o embedding sai pobre;
+  //: acima do maximo estoura e some o contorno. O contraste separa a
+  //: foto boa da foto lavada, que tem media certa e nenhuma informacao.
+  var LUZ_MINIMA = 55;
+  var LUZ_MAXIMA = 215;
+  var CONTRASTE_MINIMO = 22;
+
+  //: Quanto tempo insistir por luz melhor antes de fotografar assim
+  //: mesmo.
+  //:
+  //: A luz de uma portaria e o que e. Depois de orientar e dar tempo de
+  //: a pessoa se aproximar, insistir vira impasse — e um cadastro que
+  //: nao acontece e pior do que um cadastro com luz mediana.
+  var ESPERA_POR_LUZ_MS = 5000;
+
+  //: Leituras seguidas com tudo certo antes de disparar a foto.
+  //:
+  //: Duas, a 250 ms, sao meio segundo parado. Uma so dispararia no
+  //: quadro em que a pessoa ainda esta se posicionando.
+  var LEITURAS_PARA_DISPARAR = 2;
+
+  //: Pausa depois de cada foto, para a pessoa mudar de pose.
+  //: Sem ela, as cinco poses sairiam iguais em um segundo e meio.
+  var PAUSA_ENTRE_POSES_MS = 2200;
+
   //: As mesmas poses do cadastro pelo painel. A variação entre elas é o
   //: que faz o reconhecimento aguentar a pessoa virar o rosto no dia a
   //: dia — sem isso, só o ângulo exato do cadastro é reconhecido.
@@ -43,6 +70,10 @@
     ativa: false,
     pronto: false,
     _vigia: null,
+    _capturando: false,
+    _estaveis: 0,
+    _prontoDesde: 0,
+    _liberadoEm: 0,
 
     iniciar: function (config) {
       this.config = config;
@@ -317,6 +348,10 @@
     _abrirCaptura: function () {
       var self = this;
       this.pose = 0;
+      this._capturando = false;
+      this._estaveis = 0;
+      this._prontoDesde = 0;
+      this._liberadoEm = 0;
       this._erro('erro-manut-captura', '');
       var nome = document.getElementById('manut-captura-nome');
       if (nome) nome.textContent = this.pessoa.nome;
@@ -387,6 +422,9 @@
 
       var botao = document.getElementById('manut-capturar');
       if (botao) botao.disabled = true;
+      // Trava o disparo automatico enquanto a resposta nao volta: sem
+      // isto o laco mandaria uma foto a cada 250 ms.
+      this._capturando = true;
       this._erro('erro-manut-captura', '');
 
       this._pedir('amostra', 'POST', {
@@ -394,21 +432,30 @@
         imagem: canvas.toDataURL('image/jpeg', 0.9),
         angulo: POSES[Math.min(this.pose, POSES.length - 1)].angulo
       }).then(function (dados) {
+        self._capturando = false;
         if (botao) botao.disabled = false;
         if (!dados.ok) {
           if (dados.codigo === 'sem_sessao') return self._expirou(dados);
           // Erro de enquadramento não avança a pose: repetir a mesma é
           // o que dá à pessoa a chance de corrigir o que foi apontado.
+          // A pausa existe para ela ter esse tempo — sem ela, o disparo
+          // automático repetiria o mesmo erro em rajada.
           self._erro('erro-manut-captura', dados.mensagem || 'Repita a captura.');
+          self._estaveis = 0;
+          self._prontoDesde = 0;
+          self._liberadoEm = Date.now() + PAUSA_ENTRE_POSES_MS;
+          if (global.KronusFaceDetector) global.KronusFaceDetector.reiniciar();
           return;
         }
 
         self.pose += 1;
         self.pessoa.amostras = dados.amostras;
         // Zera a contagem de leituras: sem isto o proximo quadro ja
-        // nasceria "estavel" e o botao liberaria antes de a pessoa ter
-        // mudado de pose.
+        // nasceria "estavel" e a foto seguinte sairia na mesma pose.
         if (global.KronusFaceDetector) global.KronusFaceDetector.reiniciar();
+        self._estaveis = 0;
+        self._prontoDesde = 0;
+        self._liberadoEm = Date.now() + PAUSA_ENTRE_POSES_MS;
 
         if (self.pose >= POSES.length) {
           // A avaliação do cadastro vem aqui, sobre o conjunto pronto —
@@ -429,6 +476,7 @@
         }
         self._atualizarPose();
       }).catch(function () {
+        self._capturando = false;
         if (botao) botao.disabled = false;
         self._erro('erro-manut-captura', 'Sem conexão com o servidor.');
       });
@@ -515,11 +563,7 @@
           if (self.pronto) {
             liberado = false;
             botao.disabled = false;
-            if (instrucao) {
-              instrucao.textContent =
-                POSES[Math.min(self.pose, POSES.length - 1)].instrucao
-                + ' — pode capturar';
-            }
+            self._dispararQuandoPronto(contexto, tela, instrucao);
           } else if (liberado || Date.now() - desde > LIBERAR_APOS_MS) {
             liberado = true;
             botao.disabled = false;
@@ -530,6 +574,10 @@
             }
           } else {
             botao.disabled = true;
+            // Saiu do enquadramento: a contagem para o disparo recomeca,
+            // senao a foto sairia no meio do movimento.
+            self._estaveis = 0;
+            self._prontoDesde = 0;
             if (instrucao) instrucao.textContent = detector.instrucaoPara(r.motivo);
           }
 
@@ -557,6 +605,95 @@
           if (detalhe) detalhe.textContent = 'detector indisponível';
         });
       }, 250);
+    },
+
+    /**
+     * Dispara a foto sozinho quando tudo está no lugar.
+     *
+     * A pessoa que está sendo cadastrada não tem como apertar o botão —
+     * ela está posicionando o rosto. Quem apertava era o operador, do
+     * lado, olhando de viés para a tela: o pior ângulo possível para
+     * julgar enquadramento.
+     *
+     * A luz é preferência, não condição. Insiste por alguns segundos e
+     * orienta; passado esse tempo, fotografa assim mesmo — a luz de uma
+     * portaria é o que é, e um cadastro que não acontece é pior do que
+     * um cadastro com luz mediana.
+     */
+    _dispararQuandoPronto: function (contexto, tela, instrucao) {
+      var agora = Date.now();
+
+      // Enviando, ou ainda na pausa entre poses.
+      if (this._capturando || agora < (this._liberadoEm || 0)) {
+        if (instrucao) instrucao.textContent = 'Pronto — mude para a próxima pose';
+        return;
+      }
+
+      if (!this._prontoDesde) this._prontoDesde = agora;
+
+      var luz = this._medirLuz(contexto, tela);
+      var esperando = agora - this._prontoDesde < ESPERA_POR_LUZ_MS;
+
+      if (!luz.boa && esperando) {
+        this._estaveis = 0;
+        if (instrucao) {
+          instrucao.textContent =
+            luz.media !== null && luz.media < LUZ_MINIMA
+              ? 'Pouca luz no rosto — aproxime-se ou procure um lugar mais claro'
+              : 'Ajuste a luz — evite claridade forte atrás de você';
+        }
+        return;
+      }
+
+      this._estaveis = (this._estaveis || 0) + 1;
+      if (instrucao) {
+        instrucao.textContent = luz.boa
+          ? 'Segure assim…'
+          : 'Luz não é a ideal — vou registrar assim mesmo';
+      }
+
+      if (this._estaveis >= LEITURAS_PARA_DISPARAR) {
+        this._estaveis = 0;
+        this._prontoDesde = 0;
+        this._capturar();
+      }
+    },
+
+    /**
+     * Nível de luz e contraste do quadro.
+     *
+     * Amostra um pixel a cada 16 para caber no orçamento de 250 ms de
+     * um tablet modesto — a média de um rosto não muda por olhar
+     * dezesseis vezes menos pontos.
+     */
+    _medirLuz: function (contexto, tela) {
+      var dados;
+      try {
+        dados = contexto.getImageData(0, 0, tela.width, tela.height).data;
+      } catch (e) {
+        // Canvas "sujo" por origem cruzada não deixa ler os pixels.
+        // Sem medida, seguimos como se a luz estivesse boa: a foto vale
+        // mais do que a aferição.
+        return { boa: true, media: null, contraste: null };
+      }
+
+      var soma = 0, soma2 = 0, n = 0;
+      for (var i = 0; i < dados.length; i += 4 * 16) {
+        var y = 0.299 * dados[i] + 0.587 * dados[i + 1] + 0.114 * dados[i + 2];
+        soma += y;
+        soma2 += y * y;
+        n += 1;
+      }
+      if (!n) return { boa: true, media: null, contraste: null };
+
+      var media = soma / n;
+      var contraste = Math.sqrt(Math.max(soma2 / n - media * media, 0));
+      return {
+        boa: media >= LUZ_MINIMA && media <= LUZ_MAXIMA
+             && contraste >= CONTRASTE_MINIMO,
+        media: media,
+        contraste: contraste
+      };
     },
 
     _pararVigia: function () {
