@@ -81,8 +81,20 @@
      */
     LARGURA_MINIMA_ROSTO: 0.32,
 
-    /** Rosto acima disso está perto demais (recorte cortado). */
-    LARGURA_MAXIMA_ROSTO: 0.85,
+    /**
+     * Rosto acima disso está perto demais.
+     *
+     * Era 0.85, e recusava quem chegava bem perto — o gesto natural de
+     * quem quer ser reconhecido logo. A pessoa via a tela sem reagir e
+     * precisava tocar nela, que é justamente o que o reconhecimento
+     * automático existe para evitar.
+     *
+     * 0.95 recusa só o absurdo: rosto colado na lente, em que sobra
+     * pouco além de testa e queixo. Um recorte grande demais o servidor
+     * reenquadra sozinho — ele detecta e corta de novo antes do
+     * embedding.
+     */
+    LARGURA_MAXIMA_ROSTO: 0.95,
 
     /**
      * Distância máxima do centro, em fração da largura.
@@ -217,7 +229,20 @@
         .then(function (deteccao) {
           if (!deteccao) {
             self._seguidos = 0;
-            return { presenca: false, pronto: false, confianca: 0, motivo: 'sem_rosto' };
+            // Sem rosto detectado, a heuristica ainda decide se ha
+            // ALGUEM ali. O TinyFaceDetector perde o rosto colado na
+            // lente, e era isso que deixava a tela parada esperando um
+            // toque justamente de quem tinha chegado mais perto.
+            //
+            // Acordar a tela e barato; enviar ao servidor continua
+            // exigindo rosto detectado e enquadrado.
+            var perto = self._detectarHeuristico(canvas);
+            return {
+              presenca: perto.detectado,
+              pronto: false,
+              confianca: 0,
+              motivo: perto.detectado ? 'ajustar' : 'sem_rosto'
+            };
           }
 
           var caixa = deteccao.box;
@@ -309,6 +334,7 @@
         sem_rosto: 'Posicione o rosto no centro',
         longe: 'Aproxime-se da câmera',
         perto: 'Afaste-se um pouco',
+        ajustar: 'Centralize o rosto na moldura',
         descentralizado: 'Centralize o rosto',
         estabilizando: 'Fique parado…',
         sem_detector: 'Posicione o rosto no centro',

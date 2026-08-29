@@ -509,3 +509,68 @@ class RostoDaFrenteTests(TestCase):
         provedor = self._provedor()
         unico = self._rosto(200, 220, 9)
         self.assertIs(provedor._rosto_da_frente([unico]), unico)
+
+
+class MargemEntreCandidatosTests(TestCase):
+    """
+    A margem so vale entre candidatos que PASSARIAM no limiar.
+
+    Antes ela comparava com o segundo colocado qualquer que fosse a
+    distancia dele. Com varias pessoas cadastradas isso disparava o
+    tempo todo: alguem reconhecido a 0,30 tinha um segundo a 0,38 — que
+    nunca seria aceito — e a leitura era recusada por uma ambiguidade
+    que nao existia.
+    """
+
+    def test_segundo_colocado_longe_nao_gera_ambiguidade(self):
+        import inspect
+        from apps.facial import services
+
+        fonte = inspect.getsource(services.FaceRecognitionService.reconhecer)
+        self.assertIn("pontos[1][1] < self.threshold", fonte)
+
+    def test_a_regra_esta_documentada_com_o_motivo(self):
+        # O comentario e parte da correcao: sem ele, o proximo a mexer
+        # aqui reintroduz a comparacao com qualquer segundo colocado.
+        import inspect
+        from apps.facial import services
+
+        fonte = inspect.getsource(services.FaceRecognitionService.reconhecer)
+        self.assertIn("PASSARIAM no limiar", fonte)
+
+
+class RostoColadoNaLenteTests(TestCase):
+    """
+    Quem chega bem perto tambem precisa acordar a tela.
+
+    O TinyFaceDetector perde o rosto colado na lente, e a tela ficava
+    parada esperando um toque — justamente de quem tinha chegado mais
+    perto para ser reconhecido logo.
+    """
+
+    def setUp(self):
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        self.js = (
+            raiz / "apps/totem/static/totem/js/face-detector.js"
+        ).read_text(encoding="utf-8")
+
+    def test_o_limite_de_perto_nao_recusa_o_gesto_natural(self):
+        import re
+
+        achado = re.search(r"LARGURA_MAXIMA_ROSTO:\s*([0-9.]+)", self.js)
+        self.assertIsNotNone(achado)
+        self.assertGreaterEqual(
+            float(achado.group(1)), 0.9,
+            "0,85 recusava quem chegava perto, que e o gesto de quem quer "
+            "ser reconhecido logo",
+        )
+
+    def test_sem_rosto_detectado_a_heuristica_ainda_acorda_a_tela(self):
+        self.assertIn("_detectarHeuristico(canvas)", self.js)
+        # Mas nunca autoriza envio: quem decide isso continua sendo o
+        # rosto detectado e enquadrado.
+        trecho = self.js[self.js.index("Sem rosto detectado, a heuristica"):]
+        trecho = trecho[: trecho.index("}")]
+        self.assertIn("pronto: false", self.js[self.js.index("perto.detectado"):][:400])

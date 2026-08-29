@@ -463,11 +463,18 @@ class FaceRecognitionService:
                 frame,
             )
 
-        # Depois do limiar, e nao antes: um rosto desconhecido fica longe
-        # de todo mundo, e as distancias de dois desconhecidos podem ser
-        # parecidas entre si sem que exista ambiguidade alguma. A margem
-        # so tem sentido entre candidatos que ja passariam.
-        if len(pontos) > 1:
+        # A margem so vale entre candidatos que PASSARIAM no limiar.
+        #
+        # Antes eu comparava com o segundo colocado qualquer que fosse a
+        # distancia dele. Com varias pessoas cadastradas isso disparava o
+        # tempo todo: alguem reconhecido a 0,30 tinha um segundo a 0,38 —
+        # que nunca seria aceito, porque esta longe do limiar — e a
+        # leitura era recusada por "ambiguidade" que nao existia.
+        #
+        # Ambiguidade e quando DOIS cadastros seriam aceitos e a escolha
+        # entre eles vira sorteio. Se so um passa no limiar, nao ha
+        # escolha a fazer.
+        if len(pontos) > 1 and pontos[1][1] < self.threshold:
             _, segunda = pontos[1]
             if segunda - melhor_distancia < self.margem_minima:
                 return concluir(
@@ -475,10 +482,10 @@ class FaceRecognitionService:
                         identificado=False,
                         distancia=round(melhor_distancia, 4),
                         candidatos=len(candidatos),
-                        motivo=(
-                            "Não foi possível distinguir com segurança. "
-                            "Use o CPF."
-                        ),
+                        # "Use o CPF" mandava embora quem so precisava
+                        # de mais um quadro. O laco continua enviando;
+                        # o que a pessoa precisa e ficar parada.
+                        motivo="Quase lá — fique parado e tente de novo.",
                         codigo="ambiguo",
                     ),
                     frame,

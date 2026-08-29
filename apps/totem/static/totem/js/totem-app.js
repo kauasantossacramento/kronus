@@ -504,10 +504,13 @@
 
           if (dados.ok && dados.identificado !== false) {
             self.irParaSucesso(dados);
-          } else if (dados.codigo === 'discordancia') {
-            // Dois quadros, dois nomes: o sistema esta dizendo que nao
-            // sabe. Pedir para repetir e melhor do que escolher um.
+          } else if (dados.codigo === 'discordancia'
+                     || dados.codigo === 'ambiguo') {
+            // O sistema esta dizendo que nao sabe. Pedir para repetir e
+            // melhor do que escolher um nome — e o laco ja continua
+            // enviando, entao basta orientar sem sair da camera.
             self.ui.definirInstrucao(dados.mensagem, false);
+            self.detector.reiniciar();
           } else if (dados.codigo === 'intervalo_minimo') {
             // Batida duplicada: avisa e volta ao ocioso, sem insistir.
             self.ui.mostrarErro(dados.mensagem, false);
