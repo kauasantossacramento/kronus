@@ -346,14 +346,35 @@ CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
 )
-EMAIL_HOST = config("EMAIL_HOST", default="")
-EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
-EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.hostinger.com")
+EMAIL_PORT = config("EMAIL_PORT", default=465, cast=int)
+
+#: 465 fala SSL desde o primeiro byte; 587 comeca em claro e sobe para
+#: TLS com STARTTLS. Sao mutuamente exclusivos no Django, e marcar os
+#: dois levanta erro na inicializacao — melhor derivar da porta do que
+#: deixar duas chaves que podem discordar entre si.
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=EMAIL_PORT == 465, cast=bool)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=not EMAIL_USE_SSL, cast=bool)
+if EMAIL_USE_SSL:
+    EMAIL_USE_TLS = False
+
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="dpo@kstec.online")
+
+#: Nunca no repositorio. Vive no `.env` do servidor, que nao e versionado
+#: — uma senha de e-mail no git vaza para todo clone, para sempre, e
+#: continua valida depois de o arquivo ser removido.
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+
+#: Remetente padrao de tudo o que o sistema manda: senha provisoria,
+#: redefinicao, espelho de ponto fechado, aviso de fechamento.
+#:
+#: Configuravel porque a caixa pode mudar; com valor de fabrica porque
+#: um sistema que nao manda e-mail por falta de configuracao falha em
+#: silencio — a pessoa espera a senha que nunca chega.
 DEFAULT_FROM_EMAIL = config(
-    "DEFAULT_FROM_EMAIL", default="Kronus <nao-responda@kronus.online>"
+    "DEFAULT_FROM_EMAIL", default="Kronus <dpo@kstec.online>"
 )
+SERVER_EMAIL = config("SERVER_EMAIL", default=EMAIL_HOST_USER)
 
 # ==============================================================
 # Kronus — configuracoes de produto (Secoes 1 e 3 do plano)
