@@ -98,3 +98,124 @@ class DesligadoPorPadraoTests(TestCase):
 
         campo = FaceRegistro._meta.get_field("aprendida")
         self.assertFalse(campo.default)
+
+
+class NovidadeTests(TestCase):
+    """
+    O que decide o aprendizado e a foto trazer algo novo, e nao o
+    calendario.
+
+    Guardar uma captura quase igual a uma que ja esta la ocupa um lugar
+    da cota e nao melhora nada: o cadastro fica mais estreito, e nao mais
+    largo. O que faz o reconhecimento melhorar e cobrir condicao que
+    ainda nao estava coberta.
+    """
+
+    def test_a_regra_de_novidade_existe_e_e_o_criterio(self):
+        from apps.facial import aprendizado
+
+        self.assertGreater(aprendizado.NOVIDADE_MINIMA, 0)
+        # E o calendario deixa de ser a trava principal.
+        self.assertLessEqual(aprendizado.DIAS_ENTRE_APRENDIZADOS, 1)
+
+    def test_a_novidade_fica_dentro_da_faixa_da_mesma_pessoa(self):
+        """
+        Alta demais e o sistema so aprenderia com fotos que quase nao
+        parecem a pessoa; baixa demais aprenderia repeticao. As poses do
+        cadastro ficam entre 0,05 e 0,48 entre si — a faixa util esta
+        dentro disso.
+        """
+        from django.conf import settings
+        from apps.facial import aprendizado
+
+        self.assertLess(aprendizado.NOVIDADE_MINIMA, settings.FACE_RECOGNITION_THRESHOLD)
+
+    def test_na_duvida_aprende(self):
+        # Falha ao medir (motor fora do ar) nao pode virar motivo para
+        # nunca mais aprender: foto redundante custa menos do que
+        # cadastro parado no tempo.
+        from apps.facial.aprendizado import _traz_algo_novo
+
+        class ServicoQuebrado:
+            provedor = None
+
+            def candidatos(self, _):
+                raise RuntimeError("motor fora do ar")
+
+        self.assertTrue(_traz_algo_novo(ServicoQuebrado(), None, b""))
+
+
+class AposentadoriaTests(TestCase):
+    """
+    A aprendida sai antes da supervisionada.
+
+    So por recencia, cada foto aprendida aposentava uma do cadastro
+    original — e o cadastro original e o que alguem conferiu, com a
+    pessoa na frente da camera. Em poucos meses a referencia inteira
+    teria virado material coletado sem supervisao.
+    """
+
+    def _pessoa(self):
+        from datetime import date
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+        from apps.rh.models import Colaborador
+
+        plano = Plano.objects.create(nome="P", slug="p")
+        cliente = Cliente.objects.create(
+            razao_social="C", cnpj="45997418000153",
+            plano=plano, email_contato="c@x.com",
+        )
+        empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="E", cnpj="45997418000234",
+        )
+        return Colaborador.objects.create(
+            empresa=empresa, nome_completo="Ana", cpf="52998224725",
+            data_nascimento=date(1990, 1, 1), data_admissao=date(2024, 1, 1),
+        )
+
+    def _amostra(self, pessoa, aprendida, quando):
+        import numpy as np
+        from apps.facial.models import FaceRegistro
+
+        r = FaceRegistro(colaborador=pessoa, angulo="frontal", modelo="Facenet512",
+                         detector="mtcnn", qualidade=90, aprendida=aprendida)
+        r.definir_embedding(np.ones(512, dtype=np.float32), salvar=False)
+        r.save()
+        FaceRegistro.objects.filter(pk=r.pk).update(created_at=quando)
+        return r
+
+    def test_a_supervisionada_antiga_sobrevive_a_aprendida(self):
+        from datetime import timedelta
+
+        from django.conf import settings
+        from django.utils import timezone
+
+        from apps.facial.models import FaceRegistro
+        from apps.facial.services import FaceRecognitionService
+
+        pessoa = self._pessoa()
+        agora = timezone.now()
+        maximo = settings.FACE_AMOSTRAS_MAXIMAS
+
+        # Cadastro supervisionado, o mais antigo de todos.
+        supervisionadas = [
+            self._amostra(pessoa, False, agora - timedelta(days=100 - i))
+            for i in range(maximo)
+        ]
+        # E uma aprendida recente, que estoura o limite.
+        aprendida = self._amostra(pessoa, True, agora)
+
+        FaceRecognitionService._aposentar_excedentes(pessoa)
+
+        aprendida.refresh_from_db()
+        self.assertFalse(
+            aprendida.ativo,
+            "a aprendida deveria sair antes de qualquer supervisionada",
+        )
+        self.assertEqual(
+            FaceRegistro.objects.filter(
+                colaborador=pessoa, ativo=True, aprendida=False
+            ).count(),
+            maximo,
+        )

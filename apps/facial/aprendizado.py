@@ -53,15 +53,32 @@ MARGEM_PARA_APRENDER = 0.20
 
 #: Quantas amostras aprendidas um cadastro pode ter.
 #:
-#: O cadastro guarda cinco. Duas aprendidas deixam tres supervisionadas —
-#: a maioria continua sendo o que alguem conferiu.
-MAXIMO_APRENDIDAS = 2
+#: A galeria guarda sete: cinco poses do cadastro supervisionado e tres
+#: lugares para aprendidas. A maioria continua sendo o que alguem
+#: conferiu, com a pessoa na frente da camera.
+MAXIMO_APRENDIDAS = 3
 
-#: Intervalo minimo entre dois aprendizados do mesmo colaborador.
+#: Quanto a foto precisa ser DIFERENTE das que ja existem.
 #:
-#: Sem ele, cinco batidas de uma manha encheriam a cota com fotos quase
-#: identicas, e o cadastro ficaria mais estreito em vez de mais largo.
-DIAS_ENTRE_APRENDIZADOS = 7
+#: Esta e a regra que decide, e nao o calendario. Guardar uma foto quase
+#: igual a uma que ja esta la nao acrescenta nada: gasta um lugar da
+#: cota e deixa o cadastro mais estreito, nao mais largo. O que faz o
+#: reconhecimento melhorar e cobrir condicao nova — outra luz, outro
+#: angulo, o cabelo de hoje.
+#:
+#: 0,18 e a faixa em que a foto ainda e claramente a mesma pessoa (as
+#: poses do cadastro ficam entre 0,05 e 0,48 entre si) e ja traz
+#: informacao que as outras nao tinham.
+NOVIDADE_MINIMA = 0.18
+
+#: Teto diario, so para nao aprender em rajada.
+#:
+#: Era uma por semana, e a pergunta e justa: uma por semana leva quase um
+#: mes para preencher tres lugares. O que precisava de limite nao era a
+#: frequencia — era a repeticao, e disso cuida a regra de novidade. Um
+#: por dia sobra para o proposito e ainda impede que cinco batidas de uma
+#: manha ocupem a cota inteira.
+DIAS_ENTRE_APRENDIZADOS = 1
 
 
 def pode_aprender(resultado, threshold: float) -> bool:
@@ -124,6 +141,9 @@ def registrar_aprendizado(servico, colaborador, imagem_bytes, resultado) -> bool
             if recente.created_at > limite:
                 return False
 
+        if not _traz_algo_novo(servico, colaborador, imagem_bytes):
+            return False
+
         # `cadastrar_amostra` traz as travas que ja existem: recusa a
         # captura que e de outra pessoa e aposenta o excedente. Reusar
         # em vez de gravar direto evita que o caminho automatico seja
@@ -154,3 +174,29 @@ def registrar_aprendizado(servico, colaborador, imagem_bytes, resultado) -> bool
     except Exception:
         logger.exception("Falha ao aprender com a batida — ignorada.")
         return False
+
+
+def _traz_algo_novo(servico, colaborador, imagem_bytes) -> bool:
+    """
+    A foto acrescenta alguma coisa ao que ja esta gravado?
+
+    Uma captura quase igual a uma existente ocupa um lugar da cota e nao
+    melhora nada — o cadastro fica mais estreito, e nao mais largo. O que
+    faz o reconhecimento melhorar e cobrir condicao que ainda nao estava
+    coberta.
+
+    Na duvida, aprende. Falha aqui (motor fora do ar, imagem que nao
+    volta) nao pode virar motivo para nunca mais aprender: o risco de
+    guardar uma foto redundante e menor do que o de o cadastro parar no
+    tempo.
+    """
+    try:
+        vetor = servico.provedor.gerar_embedding(imagem_bytes)
+        atuais = servico.candidatos([colaborador.empresa]).get(colaborador.pk) or []
+        if not atuais:
+            return True
+        perto = min(servico._distancia(vetor, v) for v in atuais)
+        return perto >= NOVIDADE_MINIMA
+    except Exception:
+        logger.info("Nao foi possivel medir a novidade da captura; aprendendo.")
+        return True

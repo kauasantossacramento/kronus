@@ -294,11 +294,30 @@ class FaceRecognitionService:
         qual foto gerou qual embedding faz parte da trilha de auditoria
         do dado biometrico.
         """
-        limite = getattr(settings, "FACE_AMOSTRAS_MAXIMAS", 5)
+        limite = getattr(settings, "FACE_AMOSTRAS_MAXIMAS", 7)
         ativas = list(
             colaborador.registros_faciais.filter(ativo=True).order_by("-created_at")
         )
-        excedentes = ativas[limite:]
+
+        # A aprendida sai antes da supervisionada.
+        #
+        # So por recencia, cada foto aprendida aposentava uma do cadastro
+        # original — e o cadastro original e o que alguem conferiu, com a
+        # pessoa na frente da camera. Em poucos meses a referencia
+        # inteira teria virado material coletado sem supervisao.
+        #
+        # A ordem de sacrificio: aprendidas mais antigas primeiro, e so
+        # depois as supervisionadas mais antigas.
+        excedentes = sorted(
+            ativas[limite:],
+            key=lambda r: (not r.aprendida, r.created_at),
+        )
+        if len(ativas) > limite:
+            sobrando = len(ativas) - limite
+            candidatas = sorted(
+                ativas, key=lambda r: (not r.aprendida, r.created_at)
+            )
+            excedentes = candidatas[:sobrando]
         for registro in excedentes:
             registro.ativo = False
             registro.save(update_fields=["ativo", "updated_at"])

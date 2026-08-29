@@ -556,7 +556,11 @@ FACE_PROVIDER = config("FACE_PROVIDER", default="auto")
 
 #: Numero de amostras exigidas no cadastro facial (Secao 8.2: 3 a 5).
 FACE_AMOSTRAS_MINIMAS = config("FACE_AMOSTRAS_MINIMAS", default=3, cast=int)
-FACE_AMOSTRAS_MAXIMAS = config("FACE_AMOSTRAS_MAXIMAS", default=5, cast=int)
+#: Sete, e nao cinco. O cadastro supervisionado ocupa cinco poses; as
+#: aprendidas precisam de espaco proprio, senao cada uma que entra
+#: aposenta uma do cadastro original — que e justamente a referencia que
+#: alguem conferiu.
+FACE_AMOSTRAS_MAXIMAS = config("FACE_AMOSTRAS_MAXIMAS", default=7, cast=int)
 
 #: Guardar o frame recebido pelo totem em tentativas malsucedidas.
 #: Ajuda no suporte, mas e dado biometrico — desligado por padrao (LGPD).
