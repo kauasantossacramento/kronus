@@ -65,6 +65,14 @@ class ProvedorFacial(ABC):
     nome = "abstrato"
     dimensoes = DIMENSOES_ARCFACE
 
+    #: Vetores deste motor representam rostos?
+    #:
+    #: Decide se faz sentido perguntar "estas duas fotos sao da mesma
+    #: pessoa?". Num motor que deriva o vetor dos bytes da imagem, a
+    #: pergunta nao tem resposta: duas fotos da mesma pessoa produzem
+    #: vetores tao distantes quanto as de pessoas diferentes.
+    modela_rostos = True
+
     @abstractmethod
     def gerar_embedding(self, imagem_bytes: bytes) -> np.ndarray:
         """
@@ -292,6 +300,10 @@ class ProvedorDeterministico(ProvedorFacial):
     """
 
     nome = "deterministico"
+
+    #: Compara bytes, e nao rostos: a coerencia entre amostras da mesma
+    #: pessoa nao e verificavel aqui.
+    modela_rostos = False
 
     #: Marcadores que simulam falhas de enquadramento nos testes.
     MARCA_SEM_ROSTO = b"__SEM_ROSTO__"

@@ -417,7 +417,35 @@ DEEPFACE_DETECTOR = config("DEEPFACE_DETECTOR", default="mtcnn")
 #: usar o fallback por CPF (inconveniente); falso POSITIVO registra ponto
 #: no nome de outra pessoa (fraude, com consequencia trabalhista).
 #: 0,60 zerou os falsos positivos nas duas amostras medidas.
-FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.60, cast=float)
+#: Ajustado de 0,60 para 0,55 apos um falso positivo em producao.
+#:
+#: A medicao de 0,60 valia para a comparacao contra a MEDIA das amostras
+#: da pessoa. A comparacao passou a ser contra CADA amostra, ficando com
+#: a menor distancia — o que baixa toda distancia, inclusive a de quem
+#: nao e a pessoa, e invalidou aquela calibracao. Ela nao foi refeita na
+#: hora, e o custo apareceu no totem: um visitante registrado no nome de
+#: outro.
+FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.55, cast=float)
+
+#: Margem exigida sobre o segundo colocado, quando ha mais de uma pessoa.
+#:
+#: Aceitar o mais proximo sem olhar o segundo transforma duas pessoas
+#: parecidas num sorteio: quem estiver um milesimo mais perto leva o
+#: ponto. Sem folga clara, o totem prefere pedir o CPF — errar para o
+#: lado do incomodo, e nao para o lado da fraude.
+FACE_MARGEM_MINIMA = config("FACE_MARGEM_MINIMA", default=0.06, cast=float)
+
+#: Distancia maxima entre uma amostra nova e as ja cadastradas.
+#:
+#: Existe por um caso real: uma sexta captura entrou a 0,70 das outras
+#: cinco — distancia de pessoa diferente. Como o reconhecimento fica com
+#: a MENOR distancia entre as amostras, essa amostra virou uma porta
+#: aberta: qualquer rosto proximo dela era aceito como o titular. Uma
+#: amostra que nao se parece com as outras nao e diversidade de angulo,
+#: e contaminacao.
+FACE_DISTANCIA_MAXIMA_AMOSTRA = config(
+    "FACE_DISTANCIA_MAXIMA_AMOSTRA", default=0.55, cast=float
+)
 
 #: Motor de reconhecimento — ver apps.facial.providers.obter_provedor.
 #:   auto           DeepFace se instalado, senao recusa com erro explicito

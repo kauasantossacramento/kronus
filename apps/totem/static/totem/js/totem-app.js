@@ -26,7 +26,12 @@
     loopDeteccao: null,
 
     // ── Constantes de desempenho (Seção 6.5.2) ────────────────
-    INTERVALO_IDLE_MS: 3000,     // 1 frame a cada 3 s no ocioso
+    // Um quadro a cada 3 s deixava a pessoa parada na frente do totem
+    // esperando ate 3 s pela primeira analise — e ate 6 s quando a
+    // camera ainda precisava reabrir. Era o que fazia parecer que o
+    // totem so respondia ao toque. A 700 ms a analise ocupa por volta de
+    // um sexto do tempo num tablet modesto.
+    INTERVALO_IDLE_MS: 700,      // ~1,4 analises por segundo no ocioso
     INTERVALO_ATIVO_MS: 200,     // 5 FPS com a câmera ativa
     DEBOUNCE_ENVIO_MS: 2000,     // mínimo entre envios ao servidor
     TIMEOUT_CAMERA_MS: 20000,    // sem match em 20 s → fallback
@@ -175,7 +180,13 @@
       this.estado = 'idle';
       this.enviando = false;
       this.tentativasFalhas = 0;
-      this.camera.fechar();
+      // A camera fica aberta.
+      //
+      // Fechar aqui nao poupava nada: o proximo tique do laco a reabria
+      // em seguida. O que se ganhava era so a espera da reabertura —
+      // segundos, num tablet modesto — bem no instante em que alguem
+      // chega para bater o ponto. Quem fecha de verdade e o `pagehide`,
+      // ao sair da pagina.
       this.detector.reiniciar();
       this.ui.mostrar('idle');
       this._iniciarLoop(this.INTERVALO_IDLE_MS);
@@ -193,7 +204,10 @@
 
       var executar = function () {
         if (!self.camera.ativa) {
-          self.camera.abrir().catch(function (erro) {
+          // Analisa assim que a camera abrir, e nao so no tique
+          // seguinte: perder um ciclo inteiro aqui era metade da demora
+          // que se sentia ao chegar na frente do totem.
+          self.camera.abrir().then(executar).catch(function (erro) {
             console.warn('[Kronus]', self.camera.descreverErro(erro));
           });
           return;
@@ -201,7 +215,9 @@
         var canvas = self.camera.frameParaDeteccao();
         if (!canvas) return;
 
-        self.detector.detectar(canvas).then(function (resultado) {
+        // No ocioso basta reconhecer que ha alguem ali; o rigor fica
+        // para o instante de enviar ao servidor, que nao muda.
+        self.detector.detectar(canvas, self.estado === 'idle').then(function (resultado) {
           // `presenca` acorda a tela; `pronto` autoriza o envio. Sao
           // decisoes diferentes de proposito: no ocioso basta alguem
           // se aproximar, mas gastar uma chamada de reconhecimento
@@ -313,6 +329,10 @@
     irParaCamera: function () {
       var self = this;
       this.estado = 'camera';
+      // Zera a contagem de leituras herdada do ocioso: la o criterio e
+      // mais frouxo, e aproveita-la aqui autorizaria um envio sem a
+      // estabilidade que o envio exige.
+      this.detector.reiniciar();
       this.ui.mostrar('camera');
       this.ui.definirInstrucao('Posicione o rosto no centro', false);
 

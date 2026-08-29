@@ -958,7 +958,7 @@ class CamerasDiferentesTests(TestCase):
         do_dia = tablet + self._vetor(99) * 0.05
         do_dia = do_dia / self.np.linalg.norm(do_dia)
 
-        _, distancia = servico._mais_proximo(do_dia, candidatos)
+        _, distancia = servico._pontuar(do_dia, candidatos)[0]
         self.assertLess(
             distancia, servico.threshold,
             "a amostra da própria câmera deveria reconhecer",
@@ -986,8 +986,8 @@ class CamerasDiferentesTests(TestCase):
             do_dia = tablet + self._vetor(semente + 900) * 0.15
             do_dia = do_dia / self.np.linalg.norm(do_dia)
 
-            por_media = servico._mais_proximo(do_dia, {1: [media]})[1]
-            por_amostra = servico._mais_proximo(do_dia, {1: [webcam, tablet]})[1]
+            por_media = servico._pontuar(do_dia, {1: [media]})[0][1]
+            por_amostra = servico._pontuar(do_dia, {1: [webcam, tablet]})[0][1]
 
             self.assertLessEqual(
                 por_amostra, por_media,
@@ -1003,7 +1003,7 @@ class CamerasDiferentesTests(TestCase):
         candidatos = servico.candidatos([self.empresa])
 
         outra_pessoa = self._vetor(500)
-        _, distancia = servico._mais_proximo(outra_pessoa, candidatos)
+        _, distancia = servico._pontuar(outra_pessoa, candidatos)[0]
         self.assertGreater(distancia, servico.threshold)
 
     def test_cada_amostra_e_uma_referencia(self):

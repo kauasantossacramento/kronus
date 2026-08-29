@@ -32,11 +32,26 @@
     pronto: false,
     modo: 'nenhum',        // 'faceapi' | 'heuristico'
     opcoes: null,
+    opcoesPresenca: null,
     _referencia: null,     // baseline de luminância do modo heurístico
     _seguidos: 0,          // leituras consecutivas com rosto válido
 
-    /** Confiança mínima do TinyFaceDetector. */
+    /** Confiança mínima do TinyFaceDetector para valer um envio. */
     CONFIANCA_MINIMA: 0.55,
+
+    /**
+     * Confiança mínima para apenas **acordar a tela**.
+     *
+     * Mais baixa de propósito: acordar à toa custa uma tela acesa que
+     * volta sozinha ao ocioso, enquanto não acordar custa a pessoa
+     * parada na frente do totem achando que ele está morto. Os dois
+     * erros não têm o mesmo preço.
+     *
+     * Isto **não** afrouxa o envio ao servidor: `pronto` continua
+     * exigindo enquadramento, distância e estabilidade, medidos com
+     * `CONFIANCA_MINIMA`.
+     */
+    CONFIANCA_PRESENCA: 0.35,
 
     /**
      * Fração mínima da largura do quadro que o rosto deve ocupar.
@@ -124,6 +139,10 @@
             inputSize: 224,          // múltiplo de 32; barato o bastante
             scoreThreshold: self.CONFIANCA_MINIMA
           });
+          self.opcoesPresenca = new faceapi.TinyFaceDetectorOptions({
+            inputSize: 224,
+            scoreThreshold: self.CONFIANCA_PRESENCA
+          });
           self.modo = 'faceapi';
           self.pronto = true;
           console.info('[Kronus] TinyFaceDetector carregado.');
@@ -146,12 +165,12 @@
      *   pronto    — rosto válido e estável: pode enviar ao servidor
      *   motivo    — por que não está pronto, para a instrução na tela
      */
-    detectar: function (canvas) {
+    detectar: function (canvas, sensivel) {
       var vazio = { presenca: false, pronto: false, confianca: 0, motivo: 'vazio' };
       if (!canvas) return Promise.resolve(vazio);
 
       if (this.modo === 'faceapi') {
-        return this._detectarRosto(canvas);
+        return this._detectarRosto(canvas, sensivel);
       }
 
       // Modo degradado: acorda a tela, mas **nunca** declara pronto.
@@ -166,12 +185,13 @@
       });
     },
 
-    _detectarRosto: function (canvas) {
+    _detectarRosto: function (canvas, sensivel) {
       var self = this;
       var largura = canvas.width || 1;
+      var opcoes = (sensivel && this.opcoesPresenca) || this.opcoes;
 
       return faceapi
-        .detectSingleFace(canvas, this.opcoes)
+        .detectSingleFace(canvas, opcoes)
         .then(function (deteccao) {
           if (!deteccao) {
             self._seguidos = 0;
@@ -194,6 +214,16 @@
             return {
               presenca: true, pronto: false,
               confianca: deteccao.score, caixa: caixa, motivo: motivo
+            };
+          }
+
+          if (sensivel && deteccao.score < self.CONFIANCA_MINIMA) {
+            // Serviu para acordar a tela, nao para contar como leitura
+            // boa: quem decide o envio e sempre o criterio rigoroso.
+            self._seguidos = 0;
+            return {
+              presenca: true, pronto: false,
+              confianca: deteccao.score, caixa: caixa, motivo: 'estabilizando'
             };
           }
 

@@ -87,6 +87,7 @@ class FaceRecognitionService:
             if threshold is not None
             else settings.FACE_RECOGNITION_THRESHOLD
         )
+        self.margem_minima = settings.FACE_MARGEM_MINIMA
 
     @property
     def disponivel(self) -> bool:
@@ -122,6 +123,7 @@ class FaceRecognitionService:
             )
 
         vetor = self.provedor.gerar_embedding(imagem_bytes)
+        self._recusar_se_for_outro_rosto(colaborador, vetor)
 
         registro = FaceRegistro(
             colaborador=colaborador,
@@ -148,6 +150,48 @@ class FaceRecognitionService:
             qualidade,
         )
         return registro
+
+    def _recusar_se_for_outro_rosto(self, colaborador, vetor) -> None:
+        """
+        Recusa uma amostra que não se pareça com as já cadastradas.
+
+        Existe por um caso real: a sexta captura de um colaborador entrou
+        a 0,70 das cinco anteriores — distância de pessoa diferente.
+        Provavelmente outra pessoa no quadro, ou um recorte errado.
+        Ninguém notou, porque nada no cadastro compara a amostra nova com
+        o que já estava lá.
+
+        O estrago aparece depois, e longe daqui: como o reconhecimento
+        fica com a menor distância entre as amostras, aquela captura
+        passou a aceitar rostos que não eram do titular.
+
+        A comparação é contra a **mediana** das distâncias, e não a
+        menor: bastaria uma amostra ruim já cadastrada para avalizar a
+        próxima, e o erro se propagaria.
+        """
+        if not getattr(self.provedor, "modela_rostos", True):
+            return
+
+        anteriores = [
+            registro.obter_embedding()
+            for registro in FaceRegistro.objects.filter(
+                colaborador=colaborador, ativo=True
+            )
+        ]
+        anteriores = [v for v in anteriores if v is not None and len(v)]
+        if len(anteriores) < 2:
+            return
+
+        distancias = sorted(self._distancia(vetor, v) for v in anteriores)
+        mediana = distancias[len(distancias) // 2]
+        limite = settings.FACE_DISTANCIA_MAXIMA_AMOSTRA
+        if mediana > limite:
+            raise ImagemInvalida(
+                "Esta foto não parece a mesma pessoa das anteriores. "
+                "Confira se há outra pessoa no enquadramento e repita a "
+                "captura.",
+                codigo="rosto_divergente",
+            )
 
     @staticmethod
     def _aposentar_excedentes(colaborador):
@@ -292,7 +336,8 @@ class FaceRecognitionService:
                 frame,
             )
 
-        melhor_id, melhor_distancia = self._mais_proximo(vetor, candidatos)
+        pontos = self._pontuar(vetor, candidatos)
+        melhor_id, melhor_distancia = pontos[0]
 
         if melhor_distancia >= self.threshold:
             return concluir(
@@ -305,6 +350,27 @@ class FaceRecognitionService:
                 ),
                 frame,
             )
+
+        # Depois do limiar, e nao antes: um rosto desconhecido fica longe
+        # de todo mundo, e as distancias de dois desconhecidos podem ser
+        # parecidas entre si sem que exista ambiguidade alguma. A margem
+        # so tem sentido entre candidatos que ja passariam.
+        if len(pontos) > 1:
+            _, segunda = pontos[1]
+            if segunda - melhor_distancia < self.margem_minima:
+                return concluir(
+                    ResultadoReconhecimento(
+                        identificado=False,
+                        distancia=round(melhor_distancia, 4),
+                        candidatos=len(candidatos),
+                        motivo=(
+                            "Não foi possível distinguir com segurança. "
+                            "Use o CPF."
+                        ),
+                        codigo="ambiguo",
+                    ),
+                    frame,
+                )
 
         from apps.rh.models import Colaborador
 
@@ -335,50 +401,47 @@ class FaceRecognitionService:
             frame,
         )
 
-    def _mais_proximo(self, vetor, candidatos: dict) -> tuple[int, float]:
+    def _pontuar(self, vetor, candidatos: dict) -> list[tuple[int, float]]:
         """
-        Compara o vetor contra **cada amostra** de cada colaborador.
+        Distância de cada colaborador ao rosto, do mais próximo ao menos.
 
-        Antes a comparação era contra a média das amostras da pessoa, e
-        isso quebrava justamente o caso mais comum: cadastrar pela webcam
-        do computador e reconhecer na câmera do tablet. Câmeras
-        diferentes produzem vetores em regiões diferentes do espaço, e a
-        média entre elas é um centroide que não se parece com nenhuma —
-        fica longe das duas ao mesmo tempo.
+        A comparação é contra **cada amostra**, e não contra a média
+        delas. A média não funciona no caso mais comum — cadastrar pela
+        webcam do computador e reconhecer na câmera do tablet: câmeras
+        diferentes produzem vetores em regiões diferentes, e o centroide
+        entre elas não se parece com nenhuma.
 
-        Comparando contra cada amostra e ficando com a menor distância, a
-        pessoa é reconhecida se **qualquer** das capturas dela se
-        parecer com o rosto do dia. É o que permite cadastrar num
-        aparelho e bater o ponto em outro.
+        Mas ficar com a menor distância entre as amostras, sem mais nada,
+        cria um problema pior. Uma única amostra ruim — foto tremida,
+        recorte errado, outra pessoa no quadro — passa a autorizar
+        sozinha: qualquer rosto próximo dela é aceito como o titular.
+        Aconteceu em produção, e o resultado foi ponto batido no nome de
+        outra pessoa.
 
-        A operação continua vetorizada: o custo é proporcional ao total
-        de amostras, não ao de pessoas — com o limite de cinco amostras
-        por colaborador, são cinco vezes mais linhas numa multiplicação
-        de matriz que já roda em milissegundos.
+        Por isso, quem tem três ou mais amostras é pontuado pela
+        **segunda** menor distância. Uma amostra fora do lugar deixa de
+        abrir a porta sozinha, e a tolerância entre câmeras se mantém:
+        basta que duas capturas concordem.
         """
-        ids = []
-        linhas = []
+        pontos = []
         for pk, vetores in candidatos.items():
-            # Aceita tanto uma amostra quanto uma lista, para não quebrar
-            # com cache gravado pelo formato anterior.
-            for amostra in (vetores if isinstance(vetores, list) else [vetores]):
-                ids.append(pk)
-                linhas.append(amostra)
+            amostras = vetores if isinstance(vetores, list) else [vetores]
+            distancias = sorted(
+                self._distancia(vetor, amostra) for amostra in amostras
+            )
+            posicao = 1 if len(distancias) >= 3 else 0
+            pontos.append((pk, distancias[posicao]))
 
-        matriz = np.vstack(linhas).astype(np.float32)
+        pontos.sort(key=lambda par: par[1])
+        return pontos
 
-        vetor = np.asarray(vetor, dtype=np.float32)
-        norma_vetor = np.linalg.norm(vetor)
-        normas = np.linalg.norm(matriz, axis=1)
-        normas[normas == 0] = 1e-9
-        if norma_vetor == 0:
-            norma_vetor = 1e-9
-
-        similaridades = (matriz @ vetor) / (normas * norma_vetor)
-        distancias = 1.0 - similaridades
-
-        indice = int(np.argmin(distancias))
-        return ids[indice], float(distancias[indice])
+    @staticmethod
+    def _distancia(vetor, amostra) -> float:
+        a = np.asarray(vetor, dtype=np.float32)
+        b = np.asarray(amostra, dtype=np.float32)
+        na = float(np.linalg.norm(a)) or 1e-9
+        nb = float(np.linalg.norm(b)) or 1e-9
+        return 1.0 - float(a @ b) / (na * nb)
 
     # ══════════════════════════════════════════════════════════
     # Cache de candidatos
@@ -472,7 +535,7 @@ class FaceRecognitionService:
             situacao = TentativaReconhecimento.Resultado.SEM_ROSTO
         elif resultado.codigo == "multiplos_rostos":
             situacao = TentativaReconhecimento.Resultado.MULTIPLOS_ROSTOS
-        elif resultado.codigo in ("nao_identificado", "sem_candidatos"):
+        elif resultado.codigo in ("nao_identificado", "sem_candidatos", "ambiguo"):
             situacao = TentativaReconhecimento.Resultado.NAO_IDENTIFICADO
         else:
             situacao = TentativaReconhecimento.Resultado.ERRO
