@@ -122,7 +122,9 @@ html, body {
 
 .totem-relogio__hora {
   font-family: 'Roboto', ui-monospace, monospace;
-  font-size: 2.6rem;
+  /* Ajustável pelo painel: o que se lê de longe depende da altura em
+     que o totem foi instalado, e um número fixo servia a uma só. */
+  font-size: var(--totem-relogio-px, 2.6rem);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;

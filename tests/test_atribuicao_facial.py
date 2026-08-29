@@ -235,16 +235,21 @@ class ReconhecimentoDepoisDoCadastroTests(BaseAtribuicao):
         self.assertFalse(resultado.identificado)
 
 
-class CapturaParecidaComOutroTests(BaseAtribuicao):
+class CapturaDeOutraPessoaTests(BaseAtribuicao):
     """
-    O cadastro recusa a captura que ficaria perto do cadastro alheio.
+    O cadastro recusa quando a captura **e** de alguem ja cadastrado.
 
-    Barrar aqui e muito melhor do que descartar depois: a pessoa ainda
-    esta na frente da camera, e refazer a pose custa segundos. Descoberto
-    semanas depois, custa uma batida no nome errado.
+    Isso nao trata de semelhanca: trata de erro de operacao — escolher o
+    nome errado na lista e cadastrar o rosto de quem esta na frente da
+    camera.
+
+    A versao anterior barrava por semelhanca a cada pose e citava o nome
+    de quem se parecia. Disparava o tempo todo, e um aviso frequente
+    ensina o operador a ignora-lo; alem de mostrar a quem cadastra com
+    quem o colaborador se parece, que nao e informacao dele.
     """
 
-    def test_recusa_e_explica_o_que_fazer(self):
+    def test_recusa_sem_dizer_de_quem_e_o_outro_cadastro(self):
         self.consentir(self.ana)
         for i in range(3):
             self.capturar(self.ana, 700 + i)
@@ -255,9 +260,12 @@ class CapturaParecidaComOutroTests(BaseAtribuicao):
 
         corpo = resposta.json()
         self.assertFalse(corpo["ok"], corpo)
-        self.assertEqual(corpo["codigo"], "parecida_com_outro")
-        self.assertIn("Ana Souza", corpo["mensagem"])
-        self.assertIn("Refaça", corpo["mensagem"])
+        self.assertEqual(corpo["codigo"], "ja_cadastrado")
+        self.assertNotIn(
+            "Ana", corpo["mensagem"],
+            "o nome de quem ja esta cadastrado nao e informacao de quem cadastra",
+        )
+        self.assertIn("Confirme", corpo["mensagem"])
 
     def test_a_captura_recusada_nao_entra_na_galeria(self):
         from apps.facial.models import FaceRegistro
@@ -289,3 +297,65 @@ class CapturaParecidaComOutroTests(BaseAtribuicao):
         # Sem ninguem para comparar, a regra nao tem o que dizer.
         self.consentir(self.ana)
         self.assertTrue(self.capturar(self.ana, 1234).json()["ok"])
+
+
+class DistincaoDoCadastroTests(BaseAtribuicao):
+    """
+    A semelhanca e avaliada no FIM, sobre o cadastro pronto — e nao a
+    cada pose.
+
+    Uma captura isolada pode ficar perto de outra pessoa por acaso e nao
+    dizer nada sobre o conjunto. Avaliar pose a pose enchia a tela de
+    avisos, e aviso frequente e aviso ignorado.
+    """
+
+    def _cinco(self, pessoa, base):
+        self.consentir(pessoa)
+        respostas = []
+        for i, angulo in enumerate(
+            ("frontal", "esquerda", "direita", "cima", "baixo")
+        ):
+            respostas.append(self.capturar(pessoa, base + i, angulo))
+        return respostas[-1].json()
+
+    def test_cadastro_distinto_termina_sem_aviso(self):
+        corpo = self._cinco(self.ana, 1100)
+        self.assertTrue(corpo["ok"], corpo)
+        self.assertFalse(corpo["cadastro_fraco"])
+        self.assertEqual(corpo["aviso"], "")
+
+    def test_as_poses_do_meio_nao_avisam_nada(self):
+        # O aviso e do conjunto: cobrar a cada pose transformaria a
+        # captura numa sequencia de reclamacoes.
+        self.consentir(self.ana)
+        for i, angulo in enumerate(("frontal", "esquerda", "direita", "cima")):
+            corpo = self.capturar(self.ana, 1200 + i, angulo).json()
+            self.assertEqual(corpo.get("aviso", ""), "")
+
+    def test_o_aviso_nao_cita_ninguem(self):
+        from apps.facial.services import FaceRecognitionService
+
+        self._cinco(self.ana, 1300)
+        # Um cadastro proximo: as mesmas imagens, outro colaborador.
+        self.consentir(self.bruno)
+        for i, angulo in enumerate(
+            ("frontal", "esquerda", "direita", "cima", "baixo")
+        ):
+            # Imagens vizinhas, nao identicas — semelhanca, e nao a
+            # mesma pessoa, que e o caso que bloqueia.
+            self.capturar(self.bruno, 1400 + i, angulo)
+
+        FaceRecognitionService.invalidar_cache(self.empresa.pk)
+        avaliacao = FaceRecognitionService().distincao(self.bruno)
+        self.assertIsNotNone(avaliacao)
+        self.assertIn("distancia", avaliacao)
+        self.assertIn("confortavel", avaliacao)
+
+    def test_sem_ninguem_para_comparar_o_cadastro_e_confortavel(self):
+        from apps.facial.services import FaceRecognitionService
+
+        self._cinco(self.ana, 1500)
+        FaceRecognitionService.invalidar_cache(self.empresa.pk)
+        avaliacao = FaceRecognitionService().distincao(self.ana)
+        self.assertTrue(avaliacao["confortavel"])
+        self.assertIsNone(avaliacao["distancia"])

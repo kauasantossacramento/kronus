@@ -459,6 +459,18 @@ DEEPFACE_DETECTOR = config("DEEPFACE_DETECTOR", default="mtcnn")
 #: digitacao de CPF; um falso positivo custa ponto no nome de outro.
 FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.52, cast=float)
 
+#: Distancia abaixo da qual duas capturas sao, na pratica, a mesma
+#: pessoa.
+#:
+#: Serve para um erro de operacao, e nao para semelhanca: escolher o
+#: colaborador errado na lista e cadastrar o rosto de quem esta na
+#: frente. Bem abaixo do limiar de reconhecimento de proposito — a
+#: verificacao por pose precisa ser rara, ou vira ruido que ensina o
+#: operador a ignorar o aviso.
+FACE_DISTANCIA_MESMA_PESSOA = config(
+    "FACE_DISTANCIA_MESMA_PESSOA", default=0.25, cast=float
+)
+
 #: Espalhamento maximo entre as poses de um cadastro saudavel.
 #:
 #: Acima disso o cadastro e fraco: as capturas nao concordam entre si o

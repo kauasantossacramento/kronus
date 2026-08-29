@@ -179,6 +179,7 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             "slogan_px",
             "assinatura_altura_px",
             "marca_kronus_px",
+            "relogio_px",
             "msg_sucesso_ponto",
             "msg_sucesso_px",
             "frases_sucesso",

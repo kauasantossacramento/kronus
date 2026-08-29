@@ -70,7 +70,8 @@
        style="--totem-slogan-px: {{ empresa.slogan_px }}px">{% firstof empresa.slogan_totem KRONUS.TAGLINE_TOTEM %}</p>
   </div>
 
-  <div class="totem-relogio">
+  <div class="totem-relogio"
+       style="--totem-relogio-px: {% firstof empresa.relogio_px 42 %}px">
     <div class="totem-relogio__hora" data-relogio>--:--:--</div>
     <div class="totem-relogio__data" data-data></div>
   </div>
@@ -309,6 +310,30 @@
     </button>
     <button type="button" class="totem-botao totem-botao--secundario"
             data-manut-voltar-lista>Voltar</button>
+  </div>
+</section>
+
+{# ── Revisão do cadastro ── #}
+<section class="totem-tela totem-coluna" id="tela-manut-revisao" hidden>
+  <div class="totem-manut-topo">
+    <span class="totem-manut-etiqueta">Cadastro concluído</span>
+    <h2 class="totem-manut-titulo">Vale a pena refazer?</h2>
+  </div>
+
+  <div class="totem-manut-texto">
+    <p id="manut-revisao-texto">—</p>
+    <p style="margin-top:.75rem">
+      Manter também funciona: o ponto continua sendo registrado, e o
+      sistema vai pedir o CPF com mais frequência.
+    </p>
+  </div>
+
+  <div class="totem-acoes">
+    <button type="button" class="totem-botao" id="manut-revisao-refazer">
+      Refazer as capturas
+    </button>
+    <button type="button" class="totem-botao totem-botao--secundario"
+            id="manut-revisao-manter">Manter assim</button>
   </div>
 </section>
 

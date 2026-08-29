@@ -191,6 +191,20 @@
       if (capturar) {
         capturar.addEventListener('click', function () { self._capturar(); });
       }
+
+      var refazer = document.getElementById('manut-revisao-refazer');
+      if (refazer) {
+        refazer.addEventListener('click', function () {
+          // Não é preciso apagar nada: o cadastro guarda as N mais
+          // recentes, então as cinco novas empurram as antigas para
+          // fora sozinhas.
+          self._abrirCaptura();
+        });
+      }
+      var manter = document.getElementById('manut-revisao-manter');
+      if (manter) {
+        manter.addEventListener('click', function () { self._carregarLista(); });
+      }
     },
 
     _entrar: function (senha) {
@@ -390,16 +404,19 @@
         self.pessoa.amostras = dados.amostras;
 
         if (self.pose >= POSES.length) {
-          self._fecharCamera();
-          // Um cadastro fraco precisa ser dito aqui, com a pessoa ainda
-          // na frente da câmera. Descobrir semanas depois, pelo
-          // colaborador que nunca é reconhecido, é tarde.
+          // A avaliação do cadastro vem aqui, sobre o conjunto pronto —
+          // e não a cada pose. Uma captura isolada pode ficar perto de
+          // outra pessoa por acaso e não dizer nada sobre o cadastro.
+          //
+          // E é um convite, não um bloqueio: quem está na frente da
+          // câmera decide entre refazer e seguir. Repetir à força seria
+          // prender o operador num laço que ele não escolheu.
           if (dados.cadastro_fraco) {
-            self._erro('erro-manut-captura', dados.aviso);
-            self.pose = 0;
-            self._atualizarPose();
+            self._fecharCamera();
+            self._perguntarSeRefaz(dados.aviso);
             return;
           }
+          self._fecharCamera();
           self._carregarLista();
           return;
         }
@@ -408,6 +425,26 @@
         if (botao) botao.disabled = false;
         self._erro('erro-manut-captura', 'Sem conexão com o servidor.');
       });
+    },
+
+    /**
+     * Oferece refazer o cadastro que saiu pouco distinto.
+     *
+     * Duas saídas de verdade: refazer as cinco poses, ou manter o que
+     * ficou. Manter é uma escolha legítima — o cadastro funciona, só vai
+     * exigir o CPF com mais frequência —, e tirá-la deixaria alguém
+     * preso repetindo poses até o sistema se dar por satisfeito.
+     */
+    _perguntarSeRefaz: function (aviso) {
+      var self = this;
+      var caixa = document.getElementById('tela-manut-revisao');
+      if (!caixa) {
+        self._carregarLista();
+        return;
+      }
+      var texto = document.getElementById('manut-revisao-texto');
+      if (texto) texto.textContent = aviso;
+      this._mostrar('tela-manut-revisao');
     },
 
     _fecharCamera: function () {
@@ -429,7 +466,7 @@
 
     _mostrar: function (id) {
       ['tela-manut-senha', 'tela-manut-lista', 'tela-manut-lgpd',
-       'tela-manut-captura'].forEach(function (tela) {
+       'tela-manut-captura', 'tela-manut-revisao'].forEach(function (tela) {
         var el = document.getElementById(tela);
         if (el) el.hidden = tela !== id;
       });

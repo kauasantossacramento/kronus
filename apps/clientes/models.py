@@ -575,6 +575,15 @@ class Empresa(BaseModel):
     #: Sao duas marcas, com pesos diferentes: numa tela de 7 polegadas em
     #: pe, o que cabe de uma nao e o que cabe da outra. Um numero so para
     #: as duas obrigava a escolher qual ficaria errada.
+    #: O relogio e o que se le de longe, e o que se le de longe depende
+    #: da altura em que o totem foi instalado. Um numero fixo servia bem
+    #: a uma altura so.
+    relogio_px = models.PositiveSmallIntegerField(
+        "Tamanho do relógio no totem (px)",
+        default=42,
+        validators=[MinValueValidator(20), MaxValueValidator(120)],
+        help_text="Altura dos dígitos na tela ociosa do totem.",
+    )
     marca_kronus_px = models.PositiveSmallIntegerField(
         "Altura da marca Kronus no totem (px)",
         default=13,

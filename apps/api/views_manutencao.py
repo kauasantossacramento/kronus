@@ -406,17 +406,36 @@ def amostra(request):
     limite = settings.FACE_ESPALHAMENTO_ACEITAVEL
     fraco = espalhamento is not None and espalhamento > limite
 
+    # A distincao e avaliada sobre o cadastro pronto, e nao pose a pose:
+    # uma captura isolada pode ficar perto de outra pessoa por acaso e
+    # nao dizer nada sobre o conjunto. E ela nao bloqueia — quem esta la,
+    # vendo a pessoa e a luz, decide entre refazer e seguir.
+    distincao = servico.distincao(pessoa)
+    pouco_distinto = bool(distincao and not distincao["confortavel"])
+
+    avisos = []
+    if fraco:
+        avisos.append(
+            "As capturas ficaram muito diferentes entre si. Refaça com "
+            "iluminação estável e sem virar demais o rosto."
+        )
+    if pouco_distinto:
+        # Sem citar de quem se aproxima: quem cadastra nao precisa saber
+        # com quem o colaborador se parece.
+        avisos.append(
+            "O cadastro ficou pouco distinto dos demais. Refazer com o "
+            "rosto de frente e boa iluminação costuma resolver."
+        )
+
     return Response(
         {
             "ok": True,
             "qualidade": round(registro.qualidade, 1),
             "amostras": total,
             "espalhamento": round(espalhamento, 3) if espalhamento else None,
-            "cadastro_fraco": fraco,
-            "aviso": (
-                "As capturas estão muito diferentes entre si. Refaça o "
-                "cadastro com iluminação estável e sem virar demais o rosto."
-            ) if fraco else "",
+            "distincao": distincao["distancia"] if distincao else None,
+            "cadastro_fraco": fraco or pouco_distinto,
+            "aviso": " ".join(avisos),
         }
     )
 

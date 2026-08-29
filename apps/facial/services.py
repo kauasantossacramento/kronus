@@ -124,7 +124,7 @@ class FaceRecognitionService:
 
         vetor = self.provedor.gerar_embedding(imagem_bytes)
         self._recusar_se_for_outro_rosto(colaborador, vetor)
-        self._recusar_se_parecer_com_outro(colaborador, vetor)
+        self._recusar_se_for_a_mesma_pessoa(colaborador, vetor)
 
         registro = FaceRegistro(
             colaborador=colaborador,
@@ -152,59 +152,73 @@ class FaceRecognitionService:
         )
         return registro
 
-    def _recusar_se_parecer_com_outro(self, colaborador, vetor) -> None:
+    def _recusar_se_for_a_mesma_pessoa(self, colaborador, vetor) -> None:
         """
-        Recusa a captura que ficou parecida demais com **outra pessoa**.
+        Recusa quando a captura **e** de alguem ja cadastrado.
 
-        A verificacao anterior olha para dentro: a foto combina com as
-        outras do titular? Esta olha para fora, e pega o caso que a outra
-        deixa passar — uma captura pode combinar com as irmas e ainda
-        assim ficar perto do cadastro de um colega.
+        Nao trata de semelhanca: trata de erro de operacao — escolher o
+        nome errado na lista e cadastrar o rosto de quem esta na frente
+        da camera. Por isso o limite e bem mais apertado que o do
+        reconhecimento.
 
-        Aconteceu: a pose "cima" de uma colaboradora entrou a 0,367 de
-        outra e a 0,506 das proprias irmas. Como o reconhecimento fica
-        com a menor distancia, aquela foto respondia por duas pessoas.
+        A versao anterior barrava por semelhanca, a cada pose, e citava o
+        nome de quem se parecia. Errado por dois motivos: disparava o
+        tempo todo — e um aviso frequente ensina o operador a ignora-lo —
+        e mostrava, a quem cadastra, com quem o colaborador se parece,
+        que nao e informacao dele.
 
-        Barrar aqui e muito melhor do que descartar depois: a pessoa
-        ainda esta na frente da camera, e refazer a pose custa segundos.
-        Descoberto semanas depois, custa uma batida no nome errado.
-
-        Vale para qualquer motor, inclusive o de teste: a regra so
-        dispara quando dois vetores estao perto, e "perto" tem o mesmo
-        significado em todos eles — seria reconhecido como o outro.
+        A avaliacao de semelhanca mudou de lugar: acontece no fim, sobre
+        o cadastro pronto, onde ela significa alguma coisa. Uma pose
+        isolada nao diz se o cadastro vai funcionar.
         """
         galeria = self.candidatos([colaborador.empresa])
         galeria.pop(colaborador.pk, None)
         if not galeria:
             return
 
-        proximo, distancia = None, None
-        for pk, vetores in galeria.items():
+        limite = settings.FACE_DISTANCIA_MESMA_PESSOA
+        for vetores in galeria.values():
             for outro in vetores:
-                d = self._distancia(vetor, outro)
-                if distancia is None or d < distancia:
-                    proximo, distancia = pk, d
+                if self._distancia(vetor, outro) < limite:
+                    raise ImagemInvalida(
+                        "Esta captura corresponde a um cadastro que já "
+                        "existe. Confirme se o colaborador selecionado é "
+                        "a pessoa que está na frente da câmera.",
+                        codigo="ja_cadastrado",
+                    )
 
-        if distancia is None:
-            return
+    def distincao(self, colaborador) -> dict | None:
+        """
+        Quao distinto ficou o cadastro, comparado aos demais.
 
-        # Se esta captura seria reconhecida como outra pessoa, ela nao
-        # pode entrar — e o proprio limiar que define isso.
-        limite = self.threshold + settings.FACE_MARGEM_MINIMA
-        if distancia >= limite:
-            return
+        Avaliado no fim, sobre o conjunto pronto: uma pose isolada pode
+        ficar perto de outra pessoa por acaso e nao dizer nada sobre o
+        cadastro inteiro. O que decide e a menor distancia entre as
+        amostras desta pessoa e as de qualquer outra.
 
-        from apps.rh.models import Colaborador
+        Nao bloqueia. Devolve o numero para que quem cadastrou decida
+        entre refazer e seguir — a decisao e de quem esta la, vendo a
+        pessoa e as condicoes de luz.
+        """
+        minhas = self.candidatos([colaborador.empresa]).get(colaborador.pk)
+        if not minhas:
+            return None
 
-        outro = Colaborador.objects.filter(pk=proximo).first()
-        nome = outro.nome_exibicao if outro else "outro cadastro"
-        raise ImagemInvalida(
-            f"Esta captura ficou parecida demais com o cadastro de "
-            f"{nome}. Refaça a pose com o rosto de frente, bem "
-            f"iluminado e sem virar demais — assim o sistema não vai "
-            f"confundir os dois.",
-            codigo="parecida_com_outro",
+        galeria = self.candidatos([colaborador.empresa])
+        galeria.pop(colaborador.pk, None)
+        if not galeria:
+            return {"distancia": None, "confortavel": True}
+
+        menor = min(
+            self._distancia(meu, outro)
+            for meu in minhas
+            for vetores in galeria.values()
+            for outro in vetores
         )
+        # Confortavel quando ha folga de margem sobre o limiar: e a
+        # mesma folga que o reconhecimento vai exigir na hora do ponto.
+        folga = self.threshold + self.margem_minima
+        return {"distancia": round(menor, 3), "confortavel": menor >= folga}
 
     def _recusar_se_for_outro_rosto(self, colaborador, vetor) -> None:
         """
@@ -303,9 +317,13 @@ class FaceRecognitionService:
         proprias poses dele estavam a ate 0,507 entre si.
 
         Devolve `None` com menos de duas capturas, quando nao ha o que
-        comparar.
+        comparar — e tambem num motor que nao modela rostos, onde
+        "espalhamento entre poses da mesma pessoa" nao tem significado.
         """
         import itertools
+
+        if not getattr(self.provedor, "modela_rostos", True):
+            return None
 
         vetores = [
             r.obter_embedding()
