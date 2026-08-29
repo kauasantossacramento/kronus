@@ -491,28 +491,71 @@
       this.pronto = false;
       botao.disabled = true;
 
+      // Valvula de escape.
+      //
+      // A conferencia de enquadramento e uma ajuda, nao uma tranca. Se
+      // ela nao confirmar — camera diferente, luz dificil, um caso que
+      // eu nao previ —, o botao libera assim mesmo depois de alguns
+      // segundos. Um cadastro que nao pode ser feito e pior do que um
+      // cadastro feito sem a conferencia.
+      var desde = Date.now();
+      var LIBERAR_APOS_MS = 5000;
+      var liberado = false;
+
       this._vigia = setInterval(function () {
         if (!self.stream || video.readyState < 2) return;
         contexto.drawImage(video, 0, 0, tela.width, tela.height);
 
+        var instrucao = document.getElementById('manut-instrucao');
+        var detalhe = document.getElementById('manut-detalhe');
+
         detector.detectar(tela).then(function (r) {
           self.pronto = !!r.pronto;
-          botao.disabled = !self.pronto;
 
-          var instrucao = document.getElementById('manut-instrucao');
-          if (instrucao) {
-            instrucao.textContent = r.pronto
-              ? POSES[Math.min(self.pose, POSES.length - 1)].instrucao
-                + ' — pode capturar'
-              : detector.instrucaoPara(r.motivo);
+          if (self.pronto) {
+            liberado = false;
+            botao.disabled = false;
+            if (instrucao) {
+              instrucao.textContent =
+                POSES[Math.min(self.pose, POSES.length - 1)].instrucao
+                + ' — pode capturar';
+            }
+          } else if (liberado || Date.now() - desde > LIBERAR_APOS_MS) {
+            liberado = true;
+            botao.disabled = false;
+            if (instrucao) {
+              instrucao.textContent =
+                'Enquadramento não confirmado — capture assim mesmo se '
+                + 'o rosto estiver visível.';
+            }
+          } else {
+            botao.disabled = true;
+            if (instrucao) instrucao.textContent = detector.instrucaoPara(r.motivo);
           }
+
+          // O numero medido, para quem estiver diagnosticando: sem ele,
+          // "nao libera" e um sintoma sem causa.
+          if (detalhe) {
+            detalhe.textContent =
+              'rosto ' + Math.round((r.proporcao || 0) * 100) + '% da largura'
+              + ' · mínimo ' + Math.round(detector.LARGURA_MINIMA_ROSTO * 100) + '%'
+              + ' · ' + (r.motivo || '—');
+          }
+
           if (guia) {
             guia.classList.toggle('totem-camera__guia--pronto', r.pronto);
             guia.classList.toggle(
               'totem-camera__guia--ajustar', !r.pronto && r.presenca
             );
           }
-        }).catch(function () {});
+        }).catch(function (erro) {
+          // Falha do detector nao pode travar o cadastro, e nao pode
+          // sumir: sem o aviso, "nao libera" fica sem explicacao.
+          console.warn('[Kronus] deteccao no cadastro falhou:', erro);
+          liberado = true;
+          botao.disabled = false;
+          if (detalhe) detalhe.textContent = 'detector indisponível';
+        });
       }, 250);
     },
 

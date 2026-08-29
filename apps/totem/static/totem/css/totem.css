@@ -924,3 +924,12 @@ html, body {
   .totem-manut-lista { max-height: 40vh; }
   .totem-manut-item__botao { flex-direction: column; align-items: flex-start; gap: .15rem; }
 }
+
+/* Medida do enquadramento no cadastro: discreta, mas legível — existe
+   para diagnóstico, não para o dia a dia. */
+.totem-manut-detalhe {
+  margin-top: .25rem;
+  font-size: .7rem;
+  color: var(--totem-text-muted);
+  opacity: .75;
+}
