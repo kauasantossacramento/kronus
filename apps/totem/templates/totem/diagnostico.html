@@ -22,6 +22,13 @@
     <tr><th>Bateria</th><td class="totem-mono">{% if totem.bateria_percentual %}{{ totem.bateria_percentual }}%{% else %}—{% endif %}</td></tr>
     <tr><th>Fallback por CPF</th><td>{{ totem.permite_fallback_cpf|yesno:"habilitado,desabilitado" }}</td></tr>
     <tr><th>Grupo</th><td>{{ totem.grupo|default:"—" }}</td></tr>
+    <tr><th>Atualização automática</th><td>
+      {% if totem.modo_exibicao == "fullscreen" or totem.modo_exibicao == "standalone" %}
+        <span class="pill pill--ok">sim — instalado como aplicativo</span>
+      {% elif totem.modo_exibicao == "browser" %}
+        <span class="pill pill--off">não — aberto numa aba</span>
+      {% else %}—{% endif %}
+    </td></tr>
     <tr><th>Modelo</th><td>{{ totem.modelo_tablet|default:"—" }}{% if totem.serial_tablet %} · {{ totem.serial_tablet }}{% endif %}</td></tr>
   </table>
 

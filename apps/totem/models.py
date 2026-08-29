@@ -115,6 +115,22 @@ class Totem(BaseModel):
     #: campo continua dizendo "1.0" tres atualizacoes depois. Vindo do
     #: aparelho, o valor responde a pergunta que importa no suporte —
     #: "este totem esta rodando a versao atual?".
+    #: Como a pagina esta aberta no aparelho.
+    #:
+    #: Decide se a atualizacao chega sozinha. Instalado como aplicativo,
+    #: o manifesto pede `display: fullscreen` e uma recarga nao perde a
+    #: tela cheia — o codigo novo entra sem ninguem tocar no equipamento.
+    #: Aberto numa aba, a recarga derruba a tela cheia, e o navegador so
+    #: a devolve mediante gesto do usuario, por regra propria.
+    #:
+    #: Sem este campo nao havia como saber quais totens estao em qual
+    #: situacao sem ir ate eles.
+    modo_exibicao = models.CharField(
+        "Modo de exibição",
+        max_length=20,
+        blank=True,
+        help_text="Como a página está aberta: aplicativo instalado ou aba do navegador.",
+    )
     versao_firmware = models.CharField(
         "Versão do app", max_length=20, blank=True,
         help_text="Informada pelo próprio totem a cada sinal de vida.",

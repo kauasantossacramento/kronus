@@ -185,6 +185,7 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             "frases_sucesso",
             "frases_sorteadas",
             "tentativas_antes_do_cpf",
+            "iniciar_por_toque",
             "som_confirmacao",
         )
         widgets = {

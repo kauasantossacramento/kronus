@@ -788,3 +788,112 @@ class AtualizacaoRemotaTests(BaseTotemTestCase):
             f"/totem/{self.totem.token_acesso}/"
         ).content.decode()
         self.assertIn(f"versaoEstaticos: '{versao_dos_estaticos()}'", pagina)
+
+
+class IniciarPorToqueTests(BaseTotemTestCase):
+    """
+    Comecar pelo toque, em vez de pela presenca.
+
+    A deteccao automatica serve a uma portaria com movimento medido:
+    quem chega e reconhecido sem tocar em nada. Num corredor de
+    passagem ela dispara o tempo todo — a tela acende para quem so
+    passou, e o totem gasta quadro e servidor com quem nao ia bater
+    ponto. A escolha e da empresa.
+    """
+
+    def _config(self):
+        from django.urls import reverse
+
+        return self.client.get(
+            reverse("api:totem:totem_config"),
+            HTTP_AUTHORIZATION=f"Token {self.totem.token_acesso}",
+        ).json()
+
+    def _pagina(self):
+        return self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+
+    def test_desligado_por_padrao(self):
+        self.assertFalse(self.empresa.iniciar_por_toque)
+        self.assertFalse(self._config()["interface"]["iniciar_por_toque"])
+
+    def test_a_opcao_chega_ao_totem(self):
+        self.empresa.iniciar_por_toque = True
+        self.empresa.save(update_fields=["iniciar_por_toque"])
+        self.assertTrue(self._config()["interface"]["iniciar_por_toque"])
+        self.assertIn("iniciarPorToque: true", self._pagina())
+
+    def test_a_tela_diz_como_comecar(self):
+        # Instrucoes opostas: a errada deixa a pessoa esperando em frente
+        # a uma tela que nao vai reagir.
+        self.assertIn("Aproxime-se para registrar", self._pagina())
+
+        self.empresa.iniciar_por_toque = True
+        self.empresa.save(update_fields=["iniciar_por_toque"])
+        self.assertIn("Toque na tela para registrar", self._pagina())
+
+    def test_o_laco_so_dispara_sozinho_quando_a_opcao_esta_desligada(self):
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        js = (raiz / "apps/totem/static/totem/js/totem-app.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "resultado.presenca && !self.config.iniciarPorToque", js,
+            "sem a condicao, ligar a opcao nao mudaria nada",
+        )
+
+    def test_o_toque_continua_valendo_nos_dois_modos(self):
+        # Tocar sempre funcionou e continua funcionando: a opcao tira o
+        # disparo automatico, e nao a saida manual.
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        js = (raiz / "apps/totem/static/totem/js/totem-app.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("if (self.estado === 'idle') self.irParaCamera();", js)
+
+
+class ModoDeExibicaoTests(BaseTotemTestCase):
+    """
+    Saber quais totens recebem atualizacao sozinhos.
+
+    Instalado como aplicativo, o manifesto pede `display: fullscreen` e
+    uma recarga nao perde a tela cheia — o codigo novo entra sem ninguem
+    tocar no equipamento. Aberto numa aba, a recarga derruba a tela
+    cheia, e o navegador so a devolve mediante gesto, por regra propria.
+
+    Sem este dado nao havia como saber quem esta em qual situacao sem ir
+    ate o equipamento.
+    """
+
+    def test_o_heartbeat_guarda_como_a_pagina_esta_aberta(self):
+        self.post("api:totem:totem_heartbeat", {"modo_exibicao": "fullscreen"})
+        self.totem.refresh_from_db()
+        self.assertEqual(self.totem.modo_exibicao, "fullscreen")
+
+    def test_o_valor_e_atualizado_quando_muda(self):
+        self.post("api:totem:totem_heartbeat", {"modo_exibicao": "browser"})
+        self.post("api:totem:totem_heartbeat", {"modo_exibicao": "standalone"})
+        self.totem.refresh_from_db()
+        self.assertEqual(self.totem.modo_exibicao, "standalone")
+
+    def test_heartbeat_sem_o_campo_nao_apaga_o_que_havia(self):
+        # Um totem em versao antiga nao manda o campo; apagar o valor
+        # faria o painel esquecer o que ja sabia.
+        self.post("api:totem:totem_heartbeat", {"modo_exibicao": "fullscreen"})
+        self.post("api:totem:totem_heartbeat", {})
+        self.totem.refresh_from_db()
+        self.assertEqual(self.totem.modo_exibicao, "fullscreen")
+
+    def test_o_diagnostico_mostra_a_situacao(self):
+        self.totem.modo_exibicao = "browser"
+        self.totem.save(update_fields=["modo_exibicao"])
+        pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/diagnostico/"
+        ).content.decode()
+        self.assertIn("Atualização automática", pagina)
+        self.assertIn("aberto numa aba", pagina)

@@ -68,6 +68,15 @@
        style="--totem-msg-px: {{ empresa.msg_boas_vindas_px }}px">{{ empresa.msg_boas_vindas }}</p>
     <p class="totem-idle__tagline"
        style="--totem-slogan-px: {{ empresa.slogan_px }}px">{% firstof empresa.slogan_totem KRONUS.TAGLINE_TOTEM %}</p>
+  {% comment %}
+    Como se começa. "Aproxime-se" e "Toque na tela" são instruções
+    opostas, e a errada deixa a pessoa esperando em frente a uma tela
+    que não vai reagir.
+  {% endcomment %}
+  <p class="totem-comecar" data-comecar>
+    {% if empresa.iniciar_por_toque %}Toque na tela para registrar o ponto
+    {% else %}Aproxime-se para registrar o ponto{% endif %}
+  </p>
   </div>
 
   <div class="totem-relogio"
@@ -484,6 +493,7 @@
       identificador: '{{ totem.identificador|escapejs }}',
       versao: '{{ versao_app }}',
       versaoEstaticos: '{{ versao_estaticos }}',
+      iniciarPorToque: {{ empresa.iniciar_por_toque|yesno:"true,false" }},
       permiteFallback: {{ totem.permite_fallback_cpf|yesno:"true,false" }},
       tentativasReconhecimento: {{ empresa.tentativas_antes_do_cpf }},
       segundosSucesso: {{ totem.segundos_tela_sucesso }},

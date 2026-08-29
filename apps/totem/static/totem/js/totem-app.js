@@ -324,7 +324,13 @@
           // se aproximar, mas gastar uma chamada de reconhecimento
           // exige rosto enquadrado e estavel.
           if (self.estado === 'idle') {
-            if (resultado.presenca) self.irParaCamera();
+            // Com "iniciar pelo toque", a presenca so acende a moldura:
+            // quem decide e o toque. Num corredor de passagem a
+            // deteccao automatica dispara o tempo todo, e a tela acende
+            // para quem so passou.
+            if (resultado.presenca && !self.config.iniciarPorToque) {
+              self.irParaCamera();
+            }
             return;
           }
 
@@ -405,6 +411,11 @@
         .then(function (dados) {
           if (!dados || !dados.empresa) return;
           self.config.empresa = dados.empresa;
+      if (dados.interface
+          && typeof dados.interface.iniciar_por_toque !== 'undefined') {
+        self.config.iniciarPorToque = !!dados.interface.iniciar_por_toque;
+        self.ui.dizerComoComecar(self.config.iniciarPorToque);
+      }
           if (global.KronusPersonalizacao) {
             global.KronusPersonalizacao.aplicar(
               dados.empresa, self.config.elementos

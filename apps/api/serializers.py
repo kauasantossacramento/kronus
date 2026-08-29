@@ -77,6 +77,11 @@ class HeartbeatSerializer(serializers.Serializer):
     degradado = serializers.CharField(
         required=False, allow_blank=True, max_length=200
     )
+    #: "fullscreen", "standalone" ou "browser". Diz se a atualizacao
+    #: chega sozinha ou se alguem vai precisar tocar no equipamento.
+    modo_exibicao = serializers.CharField(
+        required=False, allow_blank=True, max_length=20
+    )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -192,6 +197,7 @@ class ConfigTotemSerializer(serializers.Serializer):
             # nao dependa de republicar o app do quiosque.
             "liveness_quadros": 4 if config.exigir_liveness else 0,
             "minutos_entre_marcacoes": config.minutos_entre_marcacoes,
+            "iniciar_por_toque": totem.empresa.iniciar_por_toque,
             # O totem so mostra a porta de manutencao quando ela existe.
             # Um caminho que aparece e recusa ensina que ele esta ali.
             "cadastro_facial_no_totem": (

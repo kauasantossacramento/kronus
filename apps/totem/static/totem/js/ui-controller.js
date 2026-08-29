@@ -21,6 +21,22 @@
     },
 
     /**
+     * Diz, na tela ociosa, como se começa.
+     *
+     * "Aproxime-se" e "Toque para registrar" são instruções opostas, e
+     * a errada faz a pessoa esperar em frente a uma tela que não vai
+     * reagir. Como a opção muda pelo painel e chega ao totem ao vivo, o
+     * texto tem de acompanhar sem recarregar.
+     */
+    dizerComoComecar: function (porToque) {
+      var alvo = document.querySelector('[data-comecar]');
+      if (!alvo) return;
+      alvo.textContent = porToque
+        ? 'Toque na tela para registrar o ponto'
+        : 'Aproxime-se para registrar o ponto';
+    },
+
+    /**
      * Pinta a moldura da câmera conforme o enquadramento.
      *
      * `null` volta ao repouso, 'ajustar' avisa que falta posicionar,

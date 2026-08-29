@@ -450,6 +450,11 @@ def heartbeat(request):
             totem, EventoTotem.Tipo.ONLINE, "Heartbeat restabelecido"
         )
 
+    modo = (serializer.validated_data.get("modo_exibicao") or "").strip()
+    if modo and modo != totem.modo_exibicao:
+        totem.modo_exibicao = modo[:20]
+        totem.save(update_fields=["modo_exibicao"])
+
     degradado = (serializer.validated_data.get("degradado") or "").strip()
     if degradado:
         _registrar_degradacao(totem, degradado)

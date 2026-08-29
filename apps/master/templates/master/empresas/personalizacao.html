@@ -109,7 +109,7 @@
 
         <div class="mt-5 grid gap-5 sm:grid-cols-2">
           {% for campo in form %}
-            {% if campo.name == "idle_screen_img" or campo.name == "msg_boas_vindas" or campo.name == "msg_boas_vindas_px" or campo.name == "slogan_totem" or campo.name == "slogan_px" or campo.name == "assinatura_altura_px" or campo.name == "marca_kronus_px" or campo.name == "relogio_px" or campo.name == "msg_sucesso_ponto" or campo.name == "msg_sucesso_px" or campo.name == "frases_sucesso" or campo.name == "frases_sorteadas" or campo.name == "tentativas_antes_do_cpf" or campo.name == "som_confirmacao" %}
+            {% if campo.name == "idle_screen_img" or campo.name == "msg_boas_vindas" or campo.name == "msg_boas_vindas_px" or campo.name == "slogan_totem" or campo.name == "slogan_px" or campo.name == "assinatura_altura_px" or campo.name == "marca_kronus_px" or campo.name == "relogio_px" or campo.name == "msg_sucesso_ponto" or campo.name == "msg_sucesso_px" or campo.name == "frases_sucesso" or campo.name == "frases_sorteadas" or campo.name == "tentativas_antes_do_cpf" or campo.name == "iniciar_por_toque" or campo.name == "som_confirmacao" %}
               <div class="{% if campo.field.widget.input_type == 'checkbox' %}sm:col-span-2 flex items-center gap-2{% elif campo.name == 'idle_screen_img' or campo.name == 'slogan_totem' or campo.name == 'frases_sucesso' %}sm:col-span-2{% endif %}">
                 {% if campo.field.widget.input_type == 'checkbox' %}
                   {{ campo }}

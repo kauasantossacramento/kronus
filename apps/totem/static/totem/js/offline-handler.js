@@ -51,6 +51,19 @@
       }, this.INTERVALO_MS);
     },
 
+    _modoDeExibicao: function () {
+      try {
+        if (global.matchMedia('(display-mode: fullscreen)').matches) {
+          return 'fullscreen';
+        }
+        if (global.matchMedia('(display-mode: standalone)').matches
+            || global.navigator.standalone === true) {
+          return 'standalone';
+        }
+      } catch (e) {}
+      return 'browser';
+    },
+
     parar: function () {
       if (this.intervaloHeartbeat) {
         clearInterval(this.intervaloHeartbeat);
@@ -66,6 +79,12 @@
       // unico canal que ja existe e que o suporte le do painel.
       var motivo = this.motivoDegradado && this.motivoDegradado();
       if (motivo) carga.degradado = String(motivo).slice(0, 200);
+
+      // Como a pagina esta aberta. Instalado como aplicativo, a recarga
+      // nao perde a tela cheia e a atualizacao entra sozinha; numa aba,
+      // alguem vai precisar tocar no equipamento. Quem opera precisa
+      // saber disso sem ir ate la.
+      carga.modo_exibicao = this._modoDeExibicao();
 
       if (navigator.getBattery) {
         // A bateria alimenta o painel do Master; falha aqui é irrelevante.

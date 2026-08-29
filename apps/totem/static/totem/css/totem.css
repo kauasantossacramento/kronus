@@ -941,3 +941,12 @@ html, body {
   font-size: .78rem;
   color: var(--totem-text-muted);
 }
+
+/* Instrução de como começar, na tela ociosa. Discreta: quem já usa o
+   totem não precisa dela todo dia, e quem chega pela primeira vez sim. */
+.totem-comecar {
+  margin-top: .9rem;
+  font-size: .95rem;
+  color: var(--totem-text-muted);
+  letter-spacing: .02em;
+}

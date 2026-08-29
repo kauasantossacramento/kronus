@@ -575,6 +575,25 @@ class Empresa(BaseModel):
     #: Sao duas marcas, com pesos diferentes: numa tela de 7 polegadas em
     #: pe, o que cabe de uma nao e o que cabe da outra. Um numero so para
     #: as duas obrigava a escolher qual ficaria errada.
+    #: Comecar pelo toque, em vez de pela presenca.
+    #:
+    #: A deteccao automatica serve a uma portaria com movimento medido:
+    #: quem chega e reconhecido sem tocar em nada. Num corredor de
+    #: passagem ela dispara o tempo todo — a tela acende para quem so
+    #: passou, e o totem gasta quadro e servidor com quem nao ia bater
+    #: ponto.
+    #:
+    #: Ligado, a tela ociosa espera um toque. E deliberado: quem toca
+    #: quer registrar. Desligado, vale o comportamento automatico.
+    iniciar_por_toque = models.BooleanField(
+        "Iniciar o ponto ao tocar na tela",
+        default=False,
+        help_text=(
+            "Ligado, o totem só liga a câmera quando alguém toca a tela. "
+            "Desligado, ele reconhece a presença sozinho."
+        ),
+    )
+
     #: O relogio e o que se le de longe, e o que se le de longe depende
     #: da altura em que o totem foi instalado. Um numero fixo servia bem
     #: a uma altura so.
