@@ -71,6 +71,12 @@ class ResultadoReconhecimento:
         self.tempo_ms = tempo_ms
         self.motivo = motivo
         self.codigo = codigo
+        #: Distancia do segundo colocado, quando havia um.
+        #:
+        #: Quem aprende com a batida precisa saber se o acerto foi por
+        #: folga ou por pouco: um acerto apertado nao pode virar
+        #: referencia permanente do cadastro.
+        self.segunda_distancia = None
 
     def __repr__(self):  # pragma: no cover
         alvo = self.colaborador or "—"
@@ -509,16 +515,20 @@ class FaceRecognitionService:
                 frame,
             )
 
-        return concluir(
-            ResultadoReconhecimento(
-                identificado=True,
-                colaborador=colaborador,
-                distancia=round(melhor_distancia, 4),
-                confianca=self.provedor.confianca(melhor_distancia, self.threshold),
-                candidatos=len(candidatos),
-            ),
-            frame,
+        resultado = ResultadoReconhecimento(
+            identificado=True,
+            colaborador=colaborador,
+            distancia=round(melhor_distancia, 4),
+            confianca=self.provedor.confianca(melhor_distancia, self.threshold),
+            candidatos=len(candidatos),
         )
+        # Quanto o segundo colocado ficou. Quem aprende com a batida
+        # precisa saber se o acerto foi por folga ou por pouco — um
+        # acerto apertado nao pode virar referencia permanente.
+        if len(pontos) > 1:
+            resultado.segunda_distancia = round(pontos[1][1], 4)
+
+        return concluir(resultado, frame)
 
     def _pontuar(self, vetor, candidatos: dict) -> list[tuple[int, float]]:
         """

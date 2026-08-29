@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Reconhecimento facial</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    O quadro que a câmera enviou, o que o sistema decidiu e o número que
+    decidiu. Distância abaixo de {{ limiar }} é aceita; acima, recusada.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+{% comment %}
+  A distância é a informação que importa, e por isso ela aparece em cada
+  linha em vez de ficar num detalhe. Quem confere um caso quer saber com
+  que folga a decisão foi tomada — "identificado" sozinho não diz se foi
+  por muito ou por pouco.
+{% endcomment %}
+
+<form method="get" class="card mb-5 p-4">
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div>
+      <label for="f-empresa" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Empresa</label>
+      <select name="empresa" id="f-empresa" onchange="this.form.submit()"
+              class="mt-1 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm">
+        <option value="">Todas</option>
+        {% for e in empresas %}
+          <option value="{{ e.pk }}" {% if filtros.empresa == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.nome_exibicao }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="f-colab" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Colaborador</label>
+      <select name="colaborador" id="f-colab"
+              class="mt-1 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm"
+              {% if not filtros.empresa %}disabled title="Escolha a empresa primeiro"{% endif %}>
+        <option value="">Todos</option>
+        {% for c in colaboradores %}
+          <option value="{{ c.pk }}" {% if filtros.colaborador == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nome_exibicao }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="f-res" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Resultado</label>
+      <select name="resultado" id="f-res"
+              class="mt-1 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm">
+        <option value="">Todos</option>
+        {% for valor, rotulo in resultados %}
+          <option value="{{ valor }}" {% if filtros.resultado == valor %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="f-data" class="block text-xs font-medium text-[var(--kronus-gray-600)]">Dia</label>
+      <input type="date" name="data" id="f-data" value="{{ filtros.data }}"
+             class="mt-1 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm">
+    </div>
+
+    <div class="flex items-end gap-2">
+      <label class="flex items-center gap-2 text-sm text-[var(--kronus-gray-700)]">
+        <input type="checkbox" name="com_foto" value="1" {% if filtros.com_foto %}checked{% endif %}
+               class="h-4 w-4 rounded border-[var(--kronus-gray-300)]">
+        Só com foto
+      </label>
+      <button type="submit" class="btn btn-primary text-sm">Filtrar</button>
+    </div>
+  </div>
+</form>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="tabela-responsiva w-full text-sm">
+      <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+        <tr>
+          <th class="px-4 py-3">Quadro</th>
+          <th class="px-4 py-3">Quando</th>
+          <th class="px-4 py-3">Resultado</th>
+          <th class="px-4 py-3">Distância</th>
+          <th class="px-4 py-3">Colaborador</th>
+          <th class="px-4 py-3">Totem</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for t in pagina %}
+          <tr>
+            <td class="px-4 py-2" data-rotulo="Quadro">
+              {% if t.imagem %}
+                {% comment %}
+                  Abre em aba própria: a miniatura serve para varrer a
+                  lista, e o caso que interessa pede a imagem inteira.
+                {% endcomment %}
+                <a href="{{ t.imagem.url }}" target="_blank" rel="noopener">
+                  <img src="{{ t.imagem.url }}" alt="Quadro recebido"
+                       class="h-14 w-14 rounded-lg object-cover ring-1 ring-black/10">
+                </a>
+              {% else %}
+                <span class="text-xs text-[var(--kronus-gray-400)]">sem foto</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2 whitespace-nowrap" data-rotulo="Quando">
+              {{ t.created_at|date:"d/m/Y H:i:s" }}
+            </td>
+            <td class="px-4 py-2" data-rotulo="Resultado">
+              {% if t.resultado == "identificado" %}
+                <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{{ t.get_resultado_display }}</span>
+              {% elif t.resultado == "nao_identificado" %}
+                <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">{{ t.get_resultado_display }}</span>
+              {% else %}
+                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ t.get_resultado_display }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2 font-mono text-xs" data-rotulo="Distância">
+              {% if t.distancia is not None %}
+                {{ t.distancia }}
+                <span class="text-[var(--kronus-gray-400)]">/ {{ limiar }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2" data-rotulo="Colaborador">
+              {% if t.colaborador %}
+                <a href="{% url 'rh:colaborador_detalhe' t.colaborador.pk %}"
+                   class="text-[var(--kronus-primary-600)] hover:underline">{{ t.colaborador.nome_exibicao }}</a>
+              {% else %}
+                <span class="text-[var(--kronus-gray-400)]">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2 text-xs text-[var(--kronus-gray-500)]" data-rotulo="Totem">
+              {{ t.totem.identificador|default:"—" }}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="px-4 py-10 text-center text-sm text-[var(--kronus-gray-500)]">
+              Nenhuma tentativa registrada com esses filtros.
+              {% if not filtros.com_foto %}
+                <br>As fotos só existem quando a empresa liga
+                <strong>Guardar as fotos das batidas</strong> — é dado
+                biométrico, e fica desligado por padrão.
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pagina.has_other_pages %}
+  <div class="mt-4 flex items-center justify-between text-sm">
+    <span class="text-[var(--kronus-gray-500)]">
+      Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}
+      · {{ pagina.paginator.count }} tentativa{{ pagina.paginator.count|pluralize }}
+    </span>
+    <div class="flex gap-2">
+      {% if pagina.has_previous %}
+        <a href="?{{ request.GET.urlencode }}&pagina={{ pagina.previous_page_number }}" class="btn btn-outline text-sm">Anterior</a>
+      {% endif %}
+      {% if pagina.has_next %}
+        <a href="?{{ request.GET.urlencode }}&pagina={{ pagina.next_page_number }}" class="btn btn-outline text-sm">Próxima</a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

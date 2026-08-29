@@ -161,8 +161,24 @@
       var alvo = (elementos && elementos.idle) || document.querySelector('[data-kronus-slides]');
       if (!alvo) return;
 
+      // Para o rodizio anterior ANTES de qualquer coisa. Sem isto, cada
+      // atualizacao de configuracao deixava mais um temporizador vivo, e
+      // os slides passavam a trocar cada vez mais rapido.
+      if (this._timerSlides) {
+        clearInterval(this._timerSlides);
+        this._timerSlides = null;
+      }
+
       this._slides = empresa.slides || [];
-      if (!this._slides.length) return;
+      this._indice = 0;
+
+      // Sem slides, limpa o que havia. Sair antes deixava a imagem
+      // antiga na tela depois de ela ter sido removida no painel.
+      if (!this._slides.length) {
+        alvo.innerHTML = '';
+        alvo.removeAttribute('data-transicao');
+        return;
+      }
 
       var transicao = empresa.slides_transicao || 'fade';
       var segundos = empresa.slides_segundos || 8;

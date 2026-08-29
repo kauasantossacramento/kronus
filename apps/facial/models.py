@@ -47,7 +47,16 @@ class FaceRegistro(BaseModel):
         "Qualidade da amostra", null=True, blank=True,
         help_text="Score de nitidez/enquadramento calculado no pré-processamento."
     )
-    ativo = models.BooleanField("Ativo", default=True, db_index=True)
+    ativo = models.BooleanField("Ativo", default=True, db_index=True)    #: Veio de uma batida do dia a dia, e nao do cadastro.
+    #:
+    #: O cadastro e supervisionado — alguem viu quem estava na frente da
+    #: camera. Esta nao. A distincao existe para o limite de aprendidas
+    #: poder manter a maioria supervisionada, e para uma auditoria saber
+    #: de onde cada referencia veio.
+    aprendida = models.BooleanField(
+        "Aprendida de uma batida", default=False, db_index=True
+    )
+
 
     class Meta:
         verbose_name = "Registro facial"

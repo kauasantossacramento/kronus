@@ -7,6 +7,10 @@ app_name = "master"
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     # -- Clientes ----------------------------------------------
+    # Auditoria do reconhecimento: a foto, a decisao e o numero que
+    # decidiu. Sem isso, "foi a pessoa certa?" so tinha resposta de
+    # conversa — e conversa e onde duvida sobre ponto vira litigio.
+    path("reconhecimentos/", views.reconhecimentos, name="reconhecimentos"),
     path("clientes/", views.ClienteListView.as_view(), name="cliente_lista"),
     path("clientes/novo/", views.ClienteCreateView.as_view(), name="cliente_criar"),
     path("clientes/<int:pk>/", views.ClienteDetailView.as_view(), name="cliente_detalhe"),

@@ -8,6 +8,7 @@ A gestao de totens e comodato entra na Fase 5.
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpResponseRedirect
+from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import (
@@ -492,4 +493,78 @@ def _avisar_totens_da_empresa(empresa) -> None:
 
     empresa.totens.filter(ativo=True).update(
         recarga_solicitada_em=timezone.now()
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+# Auditoria do reconhecimento facial
+# ══════════════════════════════════════════════════════════════
+@master_required
+def reconhecimentos(request):
+    """
+    O que a câmera viu, e o que o sistema decidiu.
+
+    Existe porque a pergunta que sempre aparece depois de um problema é
+    a mesma: *foi a pessoa certa?* Sem a foto e a distância medida, a
+    resposta era conversa — e a conversa é onde uma dúvida sobre ponto
+    vira litígio.
+
+    Cada linha traz o quadro recebido, o que foi decidido e o número que
+    decidiu. Quem lê consegue conferir sozinho, sem depender de alguém
+    interpretar o log.
+    """
+    from django.core.paginator import Paginator
+
+    from apps.clientes.models import Empresa
+    from apps.facial.models import TentativaReconhecimento
+    from apps.rh.models import Colaborador
+
+    tentativas = (
+        TentativaReconhecimento.objects.select_related(
+            "colaborador", "empresa", "totem"
+        ).order_by("-created_at")
+    )
+
+    empresa_id = request.GET.get("empresa") or ""
+    colaborador_id = request.GET.get("colaborador") or ""
+    resultado = request.GET.get("resultado") or ""
+    data = request.GET.get("data") or ""
+    so_com_foto = request.GET.get("com_foto") == "1"
+
+    if empresa_id:
+        tentativas = tentativas.filter(empresa_id=empresa_id)
+    if colaborador_id:
+        tentativas = tentativas.filter(colaborador_id=colaborador_id)
+    if resultado:
+        tentativas = tentativas.filter(resultado=resultado)
+    if data:
+        tentativas = tentativas.filter(created_at__date=data)
+    if so_com_foto:
+        tentativas = tentativas.exclude(imagem="")
+
+    pagina = Paginator(tentativas, 40).get_page(request.GET.get("pagina"))
+
+    return render(
+        request,
+        "master/reconhecimentos.html",
+        {
+            "pagina": pagina,
+            "empresas": Empresa.objects.order_by("razao_social"),
+            "colaboradores": (
+                Colaborador.objects.filter(empresa_id=empresa_id)
+                .order_by("nome_completo")
+                if empresa_id else Colaborador.objects.none()
+            ),
+            "resultados": TentativaReconhecimento.Resultado.choices,
+            "filtros": {
+                "empresa": empresa_id,
+                "colaborador": colaborador_id,
+                "resultado": resultado,
+                "data": data,
+                "com_foto": so_com_foto,
+            },
+            "limiar": settings.FACE_RECOGNITION_THRESHOLD,
+            "menu_ativo": "reconhecimentos",
+            "titulo": "Reconhecimento facial",
+        },
     )

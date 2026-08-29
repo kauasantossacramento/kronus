@@ -328,6 +328,22 @@ def recognize(request):
         metodo=MetodoRegistro.FACIAL,
         confianca=resultado.confianca,
     )
+
+    # A batida que acabou de dar certo pode virar referencia do cadastro.
+    # Depois de gravar o ponto, de proposito: aprender e ganho, e nao
+    # pode ser o motivo de uma batida falhar.
+    if erro is None:
+        from apps.facial.aprendizado import registrar_aprendizado
+        from apps.facial.processors import preparar
+
+        try:
+            registrar_aprendizado(
+                servico, colaborador,
+                preparar(serializer.validated_data["image"]),
+                resultado,
+            )
+        except Exception:
+            logger.exception("Aprendizado facial falhou — ignorado.")
     if erro is not None:
         return _resposta_erro(
             erro.codigo,

@@ -17,6 +17,8 @@ from django.contrib import admin
 from django.views.generic import RedirectView
 from django.urls import include, path
 
+from apps.core import views_midia
+
 urlpatterns = [
     path("django-admin/", admin.site.urls),
     path(
@@ -27,6 +29,11 @@ urlpatterns = [
     path("comercial/", include("apps.comercial.urls", namespace="comercial")),
     path("accounts/", include("apps.accounts.urls", namespace="accounts")),
     path("app/", include("apps.core.urls", namespace="core")),
+    # Porteiro dos arquivos sensiveis em media/. Consultado pelo Nginx
+    # antes de entregar biometria, atestado ou comprovante — ver
+    # apps/core/views_midia.py.
+    path("_interno/permissao-midia", views_midia.permissao_midia,
+         name="permissao_midia"),
     path("ponto/", include("apps.ponto.urls", namespace="ponto")),
     path("rh/", include("apps.rh.urls", namespace="rh")),
     path("master/", include("apps.master.urls", namespace="master")),

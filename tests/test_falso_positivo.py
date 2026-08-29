@@ -574,3 +574,131 @@ class RostoColadoNaLenteTests(TestCase):
         trecho = self.js[self.js.index("Sem rosto detectado, a heuristica"):]
         trecho = trecho[: trecho.index("}")]
         self.assertIn("pronto: false", self.js[self.js.index("perto.detectado"):][:400])
+
+
+class AuditoriaDoReconhecimentoTests(TestCase):
+    """
+    A tela que responde "foi a pessoa certa?".
+
+    Sem a foto e a distancia medida, a resposta era conversa — e conversa
+    e onde duvida sobre ponto vira litigio.
+    """
+
+    def setUp(self):
+        from datetime import date
+        from apps.accounts.models import CustomUser
+        from apps.clientes.models import Cliente, Empresa
+        from apps.facial.models import TentativaReconhecimento
+        from apps.master.models import Plano
+        from apps.rh.models import Colaborador
+        from apps.totem.models import Totem
+
+        plano = Plano.objects.create(nome="P", slug="p", max_totems=3)
+        cliente = Cliente.objects.create(
+            razao_social="Alfa", cnpj="45997418000153",
+            plano=plano, email_contato="a@x.com",
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="Alfa", cnpj="45997418000234",
+        )
+        totem = Totem.objects.create(empresa=self.empresa, ativo=True)
+        self.pessoa = Colaborador.objects.create(
+            empresa=self.empresa, nome_completo="Edjane Alves", cpf="52998224725",
+            data_nascimento=date(1990, 1, 1), data_admissao=date(2024, 1, 1),
+        )
+        TentativaReconhecimento.objects.create(
+            empresa=self.empresa, totem=totem, colaborador=self.pessoa,
+            resultado="identificado", distancia=0.2808, confianca=46.0,
+        )
+        TentativaReconhecimento.objects.create(
+            empresa=self.empresa, totem=totem,
+            resultado="nao_identificado", distancia=0.6390,
+        )
+        self.master = CustomUser.objects.create_superuser(
+            email="master@x.test", password="Prova!12345", nome_completo="Master",
+        )
+
+    def _como_na_tela(self, numero):
+        # A pagina e em pt-BR: o numero sai com virgula. Comparar com
+        # ponto passaria a impressao de que a distancia sumiu.
+        from django.utils.formats import localize
+
+        return localize(numero)
+
+    def test_o_master_ve_a_distancia_de_cada_tentativa(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.master)
+        pagina = self.client.get(reverse("master:reconhecimentos")).content.decode()
+
+        self.assertIn(self._como_na_tela(0.2808), pagina)
+        self.assertIn(self._como_na_tela(0.639), pagina)
+        self.assertIn("Edjane Alves", pagina)
+
+    def test_filtra_por_colaborador(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.master)
+        url = reverse("master:reconhecimentos")
+        pagina = self.client.get(
+            url, {"empresa": self.empresa.pk, "colaborador": self.pessoa.pk}
+        ).content.decode()
+
+        self.assertIn(self._como_na_tela(0.2808), pagina)
+        self.assertNotIn(self._como_na_tela(0.639), pagina)
+
+    def test_quem_nao_e_master_nao_entra(self):
+        from django.urls import reverse
+        from apps.accounts.models import CustomUser
+
+        colaborador = CustomUser.objects.create_user(
+            email="colab@x.test", password="Prova!12345",
+            nome_completo="Colab", tipo="colaborador",
+        )
+        self.client.force_login(colaborador)
+        resposta = self.client.get(reverse("master:reconhecimentos"))
+        self.assertNotEqual(resposta.status_code, 200)
+
+
+class MidiaSensivelTests(TestCase):
+    """
+    Biometria e atestado medico nao podem ser servidos em aberto.
+
+    Estavam: bastava a URL — que aparece no HTML de quem tem acesso —
+    para baixar de qualquer lugar, sem sessao. Sao dados pessoais
+    sensiveis (LGPD Art. 11), e a URL nao e segredo.
+    """
+
+    def test_sem_sessao_o_porteiro_recusa(self):
+        from django.urls import reverse
+
+        resposta = self.client.get(reverse("permissao_midia"))
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_colaborador_nao_alcanca_a_classe_inteira(self):
+        # A foto dele aparece na propria ficha, servida por view que
+        # confere de quem e. Liberar a classe daria a foto de todos.
+        from django.urls import reverse
+        from apps.accounts.models import CustomUser
+
+        usuario = CustomUser.objects.create_user(
+            email="c@x.test", password="Prova!12345",
+            nome_completo="C", tipo="colaborador",
+        )
+        self.client.force_login(usuario)
+        self.assertEqual(
+            self.client.get(reverse("permissao_midia")).status_code, 403
+        )
+
+    def test_rh_alcanca(self):
+        from django.urls import reverse
+        from apps.accounts.models import CustomUser
+
+        usuario = CustomUser.objects.create_user(
+            email="rh@x.test", password="Prova!12345",
+            nome_completo="RH", tipo="rh",
+        )
+        self.client.force_login(usuario)
+        self.assertEqual(
+            self.client.get(reverse("permissao_midia")).status_code, 200
+        )

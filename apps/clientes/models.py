@@ -575,6 +575,25 @@ class Empresa(BaseModel):
     #: Sao duas marcas, com pesos diferentes: numa tela de 7 polegadas em
     #: pe, o que cabe de uma nao e o que cabe da outra. Um numero so para
     #: as duas obrigava a escolher qual ficaria errada.
+    #: O cadastro facial aprende com as batidas do dia a dia.
+    #:
+    #: O cadastro e feito uma vez, em cinco poses, num minuto. O
+    #: reconhecimento acontece todos os dias, com outra luz, outro
+    #: cabelo, oculos novo. Sem aprender, a pessoa se afasta da propria
+    #: referencia e o totem passa a pedir CPF de quem sempre reconheceu.
+    #:
+    #: Desligado por padrao: aprender com o proprio resultado e
+    #: realimentacao, e quem liga precisa saber que ligou.
+    aprendizado_facial = models.BooleanField(
+        "Aprender com as batidas",
+        default=False,
+        help_text=(
+            "O cadastro facial se atualiza sozinho com as batidas mais "
+            "nítidas, mantendo a maioria das referências vinda do "
+            "cadastro supervisionado."
+        ),
+    )
+
     #: Comecar pelo toque, em vez de pela presenca.
     #:
     #: A deteccao automatica serve a uma portaria com movimento medido:
@@ -1107,6 +1126,25 @@ class SlideTotem(BaseModel):
     #: isso, alguém precisa lembrar de removê-lo.
     inicio_exibicao = models.DateField("Exibir a partir de", null=True, blank=True)
     fim_exibicao = models.DateField("Exibir até", null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        """
+        Avisa o totem que a tela ociosa mudou.
+
+        No modelo, e nao na view: os slides sao criados, reordenados e
+        removidos por caminhos diferentes, e um deles sem o aviso deixa a
+        imagem nova esperando alguem recarregar o tablet — foi o que
+        aconteceu.
+        """
+        resultado = super().save(*args, **kwargs)
+        self.empresa.marcar_configuracao_alterada()
+        return resultado
+
+    def delete(self, *args, **kwargs):
+        empresa = self.empresa
+        resultado = super().delete(*args, **kwargs)
+        empresa.marcar_configuracao_alterada()
+        return resultado
 
     class Meta:
         verbose_name = "Slide do totem"
