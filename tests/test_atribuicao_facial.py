@@ -233,3 +233,59 @@ class ReconhecimentoDepoisDoCadastroTests(BaseAtribuicao):
             rosto(9999), empresas=[self.empresa], registrar_tentativa=False
         )
         self.assertFalse(resultado.identificado)
+
+
+class CapturaParecidaComOutroTests(BaseAtribuicao):
+    """
+    O cadastro recusa a captura que ficaria perto do cadastro alheio.
+
+    Barrar aqui e muito melhor do que descartar depois: a pessoa ainda
+    esta na frente da camera, e refazer a pose custa segundos. Descoberto
+    semanas depois, custa uma batida no nome errado.
+    """
+
+    def test_recusa_e_explica_o_que_fazer(self):
+        self.consentir(self.ana)
+        for i in range(3):
+            self.capturar(self.ana, 700 + i)
+
+        # O Bruno tenta cadastrar exatamente a mesma imagem da Ana.
+        self.consentir(self.bruno)
+        resposta = self.capturar(self.bruno, 700)
+
+        corpo = resposta.json()
+        self.assertFalse(corpo["ok"], corpo)
+        self.assertEqual(corpo["codigo"], "parecida_com_outro")
+        self.assertIn("Ana Souza", corpo["mensagem"])
+        self.assertIn("Refaça", corpo["mensagem"])
+
+    def test_a_captura_recusada_nao_entra_na_galeria(self):
+        from apps.facial.models import FaceRegistro
+
+        self.consentir(self.ana)
+        for i in range(3):
+            self.capturar(self.ana, 800 + i)
+        self.consentir(self.bruno)
+        self.capturar(self.bruno, 800)
+
+        self.assertEqual(
+            FaceRegistro.objects.filter(colaborador=self.bruno).count(), 0,
+            "a captura recusada nao pode ficar gravada",
+        )
+
+    def test_captura_distinta_entra_normalmente(self):
+        from apps.facial.models import FaceRegistro
+
+        self.consentir(self.ana)
+        for i in range(3):
+            self.capturar(self.ana, 900 + i)
+        self.consentir(self.bruno)
+        self.assertTrue(self.capturar(self.bruno, 5000).json()["ok"])
+        self.assertEqual(
+            FaceRegistro.objects.filter(colaborador=self.bruno).count(), 1
+        )
+
+    def test_o_primeiro_cadastro_da_empresa_nao_e_barrado(self):
+        # Sem ninguem para comparar, a regra nao tem o que dizer.
+        self.consentir(self.ana)
+        self.assertTrue(self.capturar(self.ana, 1234).json()["ok"])

@@ -182,6 +182,51 @@ class DeepFaceProvider(ProvedorFacial):
             "disponivel": self.disponivel,
         }
 
+    #: Quanto o segundo rosto precisa ocupar, em area, para a cena virar
+    #: ambigua.
+    #:
+    #: Duas pessoas a mesma distancia da camera produzem rostos de area
+    #: parecida — ai nao da para saber quem esta batendo o ponto, e
+    #: recusar e o certo. Quem esta na fila atras aparece bem menor: a 1 m
+    #: contra 70 cm, a area cai para cerca de metade.
+    #:
+    #: 0,6 fica entre os dois casos.
+    PROPORCAO_AMBIGUA = 0.6
+
+    def _rosto_da_frente(self, resultados: list) -> dict:
+        """
+        Escolhe quem esta usando o totem, entre os rostos detectados.
+
+        Antes, qualquer segundo rosto recusava a leitura inteira — e a
+        recusa era frequente: um reflexo, alguem passando ao fundo, uma
+        deteccao fraca num quadro. Do outro lado da tela isso vira "dois
+        rostos identificados" numa cena que tem uma pessoa so.
+
+        Quem esta no totem e o rosto maior, porque esta mais perto. So
+        continua recusando quando o segundo rosto tem area comparavel:
+        ai sao duas pessoas lado a lado, e escolher uma seria adivinhar
+        de quem e o ponto.
+        """
+        if len(resultados) == 1:
+            return resultados[0]
+
+        def area(item):
+            caixa = item.get("facial_area") or {}
+            return float(caixa.get("w", 0)) * float(caixa.get("h", 0))
+
+        ordenados = sorted(resultados, key=area, reverse=True)
+        maior, segundo = area(ordenados[0]), area(ordenados[1])
+
+        if maior <= 0:
+            raise NenhumRostoDetectado()
+
+        if segundo / maior >= self.PROPORCAO_AMBIGUA:
+            raise MultiplosRostosDetectados(
+                "Duas pessoas no enquadramento. Fique sozinho na frente "
+                "da câmera."
+            )
+        return ordenados[0]
+
     def gerar_embedding(self, imagem_bytes: bytes) -> np.ndarray:
         import cv2
 
@@ -228,12 +273,9 @@ class DeepFaceProvider(ProvedorFacial):
 
         if not resultados:
             raise NenhumRostoDetectado()
-        if len(resultados) > 1:
-            raise MultiplosRostosDetectados(
-                f"{len(resultados)} rostos detectados. Enquadre apenas uma pessoa."
-            )
 
-        vetor = np.asarray(resultados[0]["embedding"], dtype=np.float32)
+        escolhido = self._rosto_da_frente(resultados)
+        vetor = np.asarray(escolhido["embedding"], dtype=np.float32)
         norma = np.linalg.norm(vetor)
         return (vetor / norma).astype(np.float32) if norma else vetor
 

@@ -46,6 +46,7 @@ from apps.core.constants import MetodoRegistro
 from apps.core.models import LogAcesso
 from apps.core.services import registrar_log
 from apps.core.utils import obter_ip
+from apps.core.versao import versao_dos_estaticos
 from apps.facial.services import FaceRecognitionService, identificar_por_cpf
 from apps.ponto import validators
 from apps.ponto.services import RegistroPontoService
@@ -476,6 +477,12 @@ def heartbeat(request):
             # sem ninguem ir ate o tablet.
             "config": {
                 "versao": totem.empresa.config_versao,
+                # Carimbo dos arquivos estaticos: muda a cada deploy.
+                # E por ele que um totem instalado descobre que existe
+                # codigo novo — o Service Worker tambem avisa, mas so
+                # quando o navegador resolve conferi-lo, o que pode
+                # demorar um dia. O heartbeat bate a cada 30 segundos.
+                "estaticos": versao_dos_estaticos(),
                 "recarregar_em": (
                     totem.recarga_solicitada_em.isoformat()
                     if totem.recarga_solicitada_em

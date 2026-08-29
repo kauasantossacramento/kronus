@@ -411,6 +411,7 @@
       token: '{{ totem.token_acesso }}',
       identificador: '{{ totem.identificador|escapejs }}',
       versao: '{{ versao_app }}',
+      versaoEstaticos: '{{ versao_estaticos }}',
       permiteFallback: {{ totem.permite_fallback_cpf|yesno:"true,false" }},
       tentativasReconhecimento: {{ empresa.tentativas_antes_do_cpf }},
       segundosSucesso: {{ totem.segundos_tela_sucesso }},

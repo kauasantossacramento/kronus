@@ -390,3 +390,122 @@ class TrocaDeModeloTests(TestCase):
 
         self.assertEqual(NORMALIZACAO_POR_MODELO["Facenet512"], "Facenet2018")
         self.assertEqual(NORMALIZACAO_POR_MODELO["ArcFace"], "ArcFace")
+
+
+class AmostraAmbiguaTests(TestCase):
+    """
+    Uma amostra pode combinar com as irmas e ainda assim estar perto
+    demais de um estranho.
+
+    Medido em producao: a captura da pose "cima" de uma colaboradora
+    ficou a 0,367 de outra pessoa e a 0,506 das proprias irmas. A
+    verificacao de coerencia interna nao pega isso — ela so olha para
+    dentro. E como vale a menor distancia, essa amostra respondia por
+    duas pessoas ao mesmo tempo.
+    """
+
+    def _servico(self):
+        from apps.facial.services import FaceRecognitionService
+
+        return FaceRecognitionService.__new__(FaceRecognitionService)
+
+    def test_descarta_a_amostra_mais_parecida_com_outra_pessoa(self):
+        servico = self._servico()
+        ana = vetor(1)
+        bia = vetor(2)
+
+        # A ultima de Ana esta mais perto de Bia do que das irmas.
+        galeria = {
+            1: [perto(ana, 0.10, 11), perto(ana, 0.12, 12),
+                perto(ana, 0.15, 13), perto(bia, 0.08, 14)],
+            2: [perto(bia, 0.10, 21), perto(bia, 0.12, 22)],
+        }
+        limpa = servico._sem_amostras_ambiguas(galeria)
+
+        self.assertEqual(len(limpa[1]), 3, "a amostra ambigua deveria sair")
+        self.assertEqual(len(limpa[2]), 2, "a galeria de Bia nao muda")
+
+    def test_o_descarte_afasta_as_duas_pessoas(self):
+        servico = self._servico()
+        ana, bia = vetor(3), vetor(4)
+        galeria = {
+            1: [perto(ana, 0.10, 31), perto(ana, 0.12, 32),
+                perto(ana, 0.15, 33), perto(bia, 0.08, 34)],
+            2: [perto(bia, 0.10, 41), perto(bia, 0.12, 42)],
+        }
+
+        def separacao(g):
+            return min(
+                servico._distancia(x, y) for x in g[1] for y in g[2]
+            )
+
+        antes = separacao(galeria)
+        depois = separacao(servico._sem_amostras_ambiguas(galeria))
+        self.assertGreater(
+            depois, antes,
+            "tirar a amostra ambigua tem de aumentar a distancia entre as duas",
+        )
+
+    def test_nunca_deixa_menos_de_duas_referencias(self):
+        # Um cadastro reduzido a nada trocaria o erro por alguem que nao
+        # consegue bater ponto.
+        servico = self._servico()
+        bia = vetor(5)
+        galeria = {
+            1: [perto(bia, 0.05, 51), perto(bia, 0.06, 52)],
+            2: [perto(bia, 0.04, 61), perto(bia, 0.07, 62)],
+        }
+        limpa = servico._sem_amostras_ambiguas(galeria)
+        self.assertGreaterEqual(len(limpa[1]), 2)
+        self.assertGreaterEqual(len(limpa[2]), 2)
+
+    def test_com_uma_pessoa_so_nada_e_descartado(self):
+        # Sem estranho para comparar, a regra nao tem o que dizer.
+        servico = self._servico()
+        ana = vetor(6)
+        galeria = {1: [perto(ana, 0.1, 71), perto(ana, 0.5, 72)]}
+        self.assertEqual(len(servico._sem_amostras_ambiguas(galeria)[1]), 2)
+
+
+class RostoDaFrenteTests(TestCase):
+    """
+    Um segundo rosto no quadro nao pode recusar a leitura inteira.
+
+    Do outro lado da tela isso vira "dois rostos identificados" numa
+    cena que tem uma pessoa so — um reflexo, alguem passando ao fundo,
+    uma deteccao fraca. Quem esta no totem e o rosto maior.
+    """
+
+    def _provedor(self):
+        from apps.facial.providers import DeepFaceProvider
+
+        return DeepFaceProvider.__new__(DeepFaceProvider)
+
+    def _rosto(self, largura, altura, marca):
+        return {"embedding": [float(marca)] * 4,
+                "facial_area": {"w": largura, "h": altura, "x": 0, "y": 0}}
+
+    def test_escolhe_o_rosto_maior(self):
+        provedor = self._provedor()
+        escolhido = provedor._rosto_da_frente([
+            self._rosto(60, 70, 1),    # alguem ao fundo
+            self._rosto(240, 260, 2),  # quem esta no totem
+        ])
+        self.assertEqual(escolhido["embedding"][0], 2.0)
+
+    def test_duas_pessoas_lado_a_lado_ainda_recusam(self):
+        # Areas comparaveis: nao da para saber de quem e o ponto, e
+        # escolher uma seria adivinhar.
+        from apps.facial.providers import MultiplosRostosDetectados
+
+        provedor = self._provedor()
+        with self.assertRaises(MultiplosRostosDetectados):
+            provedor._rosto_da_frente([
+                self._rosto(230, 250, 1),
+                self._rosto(240, 260, 2),
+            ])
+
+    def test_um_rosto_passa_direto(self):
+        provedor = self._provedor()
+        unico = self._rosto(200, 220, 9)
+        self.assertIs(provedor._rosto_da_frente([unico]), unico)

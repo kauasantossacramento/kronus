@@ -124,6 +124,7 @@ class FaceRecognitionService:
 
         vetor = self.provedor.gerar_embedding(imagem_bytes)
         self._recusar_se_for_outro_rosto(colaborador, vetor)
+        self._recusar_se_parecer_com_outro(colaborador, vetor)
 
         registro = FaceRegistro(
             colaborador=colaborador,
@@ -150,6 +151,60 @@ class FaceRecognitionService:
             qualidade,
         )
         return registro
+
+    def _recusar_se_parecer_com_outro(self, colaborador, vetor) -> None:
+        """
+        Recusa a captura que ficou parecida demais com **outra pessoa**.
+
+        A verificacao anterior olha para dentro: a foto combina com as
+        outras do titular? Esta olha para fora, e pega o caso que a outra
+        deixa passar — uma captura pode combinar com as irmas e ainda
+        assim ficar perto do cadastro de um colega.
+
+        Aconteceu: a pose "cima" de uma colaboradora entrou a 0,367 de
+        outra e a 0,506 das proprias irmas. Como o reconhecimento fica
+        com a menor distancia, aquela foto respondia por duas pessoas.
+
+        Barrar aqui e muito melhor do que descartar depois: a pessoa
+        ainda esta na frente da camera, e refazer a pose custa segundos.
+        Descoberto semanas depois, custa uma batida no nome errado.
+
+        Vale para qualquer motor, inclusive o de teste: a regra so
+        dispara quando dois vetores estao perto, e "perto" tem o mesmo
+        significado em todos eles — seria reconhecido como o outro.
+        """
+        galeria = self.candidatos([colaborador.empresa])
+        galeria.pop(colaborador.pk, None)
+        if not galeria:
+            return
+
+        proximo, distancia = None, None
+        for pk, vetores in galeria.items():
+            for outro in vetores:
+                d = self._distancia(vetor, outro)
+                if distancia is None or d < distancia:
+                    proximo, distancia = pk, d
+
+        if distancia is None:
+            return
+
+        # Se esta captura seria reconhecida como outra pessoa, ela nao
+        # pode entrar — e o proprio limiar que define isso.
+        limite = self.threshold + settings.FACE_MARGEM_MINIMA
+        if distancia >= limite:
+            return
+
+        from apps.rh.models import Colaborador
+
+        outro = Colaborador.objects.filter(pk=proximo).first()
+        nome = outro.nome_exibicao if outro else "outro cadastro"
+        raise ImagemInvalida(
+            f"Esta captura ficou parecida demais com o cadastro de "
+            f"{nome}. Refaça a pose com o rosto de frente, bem "
+            f"iluminado e sem virar demais — assim o sistema não vai "
+            f"confundir os dois.",
+            codigo="parecida_com_outro",
+        )
 
     def _recusar_se_for_outro_rosto(self, colaborador, vetor) -> None:
         """
@@ -599,13 +654,61 @@ class FaceRecognitionService:
 
     @classmethod
     def _limpar(cls, serializado) -> dict:
-        """Converte o cache em vetores, sem as amostras incoerentes."""
-        return {
+        """Converte o cache em vetores, sem as amostras que atrapalham."""
+        galeria = {
             pk: cls._amostras_coerentes(
                 [np.frombuffer(d, dtype=np.float32) for d in dados]
             )
             for pk, dados in serializado
         }
+        return cls._sem_amostras_ambiguas(galeria)
+
+    @classmethod
+    def _sem_amostras_ambiguas(cls, galeria: dict) -> dict:
+        """
+        Descarta a amostra que se parece mais com outra pessoa do que com
+        as proprias irmas.
+
+        Existe por um caso medido em producao: uma captura da pose "cima"
+        ficou a 0,367 de outra colaboradora e a 0,506 das irmas. Ela nao
+        descreve a titular — descreve um recorte ruim, e como vale a
+        menor distancia era ela que respondia por duas pessoas ao mesmo
+        tempo, aproximando quem nao tinha nada a ver.
+
+        A verificacao de coerencia interna nao pega esse caso: a amostra
+        pode combinar com as irmas dentro do limite e ainda assim estar
+        perto demais de um estranho. So olhando para fora se enxerga.
+
+        Nunca deixa alguem com menos de duas referencias: um cadastro
+        reduzido a nada trocaria o erro por um colaborador que nao bate
+        ponto.
+        """
+        if len(galeria) < 2:
+            return galeria
+
+        limpa = {}
+        for pk, vetores in galeria.items():
+            if len(vetores) < 2:
+                limpa[pk] = vetores
+                continue
+
+            estranhos = [
+                v for outro, lista in galeria.items() if outro != pk for v in lista
+            ]
+            if not estranhos:
+                limpa[pk] = vetores
+                continue
+
+            mantidas = []
+            for i, vetor in enumerate(vetores):
+                irmas = [v for j, v in enumerate(vetores) if j != i]
+                perto_irma = min(cls._distancia(vetor, v) for v in irmas)
+                perto_estranho = min(cls._distancia(vetor, v) for v in estranhos)
+                if perto_estranho >= perto_irma:
+                    mantidas.append(vetor)
+
+            limpa[pk] = mantidas if len(mantidas) >= 2 else vetores
+        return limpa
 
     @staticmethod
     def invalidar_cache(empresa_id=None):

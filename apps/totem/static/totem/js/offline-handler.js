@@ -29,6 +29,8 @@
       this.aoVoltarOnline = opcoes.aoVoltarOnline || function () {};
       this.aoSincronizar = opcoes.aoSincronizar || function () {};
       this.motivoDegradado = opcoes.motivoDegradado || function () { return ''; };
+      this.aoPedirRecargaTotal = opcoes.aoPedirRecargaTotal || function () {};
+      this._versaoEstaticos = opcoes.versaoEstaticos || undefined;
       return this;
     },
 
@@ -124,6 +126,27 @@
       var config = dados && dados.config;
       if (!config) return;
 
+      // Duas coisas diferentes chegam por aqui.
+      //
+      // A configuracao (cores, logo, mensagens) se aplica ao vivo, sem
+      // recarregar — recarregar derrubaria a tela cheia por nada.
+      //
+      // O carimbo dos estaticos e outra historia: ele muda quando ha
+      // codigo novo no servidor, e codigo novo so entra recarregando.
+      // Sem esta comparacao, um totem instalado ficava preso na versao
+      // com que foi aberto ate alguem ir ate la — que era exatamente o
+      // que acontecia.
+      var estaticos = String(config.estaticos || '');
+      if (estaticos) {
+        if (this._versaoEstaticos === undefined) {
+          this._versaoEstaticos = estaticos;
+        } else if (estaticos !== this._versaoEstaticos) {
+          this._versaoEstaticos = estaticos;
+          console.info('[Kronus] Codigo novo no servidor — recarrego ao ficar ocioso.');
+          this.aoPedirRecargaTotal();
+        }
+      }
+
       var assinatura = String(config.versao) + '|' + String(config.recarregar_em || '');
       if (this._assinaturaConfig === undefined) {
         this._assinaturaConfig = assinatura;
@@ -132,7 +155,7 @@
       if (assinatura === this._assinaturaConfig) return;
 
       this._assinaturaConfig = assinatura;
-      console.info('[Kronus] Configuracao alterada — recarregando quando ocioso.');
+      console.info('[Kronus] Configuracao alterada — aplicando ao vivo.');
       this.aoPedirRecarga();
     },
 

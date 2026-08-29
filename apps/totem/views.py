@@ -21,6 +21,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.cache import never_cache
 from django.views.decorators.clickjacking import xframe_options_exempt
 
+from apps.core.versao import versao_dos_estaticos
 from apps.totem.models import EventoTotem, Totem
 
 logger = logging.getLogger("kronus.totem")
@@ -75,6 +76,7 @@ def kiosk(request, token):
                 if slide.vigente
             ],
             "versao_app": VERSAO_APP,
+            "versao_estaticos": versao_dos_estaticos(),
             # O gesto de manutencao so e ligado quando a porta existe:
             # um caminho que aparece e recusa ensina que ele esta ali.
             "cadastro_no_totem": (

@@ -73,7 +73,10 @@
           aoVoltarOnline: this.aoVoltarOnline.bind(this),
           aoSincronizar: this.ui.sincronizarRelogio.bind(this.ui),
           motivoDegradado: function () { return self0.degradado; },
-          aoPedirRecarga: this.recarregarQuandoOcioso.bind(this)
+          aoPedirRecarga: this.recarregarQuandoOcioso.bind(this),
+          // Configuracao se aplica ao vivo; codigo novo exige recarga.
+          aoPedirRecargaTotal: this.recarregarQuandoLivre.bind(this),
+          versaoEstaticos: config.versaoEstaticos
         })
         .iniciar();
 

@@ -734,3 +734,57 @@ class FrasesDeSucessoTests(BaseTotemTestCase):
             HTTP_AUTHORIZATION=f"Token {self.totem.token_acesso}",
         ).json()
         self.assertEqual(dados["empresa"]["logo_altura_px"], 140)
+
+
+class AtualizacaoRemotaTests(BaseTotemTestCase):
+    """
+    Um totem instalado precisa receber codigo novo sozinho.
+
+    O deploy troca os arquivos no servidor e nao alcanca uma tela ja
+    aberta — e um totem de parede fica dias com a mesma pagina. Sem um
+    aviso, ele fica preso na versao com que foi aberto ate alguem ir ate
+    la, que foi exatamente o que aconteceu.
+    """
+
+    def test_o_heartbeat_leva_o_carimbo_dos_estaticos(self):
+        from apps.core.versao import versao_dos_estaticos
+
+        dados = self.post("api:totem:totem_heartbeat", {}).json()
+        self.assertEqual(
+            dados["config"]["estaticos"], versao_dos_estaticos(),
+            "sem o carimbo, o totem nao tem como saber que ha codigo novo",
+        )
+
+    def test_o_carimbo_muda_quando_um_arquivo_muda(self):
+        """
+        O carimbo e derivado do conteudo dos estaticos. Se ele nao mudar
+        no deploy, o aviso nunca dispara e o mecanismo inteiro e enfeite.
+        """
+        import pathlib
+        from apps.core import versao
+
+        versao._carimbo = None
+        antes = versao.versao_dos_estaticos()
+
+        alvo = pathlib.Path(versao.__file__).resolve().parent.parent.parent
+        arquivo = alvo / "static" / "css" / "_carimbo_de_teste.css"
+        arquivo.parent.mkdir(parents=True, exist_ok=True)
+        arquivo.write_text("/* teste */", encoding="utf-8")
+        try:
+            versao._carimbo = None
+            depois = versao.versao_dos_estaticos()
+        finally:
+            arquivo.unlink(missing_ok=True)
+            versao._carimbo = None
+
+        self.assertNotEqual(antes, depois)
+
+    def test_a_pagina_do_totem_declara_a_versao_que_carregou(self):
+        # Sem isto o totem nao tem com o que comparar o que o servidor
+        # manda, e nunca percebe a diferenca.
+        from apps.core.versao import versao_dos_estaticos
+
+        pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+        self.assertIn(f"versaoEstaticos: '{versao_dos_estaticos()}'", pagina)
