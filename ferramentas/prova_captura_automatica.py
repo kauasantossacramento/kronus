@@ -56,6 +56,13 @@ try:
         pag = ctx.new_page()
         erros = []
         pag.on("pageerror", lambda e: erros.append(str(e)))
+        import time as _t
+        _inicio = _t.time()
+        navegou = []
+        pag.on("framenavigated",
+               lambda f: navegou.append(f"{_t.time()-_inicio:.1f}s {f.url[-40:]}"))
+        pag.on("console", lambda m: print("   console:", m.text[:110])
+               if "Kronus" in m.text else None)
         pag.goto(f"{base}/totem/{token}/", wait_until="networkidle")
         pag.wait_for_timeout(3000)
 
@@ -63,15 +70,17 @@ try:
         # interceptando a chamada, sem gravar nada.
         pag.evaluate("""() => {
           window.__capturas = 0;
+          window.__momentos = [];
           window.KronusFaceDetector.modo = 'faceapi';
           window.KronusFaceDetector.detectar = () => Promise.resolve({
             presenca: true, pronto: true, confianca: .9,
-            proporcao: .40, motivo: 'ok'
+            proporcao: .48, motivo: 'ok'
           });
           const M = window.KronusManutencao;
           M._capturarOriginal = M._capturar;
           M._capturar = function () {
             window.__capturas += 1;
+            window.__momentos.push(Date.now());
             this._capturando = true;
             // Simula a resposta do servidor, com a pausa entre poses.
             setTimeout(() => {
@@ -79,7 +88,7 @@ try:
               this.pose += 1;
               this._estaveis = 0;
               this._prontoDesde = 0;
-              this._liberadoEm = Date.now() + 2200;
+              this._liberadoEm = Date.now() + 1200;
             }, 120);
           };
         }""")
@@ -92,18 +101,24 @@ try:
         }}""")
 
         pag.wait_for_timeout(2500)
+        print("   navegacoes:", navegou)
         r["1. dispara sozinho"] = pag.evaluate("() => window.__capturas >= 1")
         uma = pag.evaluate("() => window.__capturas")
 
-        pag.wait_for_timeout(600)
-        r["2. nao dispara em rajada"] = pag.evaluate(
-            "() => window.__capturas") == uma
-        print(f"   capturas: {uma} apos 2,5s · "
-              f"{pag.evaluate('() => window.__capturas')} apos 3,1s")
+        pag.wait_for_timeout(3500)
+        total = pag.evaluate("() => window.__capturas")
+        r["2. avanca as poses"] = total > uma
 
-        pag.wait_for_timeout(3000)
-        r["3. avanca as poses"] = pag.evaluate("() => window.__capturas") > uma
-        print(f"   capturas apos 6s: {pag.evaluate('() => window.__capturas')}")
+        # Rajada e disparo sem pausa entre poses. O que se mede e o
+        # intervalo minimo, e nao a contagem: com a pausa menor, mais
+        # fotos em menos tempo e o objetivo, nao o defeito.
+        intervalos = pag.evaluate(
+            "() => window.__momentos.slice(1).map((m, i) => m - window.__momentos[i])"
+        )
+        menor = min(intervalos) if intervalos else 9999
+        r["3. respeita a pausa entre poses"] = menor >= 1100
+        print(f"   capturas: {uma} apos 2,5s · {total} apos 6s")
+        print(f"   intervalos entre disparos (ms): {intervalos} · menor {menor}")
 
         # Luz ruim: espera antes de fotografar assim mesmo.
         pag.evaluate(f"""() => {{
@@ -119,7 +134,7 @@ try:
         r["5. orienta sobre a luz"] = "luz" in instrucao.lower()
         print(f"   instrucao com pouca luz: {instrucao!r}")
 
-        pag.wait_for_timeout(5200)
+        pag.wait_for_timeout(3000)
         r["6. fotografa assim mesmo"] = pag.evaluate("() => window.__capturas") >= 1
         print(f"   capturas com luz ruim, apos a espera: "
               f"{pag.evaluate('() => window.__capturas')}")

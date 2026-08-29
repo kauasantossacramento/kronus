@@ -224,9 +224,21 @@
       var largura = canvas.width || 1;
       var opcoes = (sensivel && this.opcoesPresenca) || this.opcoes;
 
+      // Todos os rostos, e fica com o MAIOR — que é o mais próximo.
+      //
+      // `detectSingleFace` devolve o de maior confiança, que nem sempre
+      // é o de quem está usando o totem: alguém de perfil ao fundo, com
+      // luz melhor, ganha de quem está na frente. E quem está na frente
+      // é justamente quem a câmera enxerga melhor — mais perto, mais
+      // iluminado pela própria tela, mais pixels no rosto.
+      //
+      // Vale para as duas pontas: o ponto que se registra e o cadastro
+      // que se faz. Escolher o mesmo critério nas duas evita cadastrar
+      // um enquadramento e reconhecer outro.
       return faceapi
-        .detectSingleFace(canvas, opcoes)
-        .then(function (deteccao) {
+        .detectAllFaces(canvas, opcoes)
+        .then(function (todos) {
+          var deteccao = self._maisProximo(todos);
           if (!deteccao) {
             self._seguidos = 0;
             // Sem rosto detectado, a heuristica ainda decide se ha
@@ -329,6 +341,27 @@
     },
 
     /** Texto de orientação para cada motivo de recusa. */
+    /**
+     * Entre os rostos detectados, o maior — o mais próximo da câmera.
+     *
+     * Área, e não confiança: a confiança mede quanto o detector acredita
+     * ter achado um rosto, e não quem está usando o equipamento.
+     */
+    _maisProximo: function (deteccoes) {
+      if (!deteccoes || !deteccoes.length) return null;
+      var melhor = null;
+      var maior = -1;
+      deteccoes.forEach(function (d) {
+        var caixa = d.box || d;
+        var area = (caixa.width || 0) * (caixa.height || 0);
+        if (area > maior) {
+          maior = area;
+          melhor = d;
+        }
+      });
+      return melhor;
+    },
+
     instrucaoPara: function (motivo) {
       var textos = {
         sem_rosto: 'Posicione o rosto no centro',

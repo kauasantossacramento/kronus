@@ -11,6 +11,14 @@
  * acreditar que bateu o ponto quando nada foi gravado.
  */
 const VERSAO = 'kronus-totem-{{ versao_estaticos|default:"v1" }}';
+
+//: O carimbo cru, para a pagina comparar com o dela.
+//:
+//: Sem ele o aviso dizia apenas "ha versao nova", e uma pagina que
+//: tinha acabado de carregar COM essa versao se recarregava a toa. A
+//: ativacao do Service Worker significa "ha codigo novo publicado", e
+//: nao "a pagina aberta esta velha".
+const CARIMBO = '{{ versao_estaticos|default:"v1" }}';
 const CACHE_ESTATICO = VERSAO + '-estatico';
 
 // Com o carimbo de versao, e nao sem ele.
@@ -100,16 +108,35 @@ function avisarOuRecarregar() {
         if (janela.url.indexOf('/totem/') === -1) return null;
         return new Promise(function (resolver) {
           var respondeu = false;
-          var canal = new MessageChannel();
-          canal.port1.onmessage = function () {
-            respondeu = true;
-            resolver(null);
+
+          // Avisa mais de uma vez antes de desistir.
+          //
+          // O Service Worker ativa enquanto a pagina ainda carrega, e um
+          // aviso enviado antes de ela registrar o ouvinte se perde — a
+          // pagina nova era tratada como antiga e recarregada a toa.
+          // Repetir cobre essa janela sem custo: quem ja respondeu nao
+          // recebe de novo.
+          var avisar = function () {
+            if (respondeu) return;
+            var canal = new MessageChannel();
+            canal.port1.onmessage = function () {
+              respondeu = true;
+              resolver(null);
+            };
+            try {
+              janela.postMessage(
+                { tipo: 'kronus-atualizado', carimbo: CARIMBO },
+                [canal.port2]
+              );
+            } catch (e) {
+              // Nem postMessage passou: so resta navegar.
+            }
           };
-          try {
-            janela.postMessage({ tipo: 'kronus-atualizado' }, [canal.port2]);
-          } catch (e) {
-            // Nem postMessage passou: so resta navegar.
-          }
+
+          avisar();
+          setTimeout(avisar, 2500);
+          setTimeout(avisar, 5000);
+
           setTimeout(function () {
             if (respondeu) return resolver(null);
             if (janela.navigate) {
@@ -117,7 +144,7 @@ function avisarOuRecarregar() {
             } else {
               resolver(null);
             }
-          }, 6000);
+          }, 9000);
         });
       }));
     });

@@ -37,17 +37,37 @@
   //: A luz de uma portaria e o que e. Depois de orientar e dar tempo de
   //: a pessoa se aproximar, insistir vira impasse — e um cadastro que
   //: nao acontece e pior do que um cadastro com luz mediana.
-  var ESPERA_POR_LUZ_MS = 5000;
+  //:
+  //: Eram 5 s, e com cinco poses isso somava 25 s de espera no pior
+  //: caso. 2,5 s dao tempo de a pessoa dar um passo, que e o que a
+  //: orientacao pede.
+  var ESPERA_POR_LUZ_MS = 2500;
 
   //: Leituras seguidas com tudo certo antes de disparar a foto.
   //:
-  //: Duas, a 250 ms, sao meio segundo parado. Uma so dispararia no
-  //: quadro em que a pessoa ainda esta se posicionando.
-  var LEITURAS_PARA_DISPARAR = 2;
+  //: Tres, a 150 ms, sao quase meio segundo parado — mesma seguranca de
+  //: antes, num laco mais rapido. Menos que isso dispararia no quadro em
+  //: que a pessoa ainda esta se posicionando.
+  var LEITURAS_PARA_DISPARAR = 3;
 
   //: Pausa depois de cada foto, para a pessoa mudar de pose.
   //: Sem ela, as cinco poses sairiam iguais em um segundo e meio.
-  var PAUSA_ENTRE_POSES_MS = 2200;
+  //:
+  //: 1,2 s: o suficiente para virar o rosto, lendo a instrucao nova. O
+  //: valor anterior, 2,2 s, somava onze segundos so de espera parada.
+  var PAUSA_ENTRE_POSES_MS = 1200;
+
+  //: Largura minima do rosto para o disparo automatico.
+  //:
+  //: Mais exigente que a do registro de ponto (0,32) de proposito. Perto
+  //: da camera a luz e melhor — a propria tela ilumina o rosto — e sobra
+  //: mais pixel para o recorte. Como a foto de cadastro e a referencia
+  //: de todos os reconhecimentos futuros, vale pedir um passo a frente
+  //: uma vez.
+  //:
+  //: Nao trava: passada a espera, o botao libera e a foto sai como
+  //: estiver.
+  var LARGURA_MINIMA_CADASTRO = 0.40;
 
   //: As mesmas poses do cadastro pelo painel. A variação entre elas é o
   //: que faz o reconhecimento aguentar a pessoa virar o rosto no dia a
@@ -563,7 +583,7 @@
           if (self.pronto) {
             liberado = false;
             botao.disabled = false;
-            self._dispararQuandoPronto(contexto, tela, instrucao);
+            self._dispararQuandoPronto(contexto, tela, instrucao, r.proporcao);
           } else if (liberado || Date.now() - desde > LIBERAR_APOS_MS) {
             liberado = true;
             botao.disabled = false;
@@ -604,7 +624,7 @@
           botao.disabled = false;
           if (detalhe) detalhe.textContent = 'detector indisponível';
         });
-      }, 250);
+      }, 150);
     },
 
     /**
@@ -620,7 +640,7 @@
      * portaria é o que é, e um cadastro que não acontece é pior do que
      * um cadastro com luz mediana.
      */
-    _dispararQuandoPronto: function (contexto, tela, instrucao) {
+    _dispararQuandoPronto: function (contexto, tela, instrucao, proporcao) {
       var agora = Date.now();
 
       // Enviando, ou ainda na pausa entre poses.
@@ -631,8 +651,21 @@
 
       if (!this._prontoDesde) this._prontoDesde = agora;
 
-      var luz = this._medirLuz(contexto, tela);
       var esperando = agora - this._prontoDesde < ESPERA_POR_LUZ_MS;
+
+      // Perto primeiro: a luz melhora sozinha quando a pessoa se
+      // aproxima, porque a tela do totem ilumina o rosto. Pedir o passo
+      // a frente resolve os dois problemas de uma vez, e e mais rapido
+      // do que esperar a luz do ambiente mudar.
+      if (proporcao && proporcao < LARGURA_MINIMA_CADASTRO && esperando) {
+        this._estaveis = 0;
+        if (instrucao) {
+          instrucao.textContent = 'Chegue mais perto da câmera';
+        }
+        return;
+      }
+
+      var luz = this._medirLuz(contexto, tela);
 
       if (!luz.boa && esperando) {
         this._estaveis = 0;

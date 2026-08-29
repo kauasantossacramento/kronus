@@ -25,6 +25,13 @@
     ultimoEnvio: 0,
     loopDeteccao: null,
     pausado: false,
+    //: Contador de "sessoes" da tela.
+    //:
+    //: Cada troca de estado avanca. Uma resposta que volta depois de a
+    //: tela ter mudado carrega a geracao antiga e nao mexe em nada — era
+    //: assim que a tela de sucesso aparecia por cima da de CPF, depois
+    //: de o totem ja ter dito que nao reconheceu.
+    _geracao: 0,
 
     // ── Constantes de desempenho (Seção 6.5.2) ────────────────
     // Um quadro a cada 3 s deixava a pessoa parada na frente do totem
@@ -91,19 +98,13 @@
         self.irParaIdle();
       });
 
-      // O Service Worker avisa quando ha versao nova. Responder pelo
-      // canal e o que diz a ele "esta pagina sabe se atualizar" — sem
-      // resposta, ele navega a forca, que e o certo para uma pagina
-      // antiga demais para ouvir.
-      if (global.navigator && global.navigator.serviceWorker) {
-        global.navigator.serviceWorker.addEventListener('message', function (evento) {
-          var dados = evento.data || {};
-          if (dados.tipo !== 'kronus-atualizado') return;
-          if (evento.ports && evento.ports[0]) {
-            evento.ports[0].postMessage({ tratado: true });
-          }
-          self.recarregarQuandoLivre();
-        });
+      // O aviso do Service Worker e respondido no topo da pagina, antes
+      // de o app subir — se ele chegasse primeiro e ninguem ouvisse, a
+      // pagina nova seria recarregada a toa. O que sobra para o app e
+      // atender o pedido que ficou guardado.
+      if (global.__kronusRecarregar) {
+        global.__kronusRecarregar = false;
+        this.recarregarQuandoLivre();
       }
 
       // Libera a câmera ao fechar a aba/app.
@@ -275,6 +276,7 @@
     // ══════════════════════════════════════════════════════════
     irParaIdle: function () {
       if (this.pausado) return;
+      this._geracao += 1;
       this.estado = 'idle';
       this.enviando = false;
       this.tentativasFalhas = 0;
@@ -434,6 +436,7 @@
     // ══════════════════════════════════════════════════════════
     irParaCamera: function () {
       if (this.pausado) return;
+      this._geracao += 1;
       var self = this;
       this.estado = 'camera';
       // Zera a contagem de leituras herdada do ocioso: la o criterio e
@@ -450,12 +453,11 @@
           // Sem identificação em 20 s, oferecemos o CPF em vez de deixar
           // a pessoa tentando indefinidamente.
           self.ui.agendar(function () {
-            if (self.estado === 'camera') {
-              if (self.config.permiteFallback) {
-                self.irParaFallback();
-              } else {
-                self.irParaIdle();
-              }
+            if (self.estado !== 'camera') return;
+            if (self.config.permiteFallback) {
+              self._irParaFallbackQuandoLivre();
+            } else {
+              self.irParaIdle();
             }
           }, self.TIMEOUT_CAMERA_MS);
         })
@@ -480,6 +482,7 @@
       this.enviando = true;
       this.ultimoEnvio = agora;
       var self = this;
+      var geracao = this._geracao;
 
       fetch(this.config.urls.recognize, {
         method: 'POST',
@@ -492,6 +495,12 @@
         .then(function (resposta) { return resposta.json(); })
         .then(function (dados) {
           self.enviando = false;
+
+          // A tela mudou enquanto isto estava no ar: a resposta perdeu
+          // a validade. Sem esta guarda, um sucesso atrasado subia por
+          // cima da tela de CPF que o proprio totem tinha acabado de
+          // pedir.
+          if (geracao !== self._geracao) return;
 
           // O servidor pede um segundo quadro antes de gravar. A
           // resposta vem com `ok: true` porque nada falhou — mas
@@ -527,7 +536,7 @@
             if (limite && self.tentativasFalhas >= limite
                 && self.config.permiteFallback) {
               self.ui.definirInstrucao('Não reconhecemos seu rosto.', false);
-              self.ui.agendar(self.irParaFallback.bind(self), 900);
+              self._irParaFallbackQuandoLivre();
             } else if (self.tentativasFalhas === 1) {
               self.ui.definirInstrucao('Não reconhecido. Olhe para a câmera.', false);
             } else {
@@ -553,6 +562,7 @@
     // ══════════════════════════════════════════════════════════
     irParaSucesso: function (dados) {
       if (this.pausado) return;
+      this._geracao += 1;
       this.estado = 'sucesso';
       this._pararLoop();
       this.camera.fechar();
@@ -581,6 +591,7 @@
     // ══════════════════════════════════════════════════════════
     irParaFallback: function () {
       if (this.pausado) return;
+      this._geracao += 1;
       // Zera aqui e no retorno ao ocioso: sem isso, a proxima pessoa na
       // fila herdaria as falhas da anterior e cairia direto na digitacao.
       this.tentativasFalhas = 0;
@@ -593,6 +604,28 @@
       this.ui.mostrar('fallback');
       this.ui.focarFallback();
       this._reiniciarTimeoutFallback();
+    },
+
+    /**
+     * Vai para a digitação de CPF, mas só depois que o ar estiver limpo.
+     *
+     * Sair com um quadro ainda em voo é a origem do "não reconhecemos"
+     * seguido de tela de sucesso: a resposta chega depois, com o ponto
+     * já gravado, e sobe por cima da tela de CPF. Esperar a resposta
+     * resolve o caso na origem — se ela for um sucesso, o totem mostra
+     * o sucesso e nunca chega a pedir o CPF.
+     */
+    _irParaFallbackQuandoLivre: function () {
+      var self = this;
+      var tentar = function () {
+        if (self.estado !== 'camera') return;
+        if (self.enviando) {
+          setTimeout(tentar, 300);
+          return;
+        }
+        self.irParaFallback();
+      };
+      this.ui.agendar(tentar, 900);
     },
 
     _reiniciarTimeoutFallback: function () {

@@ -399,6 +399,40 @@
     // O Service Worker é opcional: sem ele o totem funciona, só perde o
     // cache offline dos assets.
     if ('serviceWorker' in navigator) {
+      {% comment %}
+        O ouvinte vem ANTES do registro, e antes de o app subir.
+
+        O Service Worker ativa enquanto a página ainda carrega. Se o
+        aviso de versão nova chegar antes deste ouvinte existir, ele se
+        perde — e o Service Worker, sem resposta, trata esta página como
+        antiga e a recarrega sem necessidade.
+
+        Responder só marca presença. A recarga de verdade fica com o app,
+        que sabe se há alguém na frente da câmera.
+      {% endcomment %}
+      navigator.serviceWorker.addEventListener('message', function (evento) {
+        var dados = evento.data || {};
+        if (dados.tipo !== 'kronus-atualizado') return;
+
+        // Responde sempre: a resposta so diz "esta pagina sabe se
+        // atualizar", e sem ela o Service Worker navega a forca.
+        if (evento.ports && evento.ports[0]) {
+          evento.ports[0].postMessage({ tratado: true });
+        }
+
+        // Mas so recarrega se a versao dele for outra. Esta pagina pode
+        // ter acabado de carregar com o codigo novo — recarregar ali
+        // seria trocar seis por meia duzia, com a tela cheia caindo no
+        // meio.
+        if (dados.carimbo && dados.carimbo === '{{ versao_estaticos }}') return;
+        if (window.KronusTotem && window.KronusTotem.recarregarQuandoLivre) {
+          window.KronusTotem.recarregarQuandoLivre();
+        } else {
+          // App ainda não subiu: guarda o pedido para quando subir.
+          window.__kronusRecarregar = true;
+        }
+      });
+
       navigator.serviceWorker
         .register('{% url "totem:service_worker" %}', { scope: '/totem/' })
         .catch(function (erro) { console.warn('[Kronus] SW não registrado:', erro); });
