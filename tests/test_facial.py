@@ -1020,3 +1020,46 @@ class CamerasDiferentesTests(TestCase):
         # rostos em geral — e como vale a menor distância, ele funcionava
         # como mais uma porta de entrada.
         self.assertEqual(len(candidatos[colaborador.pk]), 3)
+
+
+class MensagemDeErroTests(TestCase):
+    """
+    A mensagem que chega a tela e escrita para quem esta na frente da
+    camera, e nao para quem depura a biblioteca.
+
+    O DeepFace fala em "numpy array" e em `enforce_detection param` — e
+    esse texto chegou a aparecer no totem para quem estava cadastrando,
+    que nao tem o que fazer com ele.
+    """
+
+    def test_a_mensagem_padrao_diz_o_que_fazer(self):
+        from apps.facial.providers import NenhumRostoDetectado
+
+        erro = NenhumRostoDetectado()
+        self.assertIn("Aproxime-se", erro.mensagem)
+        self.assertNotIn("numpy", erro.mensagem.lower())
+        self.assertNotIn("enforce", erro.mensagem.lower())
+
+    def test_o_texto_do_deepface_nao_e_repassado(self):
+        # A deteccao falhando levanta a mensagem nossa, e nao a da
+        # biblioteca — o `from` guarda a original para o log.
+        import inspect
+        from apps.facial import providers
+
+        fonte = inspect.getsource(providers.DeepFaceProvider._detectar)
+        self.assertIn("raise NenhumRostoDetectado() from ultima", fonte)
+        self.assertNotIn("NenhumRostoDetectado(str(", fonte)
+
+    def test_ha_um_detector_de_reserva(self):
+        # O MTCNN perde rosto em contraluz e queixo levantado —
+        # justamente as poses que o roteiro de cadastro pede.
+        from apps.facial.providers import DeepFaceProvider
+
+        self.assertTrue(DeepFaceProvider.DETECTOR_RESERVA)
+
+    def test_falha_do_motor_nao_expoe_o_interno(self):
+        import inspect
+        from apps.facial import providers
+
+        fonte = inspect.getsource(providers.DeepFaceProvider._detectar)
+        self.assertIn("Falha ao processar a imagem. Tente novamente.", fonte)

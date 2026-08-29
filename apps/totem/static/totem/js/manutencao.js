@@ -41,6 +41,8 @@
     pose: 0,
     stream: null,
     ativa: false,
+    pronto: false,
+    _vigia: null,
 
     iniciar: function (config) {
       this.config = config;
@@ -339,6 +341,7 @@
           self.stream = stream;
           var video = document.getElementById('manut-video');
           if (video) video.srcObject = stream;
+          self._vigiarEnquadramento();
         })
         .catch(function (erro) {
           self._erro('erro-manut-captura',
@@ -402,6 +405,10 @@
 
         self.pose += 1;
         self.pessoa.amostras = dados.amostras;
+        // Zera a contagem de leituras: sem isto o proximo quadro ja
+        // nasceria "estavel" e o botao liberaria antes de a pessoa ter
+        // mudado de pose.
+        if (global.KronusFaceDetector) global.KronusFaceDetector.reiniciar();
 
         if (self.pose >= POSES.length) {
           // A avaliação do cadastro vem aqui, sobre o conjunto pronto —
@@ -447,7 +454,77 @@
       this._mostrar('tela-manut-revisao');
     },
 
+    /**
+     * Só deixa capturar quando há rosto enquadrado.
+     *
+     * Sem isto, o operador apertava "Capturar" quando queria e o
+     * servidor respondia que não viu rosto nenhum — erro frequente, e
+     * inútil: quem está lá não tem como saber o que estava errado no
+     * instante do clique.
+     *
+     * É o mesmo detector do registro de ponto, com o mesmo critério.
+     * Assim a foto que entra no cadastro tem o enquadramento que o
+     * reconhecimento vai exigir depois — cadastrar num enquadramento e
+     * reconhecer em outro é parte do que fazia o totem falhar.
+     */
+    _vigiarEnquadramento: function () {
+      var self = this;
+      var detector = global.KronusFaceDetector;
+      var video = document.getElementById('manut-video');
+      var botao = document.getElementById('manut-capturar');
+      var guia = document.querySelector('#tela-manut-captura .totem-camera__guia');
+      if (!detector || !video || !botao) return;
+
+      // Sem detector de verdade nao da para exigir enquadramento: seria
+      // travar o botao para sempre. Ali o operador decide, como antes.
+      if (detector.modo !== 'faceapi') {
+        this.pronto = true;
+        return;
+      }
+
+      var tela = document.createElement('canvas');
+      tela.width = 320;
+      tela.height = 240;
+      var contexto = tela.getContext('2d');
+
+      this._pararVigia();
+      this.pronto = false;
+      botao.disabled = true;
+
+      this._vigia = setInterval(function () {
+        if (!self.stream || video.readyState < 2) return;
+        contexto.drawImage(video, 0, 0, tela.width, tela.height);
+
+        detector.detectar(tela).then(function (r) {
+          self.pronto = !!r.pronto;
+          botao.disabled = !self.pronto;
+
+          var instrucao = document.getElementById('manut-instrucao');
+          if (instrucao) {
+            instrucao.textContent = r.pronto
+              ? POSES[Math.min(self.pose, POSES.length - 1)].instrucao
+                + ' — pode capturar'
+              : detector.instrucaoPara(r.motivo);
+          }
+          if (guia) {
+            guia.classList.toggle('totem-camera__guia--pronto', r.pronto);
+            guia.classList.toggle(
+              'totem-camera__guia--ajustar', !r.pronto && r.presenca
+            );
+          }
+        }).catch(function () {});
+      }, 250);
+    },
+
+    _pararVigia: function () {
+      if (this._vigia) {
+        clearInterval(this._vigia);
+        this._vigia = null;
+      }
+    },
+
     _fecharCamera: function () {
+      this._pararVigia();
       if (this.stream) {
         this.stream.getTracks().forEach(function (t) { t.stop(); });
         this.stream = null;

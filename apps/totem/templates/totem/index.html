@@ -362,7 +362,14 @@
   <p class="totem-erro" id="erro-manut-captura" hidden></p>
 
   <div class="totem-acoes">
-    <button type="button" class="totem-botao" id="manut-capturar">Capturar</button>
+    {% comment %}
+      Começa desabilitado: o botão só libera quando o detector confirma
+      o rosto enquadrado. Antes, o operador apertava quando queria e o
+      servidor respondia que não viu rosto nenhum — erro frequente, e
+      inútil, porque quem estava lá não tinha como saber o que estava
+      errado no instante do clique.
+    {% endcomment %}
+    <button type="button" class="totem-botao" id="manut-capturar" disabled>Capturar</button>
     <button type="button" class="totem-botao totem-botao--secundario"
             data-manut-voltar-lista>Concluir</button>
   </div>

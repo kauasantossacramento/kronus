@@ -42,7 +42,17 @@ class ErroReconhecimento(Exception):
 
 
 class NenhumRostoDetectado(ErroReconhecimento):
-    def __init__(self, mensagem="Nenhum rosto detectado na imagem."):
+    #: Texto voltado a quem esta na frente da camera, e nao a quem
+    #: depura a biblioteca. A mensagem do DeepFace fala em "numpy array"
+    #: e em parametros de configuracao — chegou a aparecer na tela do
+    #: totem para quem estava cadastrando.
+    def __init__(
+        self,
+        mensagem=(
+            "Não foi possível ver o rosto. Aproxime-se, olhe para a "
+            "câmera e evite luz forte atrás de você."
+        ),
+    ):
         super().__init__(mensagem, codigo="sem_rosto")
 
 
@@ -227,6 +237,64 @@ class DeepFaceProvider(ProvedorFacial):
             )
         return ordenados[0]
 
+    #: Detector de reserva, usado quando o principal nao acha rosto.
+    #:
+    #: O MTCNN e rapido e serve bem ao caso comum. Ele perde rosto em
+    #: contraluz, queixo levantado e cabeca inclinada — justamente as
+    #: poses que o roteiro de cadastro pede. O RetinaFace acha mais, e
+    #: custa alguns segundos a mais; so entra quando o primeiro falhou,
+    #: que e quando a pessoa ja esta esperando de qualquer forma.
+    DETECTOR_RESERVA = "retinaface"
+
+    def _detectar(self, matriz) -> list:
+        """
+        Extrai os rostos, com um segundo detector como reserva.
+
+        Nunca deixa vazar a mensagem do DeepFace para a tela. Ela e
+        escrita para quem depura a biblioteca — "Face could not be
+        detected in numpy array... consider to set enforce_detection
+        param to False" — e chegou a aparecer para quem estava
+        cadastrando, que nao tem o que fazer com isso.
+        """
+        deepface = _carregar_deepface()
+
+        tentativas = [self.detector]
+        if self.DETECTOR_RESERVA and self.DETECTOR_RESERVA != self.detector:
+            tentativas.append(self.DETECTOR_RESERVA)
+
+        ultima = None
+        for detector in tentativas:
+            try:
+                return deepface.represent(
+                    img_path=matriz,
+                    model_name=self.modelo,
+                    detector_backend=detector,
+                    enforce_detection=True,
+                    align=True,
+                    # Cada modelo foi treinado com um pre-processamento
+                    # proprio. Deixar no "base" do DeepFace nao da erro —
+                    # da embedding pior, silenciosamente.
+                    normalization=NORMALIZACAO_POR_MODELO.get(self.modelo, "base"),
+                )
+            except ValueError as erro:
+                # O DeepFace sinaliza ausencia de rosto com ValueError.
+                ultima = erro
+                if detector != tentativas[-1]:
+                    logger.info(
+                        "Rosto nao detectado com %s; tentando %s.",
+                        detector, self.DETECTOR_RESERVA,
+                    )
+                continue
+            except Exception as erro:  # falha do motor, nao do enquadramento
+                logger.exception("Falha no DeepFace")
+                raise ErroReconhecimento(
+                    "Falha ao processar a imagem. Tente novamente.",
+                    codigo="erro_motor",
+                ) from erro
+
+        logger.info("Rosto nao detectado por nenhum detector: %s", ultima)
+        raise NenhumRostoDetectado() from ultima
+
     def gerar_embedding(self, imagem_bytes: bytes) -> np.ndarray:
         import cv2
 
@@ -250,26 +318,7 @@ class DeepFaceProvider(ProvedorFacial):
         if matriz is None:
             raise ErroReconhecimento("Imagem inválida ou corrompida.", codigo="imagem_invalida")
 
-        try:
-            resultados = deepface.represent(
-                img_path=matriz,
-                model_name=self.modelo,
-                detector_backend=self.detector,
-                enforce_detection=True,
-                align=True,
-                # Cada modelo foi treinado com um pre-processamento
-                # proprio. Deixar no "base" do DeepFace nao da erro — da
-                # embedding pior, silenciosamente.
-                normalization=NORMALIZACAO_POR_MODELO.get(self.modelo, "base"),
-            )
-        except ValueError as erro:
-            # O DeepFace sinaliza ausência de rosto com ValueError.
-            raise NenhumRostoDetectado(str(erro)) from erro
-        except Exception as erro:  # falha do motor, não do enquadramento
-            logger.exception("Falha no DeepFace")
-            raise ErroReconhecimento(
-                f"Falha ao processar a imagem: {erro}", codigo="erro_motor"
-            ) from erro
+        resultados = self._detectar(matriz)
 
         if not resultados:
             raise NenhumRostoDetectado()
