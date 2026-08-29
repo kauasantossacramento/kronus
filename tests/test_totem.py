@@ -982,3 +982,37 @@ class ConviteDeTelaCheiaTests(BaseTotemTestCase):
         # E o caminho de volta para quem sair da tela cheia por engano —
         # sem ele, encerrar a pergunta deixaria a pessoa sem saida.
         self.assertIn('id="totem-fs-atalho"', self.pagina)
+
+
+class VerificacaoDeVersaoTests(BaseTotemTestCase):
+    """
+    O totem pergunta de hora em hora se ha versao nova.
+
+    Medido nos dois equipamentos instalados: o navegador so reconfere o
+    Service Worker quando a pagina navega, e um totem de parede nao
+    navega nunca. Fora disso ele espera 24 horas — dos dois, o unico que
+    se atualizou foi o que alguem recarregou na mao.
+    """
+
+    def test_a_pagina_agenda_a_verificacao(self):
+        pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+        self.assertIn("registro.update()", pagina)
+
+    def test_o_intervalo_e_de_uma_hora(self):
+        # Curto o bastante para o deploy chegar no mesmo turno; longo o
+        # bastante para nao ser trafego a toa num tablet 3G.
+        pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+        self.assertIn("60 * 60 * 1000", pagina)
+
+    def test_falha_na_verificacao_nao_derruba_nada(self):
+        # Sem rede, `update()` rejeita. Sem o `catch`, viraria uma
+        # promessa nao tratada a cada hora, para sempre.
+        pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+        trecho = pagina[pagina.index("registro.update()"):][:80]
+        self.assertIn("catch", trecho)

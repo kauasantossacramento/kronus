@@ -1,0 +1,40 @@
+{
+  "empresa": "Alfa Matriz",
+  "empresa_id": 1,
+  "gerado_em": "2026-08-29T17:36:00.916604-03:00",
+  "registros": [
+    {
+      "nsr": 1,
+      "colaborador": "Ana",
+      "cpf": "52998224725",
+      "data_hora": "2026-08-29T17:36:00.878231+00:00",
+      "tipo": "entrada",
+      "metodo": "web",
+      "hash_registro": "0d243a0319e26f3f112ed26deee20a47c33f8da02873ecd92b3cca2d1882b21a",
+      "hash_anterior": "",
+      "confianca_face": null
+    },
+    {
+      "nsr": 2,
+      "colaborador": "Ana",
+      "cpf": "52998224725",
+      "data_hora": "2026-08-29T18:36:00.878231+00:00",
+      "tipo": "intervalo_inicio",
+      "metodo": "web",
+      "hash_registro": "551017358b37d0bd265fe3f44d9e0b1819736b61ff061e8fdfce99396c1c9c61",
+      "hash_anterior": "0d243a0319e26f3f112ed26deee20a47c33f8da02873ecd92b3cca2d1882b21a",
+      "confianca_face": null
+    },
+    {
+      "nsr": 3,
+      "colaborador": "Ana",
+      "cpf": "52998224725",
+      "data_hora": "2026-08-29T19:36:00.878231+00:00",
+      "tipo": "intervalo_fim",
+      "metodo": "web",
+      "hash_registro": "5d6d031463c184584c7c95caaae4fbef40f54a6ad692433b4c75c2716090bab4",
+      "hash_anterior": "551017358b37d0bd265fe3f44d9e0b1819736b61ff061e8fdfce99396c1c9c61",
+      "confianca_face": null
+    }
+  ]
+}

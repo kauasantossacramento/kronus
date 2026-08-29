@@ -444,6 +444,24 @@
 
       navigator.serviceWorker
         .register('{% url "totem:service_worker" %}', { scope: '/totem/' })
+        .then(function (registro) {
+          {% comment %}
+            Perguntar de hora em hora se ha versao nova.
+
+            Sem isto, o navegador so reconfere o Service Worker quando a
+            pagina navega — e um totem de parede nao navega nunca. Fora
+            disso ele espera 24 horas. Medido: dos dois equipamentos
+            instalados, o unico que se atualizou foi o que alguem
+            recarregou na mao; o outro passou o dia sem sequer pedir o
+            arquivo do Service Worker.
+
+            Vinte e quatro horas de espera transformam em viagem o
+            mecanismo que existe justamente para evitar a viagem.
+          {% endcomment %}
+          setInterval(function () {
+            registro.update().catch(function () {});
+          }, 60 * 60 * 1000);
+        })
         .catch(function (erro) { console.warn('[Kronus] SW não registrado:', erro); });
     }
 
