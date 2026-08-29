@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load kronus_icons %}
+
+{% block cabecalho %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Cadastro facial no totem</h1>
+    <p class="mt-2 max-w-2xl text-sm text-[var(--kronus-gray-500)]">
+      Senha que abre o modo de manutenção no próprio equipamento.
+    </p>
+  </div>
+  {% include "rh/configuracoes/_abas.html" with ativa="senha_totem" %}
+</div>
+{% endblock %}
+
+{% block conteudo %}
+<div class="grid gap-6 lg:grid-cols-3">
+
+  <div class="lg:col-span-2">
+    <div class="card p-6">
+      <p class="flex items-center gap-2 text-sm font-medium text-[var(--kronus-gray-800)]">
+        {% icone "chave" classe="h-4 w-4 text-[var(--kronus-primary-600)]" %}
+        {% if tem_senha %}Trocar a senha{% else %}Definir a senha{% endif %}
+      </p>
+
+      {% comment %}
+        A senha atual nunca aparece. No banco ela vive com hash, e
+        exibi-la exigiria guardá-la em texto puro — o que colocaria a
+        porta inteira dentro de um SELECT.
+      {% endcomment %}
+      <p class="mt-1.5 text-sm text-[var(--kronus-gray-600)]">
+        {% if tem_senha %}
+          Já existe uma senha definida. Ela não pode ser exibida — se foi
+          esquecida, defina outra aqui.
+        {% else %}
+          Ainda não há senha definida, e sem ela o totem não abre o
+          cadastro.
+        {% endif %}
+      </p>
+
+      <form method="post" class="mt-5 max-w-sm space-y-4">
+        {% csrf_token %}
+        <div>
+          <label for="senha" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Nova senha</label>
+          <input type="password" name="senha" id="senha" required minlength="6" autocomplete="new-password"
+                 class="mt-1.5 w-full rounded-lg border border-[var(--kronus-gray-300)] px-3 py-2 text-sm">
+          <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">Ao menos 6 caracteres.</p>
+        </div>
+        <div>
+          <label for="confirmacao" class="block text-sm font-medium text-[var(--kronus-gray-700)]">Repita a senha</label>
+          <input type="password" name="confirmacao" id="confirmacao" required minlength="6" autocomplete="new-password"
+                 class="mt-1.5 w-full rounded-lg border border-[var(--kronus-gray-300)] px-3 py-2 text-sm">
+        </div>
+        <button type="submit" class="btn btn-primary">
+          {% if tem_senha %}Trocar senha{% else %}Definir senha{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <div class="card p-6">
+      <p class="text-sm font-medium text-[var(--kronus-gray-800)]">Como usar no totem</p>
+      <ol class="mt-3 space-y-2 text-sm text-[var(--kronus-gray-600)]">
+        <li><strong>1.</strong> Toque <strong>três vezes no relógio</strong> da tela do totem.</li>
+        <li><strong>2.</strong> Digite esta senha.</li>
+        <li><strong>3.</strong> Escolha o colaborador na lista.</li>
+        <li><strong>4.</strong> Confirme o consentimento e capture as cinco poses.</li>
+      </ol>
+    </div>
+
+    <div class="card p-6">
+      <p class="text-sm font-medium text-[var(--kronus-gray-800)]">Por que cadastrar no totem</p>
+      <p class="mt-2 text-sm leading-relaxed text-[var(--kronus-gray-600)]">
+        Um rosto cadastrado pela webcam do computador é reconhecido pela
+        câmera do tablet com folga bem menor — ótica, resolução e
+        iluminação diferentes. Cadastrar no mesmo equipamento em que a
+        pessoa bate o ponto elimina essa diferença.
+      </p>
+    </div>
+
+    <div class="card border-amber-200 bg-amber-50 p-6">
+      <p class="flex items-center gap-2 text-sm font-medium text-amber-800">
+        {% icone "escudo" classe="h-4 w-4" %} Cuidado com esta senha
+      </p>
+      <p class="mt-2 text-sm leading-relaxed text-amber-800">
+        Ela abre um modo de manutenção num equipamento de parede, ao
+        alcance de quem passa. Não a deixe anotada perto do totem, e
+        troque-a quando alguém que a conhecia sair da equipe. Cinco erros
+        seguidos bloqueiam o equipamento por 15 minutos, e toda entrada
+        fica registrada na auditoria.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

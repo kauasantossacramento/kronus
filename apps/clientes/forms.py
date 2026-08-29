@@ -62,8 +62,9 @@ class ClienteForm(EstiloTailwindMixin, forms.ModelForm):
             "dpo_email",
             "ativo",
             "observacoes",
-        
-            "integracoes_liberadas",)
+            "integracoes_liberadas",
+            "cadastro_facial_no_totem",
+        )
         widgets = {
             "data_inicio_contrato": forms.DateInput(
                 attrs={"type": "date"}, format="%Y-%m-%d"
@@ -73,6 +74,43 @@ class ClienteForm(EstiloTailwindMixin, forms.ModelForm):
             ),
             "observacoes": forms.Textarea(attrs={"rows": 3}),
         }
+
+    # A senha nao e campo do modelo: no banco ela vive com hash, e um
+    # `ModelForm` a traria de volta para a tela a cada edicao.
+    senha_totem = forms.CharField(
+        label="Senha de manutenção do totem",
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        min_length=6,
+        help_text=(
+            "Definida uma vez e digitada no próprio totem. Deixe em "
+            "branco para manter a atual."
+        ),
+    )
+
+    def clean(self):
+        dados = super().clean()
+        ligado = dados.get("cadastro_facial_no_totem")
+        senha = dados.get("senha_totem")
+        tem_senha = bool(senha) or bool(
+            self.instance.pk and self.instance.senha_totem
+        )
+        if ligado and not tem_senha:
+            # Ligar sem senha deixaria a opcao marcada e a porta fechada,
+            # e alguem passaria a tarde procurando por que o totem nao
+            # abre o modo.
+            raise forms.ValidationError({
+                "senha_totem":
+                    "Defina uma senha para liberar o cadastro pelo totem.",
+            })
+        return dados
+
+    def save(self, commit=True):
+        cliente = super().save(commit=commit)
+        senha = self.cleaned_data.get("senha_totem")
+        if senha and commit:
+            cliente.definir_senha_totem(senha)
+        return cliente
 
 
 class EmpresaForm(EstiloTailwindMixin, forms.ModelForm):

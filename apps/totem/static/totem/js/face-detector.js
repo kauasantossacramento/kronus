@@ -77,10 +77,14 @@
     /**
      * Leituras consecutivas exigidas antes de enviar.
      *
-     * A ~500 ms por leitura, 3 significam ~1,5 s parado em frente à
-     * câmera. É o que separa "veio bater ponto" de "passou na frente".
+     * Duas, e não três. A ~150 ms por leitura com a câmera ativa, três
+     * eram meio segundo de espera depois de o rosto já estar enquadrado
+     * — tempo em que a pessoa acha que o totem não a viu e se mexe,
+     * zerando a contagem. Duas leituras seguidas continuam descartando
+     * quem passa na frente, porque o enquadramento e a distância já
+     * precisam estar certos nas duas.
      */
-    LEITURAS_PARA_CONFIRMAR: 3,
+    LEITURAS_PARA_CONFIRMAR: 2,
 
     /**
      * Carrega os modelos. Nunca rejeita: um totem que não inicia é pior

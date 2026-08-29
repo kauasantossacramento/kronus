@@ -220,6 +220,129 @@
   </div>
 </section>
 
+{% comment %}
+  ══════════════ MANUTENÇÃO — cadastro facial no próprio totem ══════════════
+
+  Existe porque um rosto cadastrado pela webcam do computador é
+  reconhecido pela câmera do tablet com folga bem menor. Cadastrar no
+  mesmo equipamento em que a pessoa bate o ponto elimina a diferença na
+  origem, em vez de compensá-la depois afrouxando o limiar — que é o
+  caminho que leva a reconhecer a pessoa errada.
+
+  Três toques no relógio abrem a senha. Um caminho escondido, e não um
+  botão: a tela fica numa parede, e um botão "Manutenção" visível é um
+  convite permanente a quem passa. Ele só existe quando o cliente ligou
+  a opção e definiu a senha.
+{% endcomment %}
+
+{# ── Senha ── #}
+<section class="totem-tela totem-coluna" id="tela-manut-senha" hidden>
+  <div class="totem-manut-topo">
+    <span class="totem-manut-etiqueta">Manutenção</span>
+    <h2 class="totem-manut-titulo">Cadastro facial no totem</h2>
+  </div>
+
+  <form class="totem-formulario" id="form-manut-senha" autocomplete="off">
+    <label class="totem-rotulo" for="campo-manut-senha">Senha de manutenção</label>
+    <input class="totem-campo" id="campo-manut-senha" name="senha" type="password"
+           autocomplete="off" required>
+    <p class="totem-erro" id="erro-manut-senha" hidden></p>
+    <button type="submit" class="totem-botao">Entrar</button>
+    <button type="button" class="totem-botao totem-botao--secundario"
+            data-manut-sair>Cancelar</button>
+  </form>
+</section>
+
+{# ── Lista de colaboradores ── #}
+<section class="totem-tela totem-coluna" id="tela-manut-lista" hidden>
+  <div class="totem-manut-topo">
+    <span class="totem-manut-etiqueta">Manutenção</span>
+    <h2 class="totem-manut-titulo">Quem vai cadastrar?</h2>
+  </div>
+
+  <input class="totem-campo totem-manut-busca" id="campo-manut-busca"
+         placeholder="Buscar pelo nome" autocomplete="off">
+
+  <ul class="totem-manut-lista" id="manut-lista"></ul>
+  <p class="totem-instrucao" id="manut-lista-vazia" hidden>
+    Nenhum colaborador encontrado.
+  </p>
+
+  <div class="totem-acoes">
+    <button type="button" class="totem-botao totem-botao--secundario"
+            data-manut-sair>Sair da manutenção</button>
+  </div>
+</section>
+
+{# ── Consentimento LGPD ── #}
+<section class="totem-tela totem-coluna" id="tela-manut-lgpd" hidden>
+  <div class="totem-manut-topo">
+    <span class="totem-manut-etiqueta">Consentimento</span>
+    <h2 class="totem-manut-titulo" id="manut-lgpd-nome">—</h2>
+  </div>
+
+  <div class="totem-manut-texto">
+    <p>
+      A LGPD trata dado biométrico como <strong>dado pessoal sensível</strong>
+      (Art. 11). O consentimento precisa ser específico e destacado — uma
+      cláusula genérica no contrato de trabalho não basta.
+    </p>
+    <ul>
+      <li>A imagem vira um vetor numérico não reversível.</li>
+      <li>A finalidade é exclusivamente o registro de ponto.</li>
+      <li>O consentimento pode ser revogado a qualquer momento.</li>
+      <li>Recusar não impede bater o ponto: há o registro por CPF.</li>
+    </ul>
+  </div>
+
+  <label class="totem-manut-aceite">
+    <input type="checkbox" id="manut-lgpd-aceite">
+    <span>Declaro que a pessoa foi informada e consentiu com o cadastro
+      dos seus dados biométricos.</span>
+  </label>
+
+  <p class="totem-erro" id="erro-manut-lgpd" hidden></p>
+
+  <div class="totem-acoes">
+    <button type="button" class="totem-botao" id="manut-lgpd-continuar" disabled>
+      Continuar
+    </button>
+    <button type="button" class="totem-botao totem-botao--secundario"
+            data-manut-voltar-lista>Voltar</button>
+  </div>
+</section>
+
+{# ── Captura ── #}
+<section class="totem-tela totem-coluna" id="tela-manut-captura" hidden>
+  <div class="totem-manut-topo">
+    <span class="totem-manut-etiqueta" id="manut-captura-passo">Pose 1 de 5</span>
+    <h2 class="totem-manut-titulo" id="manut-captura-nome">—</h2>
+  </div>
+
+  {% comment %}
+    O mesmo enquadramento do registro de ponto: a captura precisa sair
+    na mesma moldura em que o rosto será reconhecido depois.
+  {% endcomment %}
+  <div class="totem-camera" id="manut-moldura">
+    <video id="manut-video" playsinline autoplay muted></video>
+    <div class="totem-camera__guia"></div>
+  </div>
+
+  <div class="totem-instrucao">
+    <p id="manut-instrucao">Olhe para a frente</p>
+  </div>
+
+  <div class="totem-manut-progresso" id="manut-progresso"></div>
+
+  <p class="totem-erro" id="erro-manut-captura" hidden></p>
+
+  <div class="totem-acoes">
+    <button type="button" class="totem-botao" id="manut-capturar">Capturar</button>
+    <button type="button" class="totem-botao totem-botao--secundario"
+            data-manut-voltar-lista>Concluir</button>
+  </div>
+</section>
+
 <div class="totem-marca">Kronus</div>
 {% endblock %}
 
@@ -230,6 +353,7 @@
 <script src="{% estatico 'totem/js/fila-offline.js' %}"></script>
 <script src="{% estatico 'totem/js/personalizacao.js' %}"></script>
 <script src="{% estatico 'totem/js/ui-controller.js' %}"></script>
+<script src="{% estatico 'totem/js/manutencao.js' %}"></script>
 <script src="{% estatico 'totem/js/totem-app.js' %}"></script>
 <script>
   (function () {
@@ -359,6 +483,26 @@
         erroFallbackBotao: q('#erro-fallback-botao'),
         erroVoltarBotao: q('#erro-voltar-botao')
       }
+    });
+
+    // ── Cadastro facial no proprio totem ──────────────────────
+    //
+    // Entra depois do app, e nao dentro dele: e um modo a parte, que
+    // nao registra ponto. Enquanto a manutencao esta aberta, o laco de
+    // reconhecimento para — duas partes disputando a mesma camera
+    // deixariam as duas sem imagem.
+    KronusManutencao.iniciar({
+      token: '{{ totem.token_acesso }}',
+      disponivel: {{ cadastro_no_totem|yesno:"true,false" }},
+      urls: {
+        entrar: '{% url "api:totem:totem_manutencao_entrar" %}',
+        sair: '{% url "api:totem:totem_manutencao_sair" %}',
+        colaboradores: '{% url "api:totem:totem_manutencao_colaboradores" %}',
+        consentimento: '{% url "api:totem:totem_manutencao_consentimento" %}',
+        amostra: '{% url "api:totem:totem_manutencao_amostra" %}'
+      },
+      aoEntrar: function () { KronusTotem.pausar(); },
+      aoSair: function () { KronusTotem.retomar(); }
     });
   })();
 </script>

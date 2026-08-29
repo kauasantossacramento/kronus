@@ -24,6 +24,7 @@
     enviando: false,
     ultimoEnvio: 0,
     loopDeteccao: null,
+    pausado: false,
 
     // ── Constantes de desempenho (Seção 6.5.2) ────────────────
     // Um quadro a cada 3 s deixava a pessoa parada na frente do totem
@@ -32,8 +33,11 @@
     // totem so respondia ao toque. A 700 ms a analise ocupa por volta de
     // um sexto do tempo num tablet modesto.
     INTERVALO_IDLE_MS: 700,      // ~1,4 analises por segundo no ocioso
-    INTERVALO_ATIVO_MS: 200,     // 5 FPS com a câmera ativa
-    DEBOUNCE_ENVIO_MS: 2000,     // mínimo entre envios ao servidor
+    INTERVALO_ATIVO_MS: 150,     // ~6,7 FPS com a câmera ativa
+    // 2 s entre envios eram sentidos como travamento quando o primeiro
+    // quadro nao passava: a pessoa ficava parada esperando sem sinal de
+    // que algo acontecia. 1,2 s ainda protege o servidor de uma rajada.
+    DEBOUNCE_ENVIO_MS: 1200,     // mínimo entre envios ao servidor
     TIMEOUT_CAMERA_MS: 20000,    // sem match em 20 s → fallback
     TIMEOUT_FALLBACK_MS: 30000,  // sem interação em 30 s → idle
     QUALIDADE_JPEG: 0.7,
@@ -119,6 +123,29 @@
       }
     },
 
+    /**
+     * Suspende o reconhecimento e solta a câmera.
+     *
+     * Usado pelo modo de manutenção, que precisa da mesma câmera para
+     * cadastrar. Duas partes pedindo o mesmo dispositivo deixariam as
+     * duas sem imagem — em tablet de baixo custo há uma câmera só, e
+     * ela não é compartilhável.
+     */
+    pausar: function () {
+      this.pausado = true;
+      this._pararLoop();
+      this.camera.fechar();
+      var telas = this.config.elementos.telas;
+      Object.keys(telas).forEach(function (nome) {
+        if (telas[nome]) telas[nome].hidden = true;
+      });
+    },
+
+    retomar: function () {
+      this.pausado = false;
+      this.irParaIdle();
+    },
+
     _ligarEventos: function () {
       var self = this;
       var el = this.config.elementos;
@@ -177,6 +204,7 @@
     // Estado 1 — ocioso
     // ══════════════════════════════════════════════════════════
     irParaIdle: function () {
+      if (this.pausado) return;
       this.estado = 'idle';
       this.enviando = false;
       this.tentativasFalhas = 0;
@@ -203,6 +231,7 @@
       this._pararLoop();
 
       var executar = function () {
+        if (self.pausado) return;
         if (!self.camera.ativa) {
           // Analisa assim que a camera abrir, e nao so no tique
           // seguinte: perder um ciclo inteiro aqui era metade da demora

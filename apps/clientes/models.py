@@ -126,6 +126,33 @@ class Cliente(BaseModel):
     dpo_nome = models.CharField("Encarregado de dados (DPO)", max_length=150, blank=True)
     dpo_email = models.EmailField("E-mail do DPO", blank=True)
 
+    # -- Cadastro facial no proprio totem ----------------------
+    #
+    # Por que existe: um rosto cadastrado por uma camera e reconhecido
+    # por outra com folga bem menor. Cadastrar no mesmo equipamento em
+    # que a pessoa vai bater o ponto elimina a diferenca de uma vez — a
+    # captura e o reconhecimento passam a vir da mesma otica, da mesma
+    # resolucao e da mesma iluminacao.
+    #
+    # Desligado por padrao: abre uma porta de manutencao num aparelho de
+    # parede, e isso e decisao de quem contrata.
+    cadastro_facial_no_totem = models.BooleanField(
+        "Permitir cadastro facial pelo totem",
+        default=False,
+        help_text=(
+            "Libera no totem um modo de manutenção protegido por senha, "
+            "para refazer a biometria dos colaboradores no próprio "
+            "equipamento."
+        ),
+    )
+    senha_totem = models.CharField(
+        "Senha de manutenção do totem", max_length=128, blank=True,
+        help_text="Guardada com hash — nunca em texto puro.",
+    )
+    senha_totem_definida_em = models.DateTimeField(
+        "Senha do totem definida em", null=True, blank=True
+    )
+
     observacoes = models.TextField("Observações internas", blank=True)
 
     class Meta:
@@ -163,6 +190,35 @@ class Cliente(BaseModel):
     @property
     def operacional(self) -> bool:
         return self.ativo and not self.suspenso
+
+    # -- Senha de manutencao do totem --------------------------
+    def definir_senha_totem(self, senha: str) -> None:
+        """
+        Guarda a senha com hash.
+
+        Ela abre um modo de manutencao num tablet de parede, ao alcance
+        de quem estiver fisicamente na frente dele. Guardar em texto puro
+        colocaria essa porta inteira dentro de um `SELECT`.
+        """
+        from django.contrib.auth.hashers import make_password
+
+        self.senha_totem = make_password(senha)
+        self.senha_totem_definida_em = timezone.now()
+        self.save(update_fields=[
+            "senha_totem", "senha_totem_definida_em", "updated_at",
+        ])
+
+    def conferir_senha_totem(self, senha: str) -> bool:
+        from django.contrib.auth.hashers import check_password
+
+        if not self.senha_totem or not senha:
+            return False
+        return check_password(senha, self.senha_totem)
+
+    @property
+    def cadastro_no_totem_disponivel(self) -> bool:
+        """Ligado **e** com senha definida — um sem o outro nao abre."""
+        return bool(self.cadastro_facial_no_totem and self.senha_totem)
 
     # -- limites do plano --------------------------------------
     @property

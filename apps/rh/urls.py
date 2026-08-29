@@ -109,6 +109,8 @@ urlpatterns = [
     path("configuracoes/personalizacao/", views_config.personalizacao, name="personalizacao"),
     path("configuracoes/notificacoes/", views_config.notificacoes, name="notificacoes_config"),
     path("configuracoes/integracao/", views_config.integracao, name="integracao"),
+    path("configuracoes/senha-totem/", views_config.senha_totem,
+         name="senha_totem"),
     # -- Dados: importacao e folha (Fase 6) ---------------------
     path(
         "dados/importar/",

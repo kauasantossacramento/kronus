@@ -780,3 +780,130 @@ html, body {
   font-size: .72rem;
 }
 .totem-degradado[hidden] { display: none !important; }
+
+/* ══════════ Manutenção — cadastro facial no próprio totem ══════════
+   Mesma linguagem das outras telas do quiosque: alto contraste, alvos
+   grandes o bastante para dedo, e nada que exija precisão de mouse. */
+.totem-manut-topo {
+  width: 100%;
+  max-width: 32rem;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+.totem-manut-etiqueta {
+  display: inline-block;
+  padding: .2rem .6rem;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, .14);
+  color: var(--totem-gold-accent);
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.totem-manut-titulo {
+  margin-top: .5rem;
+  font-size: clamp(1.15rem, 3.4vw, 1.6rem);
+  font-weight: 600;
+  color: var(--totem-text);
+}
+
+.totem-manut-busca { max-width: 32rem; margin-bottom: .875rem; }
+
+.totem-manut-lista {
+  width: 100%;
+  max-width: 32rem;
+  /* Rola dentro de si, e não a página: a tela cheia do totem não pode
+     ganhar barra de rolagem por causa de uma lista longa. */
+  max-height: 46vh;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.totem-manut-item { width: 100%; }
+.totem-manut-item__botao {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  /* 3,25rem de alvo: dedo, não cursor. */
+  min-height: 3.25rem;
+  padding: .75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: .75rem;
+  background: rgba(255, 255, 255, .04);
+  color: var(--totem-text);
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+.totem-manut-item__botao:hover,
+.totem-manut-item__botao:focus-visible {
+  border-color: rgba(255, 255, 255, .3);
+  background: rgba(255, 255, 255, .08);
+}
+.totem-manut-item__nome { font-weight: 500; }
+.totem-manut-item__estado {
+  flex-shrink: 0;
+  font-size: .78rem;
+  color: var(--totem-text-muted);
+}
+
+.totem-manut-texto {
+  width: 100%;
+  max-width: 32rem;
+  font-size: .9rem;
+  line-height: 1.55;
+  color: var(--totem-text-muted);
+  max-height: 38vh;
+  overflow-y: auto;
+}
+.totem-manut-texto strong { color: var(--totem-text); }
+.totem-manut-texto ul { margin: .75rem 0 0; padding-left: 1.1rem; }
+.totem-manut-texto li { margin-bottom: .3rem; }
+
+.totem-manut-aceite {
+  display: flex;
+  align-items: flex-start;
+  gap: .625rem;
+  width: 100%;
+  max-width: 32rem;
+  margin-top: 1rem;
+  font-size: .9rem;
+  line-height: 1.45;
+  color: var(--totem-text);
+  cursor: pointer;
+}
+.totem-manut-aceite input {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: .1rem;
+  accent-color: var(--totem-gold-accent);
+}
+
+.totem-manut-progresso {
+  display: flex;
+  gap: .4rem;
+  margin-top: .875rem;
+}
+.totem-manut-ponto {
+  width: .55rem;
+  height: .55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .18);
+}
+.totem-manut-ponto--feito { background: #34d399; }
+.totem-manut-ponto--atual {
+  background: var(--totem-gold-accent);
+  transform: scale(1.25);
+}
+
+@media (max-width: 480px) {
+  .totem-manut-lista { max-height: 40vh; }
+  .totem-manut-item__botao { flex-direction: column; align-items: flex-start; gap: .15rem; }
+}

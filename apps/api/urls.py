@@ -30,7 +30,7 @@ from drf_spectacular.views import (
 from django.views.generic import TemplateView
 from rest_framework.routers import DefaultRouter
 
-from apps.api import views_publicos, views_totem
+from apps.api import views_manutencao, views_publicos, views_totem
 
 app_name = "api"
 
@@ -43,6 +43,19 @@ totem_patterns = [
          name="totem_colaboradores_offline"),
     path("sincronizar/", views_totem.sincronizar_offline,
          name="totem_sincronizar"),
+
+    # Cadastro facial feito no proprio equipamento — ver
+    # apps/api/views_manutencao.py.
+    path("manutencao/entrar/", views_manutencao.entrar,
+         name="totem_manutencao_entrar"),
+    path("manutencao/sair/", views_manutencao.sair,
+         name="totem_manutencao_sair"),
+    path("manutencao/colaboradores/", views_manutencao.colaboradores,
+         name="totem_manutencao_colaboradores"),
+    path("manutencao/consentimento/", views_manutencao.consentimento,
+         name="totem_manutencao_consentimento"),
+    path("manutencao/amostra/", views_manutencao.amostra,
+         name="totem_manutencao_amostra"),
 ]
 
 relatorio_patterns = [

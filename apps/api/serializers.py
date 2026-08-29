@@ -192,4 +192,35 @@ class ConfigTotemSerializer(serializers.Serializer):
             # nao dependa de republicar o app do quiosque.
             "liveness_quadros": 4 if config.exigir_liveness else 0,
             "minutos_entre_marcacoes": config.minutos_entre_marcacoes,
+            # O totem so mostra a porta de manutencao quando ela existe.
+            # Um caminho que aparece e recusa ensina que ele esta ali.
+            "cadastro_facial_no_totem": (
+                totem.empresa.cliente.cadastro_no_totem_disponivel
+            ),
         }
+
+
+# ══════════════════════════════════════════════════════════════
+# Manutencao no totem — cadastro facial no proprio equipamento
+# ══════════════════════════════════════════════════════════════
+class EntrarManutencaoSerializer(serializers.Serializer):
+    """Senha de manutencao digitada na tela do totem."""
+
+    senha = serializers.CharField(max_length=128, trim_whitespace=False)
+
+
+class ConsentimentoTotemSerializer(serializers.Serializer):
+    """Consentimento LGPD colhido no proprio totem."""
+
+    colaborador_id = serializers.IntegerField()
+    # Caixa marcada na tela. Exigida como `True` — um consentimento que
+    # aceita `False` nao e consentimento, e o registro ficaria mentindo.
+    aceite = serializers.BooleanField()
+
+
+class AmostraTotemSerializer(serializers.Serializer):
+    """Captura facial feita no totem, em modo de manutencao."""
+
+    colaborador_id = serializers.IntegerField()
+    imagem = serializers.CharField()
+    angulo = serializers.CharField(max_length=20, required=False, allow_blank=True)

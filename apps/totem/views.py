@@ -75,6 +75,11 @@ def kiosk(request, token):
                 if slide.vigente
             ],
             "versao_app": VERSAO_APP,
+            # O gesto de manutencao so e ligado quando a porta existe:
+            # um caminho que aparece e recusa ensina que ele esta ali.
+            "cadastro_no_totem": (
+                totem.empresa.cliente.cadastro_no_totem_disponivel
+            ),
         },
     )
 

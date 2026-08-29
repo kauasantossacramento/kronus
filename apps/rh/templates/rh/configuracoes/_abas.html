@@ -17,6 +17,13 @@
      class="btn text-xs {% if ativa == 'slides' %}btn-primary{% else %}btn-outline{% endif %}">
     {% icone "totem" classe="h-4 w-4" %} Tela do totem
   </a>
+  {# Mesma regra da aba de integracoes: so aparece para quem tem. #}
+  {% if empresa_atual.cliente.cadastro_facial_no_totem %}
+    <a href="{% url 'rh:senha_totem' %}"
+       class="btn text-xs {% if ativa == 'senha_totem' %}btn-primary{% else %}btn-outline{% endif %}">
+      {% icone "rosto" classe="h-4 w-4" %} Cadastro no totem
+    </a>
+  {% endif %}
   {# API e webhooks so aparecem para quem tem: uma aba que existe e depois recusa e pior do que uma aba que nao existe. #}
   {% if empresa_atual.cliente.pode_integrar %}
     <a href="{% url 'rh:integracao' %}"

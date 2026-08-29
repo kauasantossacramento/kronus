@@ -456,3 +456,58 @@ def recarregar_totens(request):
         "a batida.",
     )
     return redirect(request.META.get("HTTP_REFERER") or "rh:equipamentos")
+
+
+@rh_required
+@empresa_ativa_required
+def senha_totem(request):
+    """
+    Senha que abre o cadastro facial no proprio totem.
+
+    Fica com o cliente, e nao so com a KS TEC, porque quem cadastra e
+    quem esta na frente do equipamento — depender de nos para trocar uma
+    senha de manutencao transformaria cada recadastro num chamado.
+
+    A tela nunca mostra a senha atual: no banco ela vive com hash, e
+    exibi-la exigiria guarda-la em texto puro. Diz apenas se existe.
+    """
+    cliente = request.empresa_ativa.cliente
+
+    # A opcao e liberada pela KS TEC, por contrato. A tela existe para
+    # definir a senha, e nao para ligar o recurso.
+    if not cliente.cadastro_facial_no_totem:
+        messages.error(
+            request,
+            "O cadastro facial pelo totem não está habilitado nesta conta. "
+            "Fale com a KS TEC.",
+        )
+        return redirect("rh:configuracoes")
+
+    if request.method == "POST":
+        senha = request.POST.get("senha") or ""
+        confirmacao = request.POST.get("confirmacao") or ""
+
+        if len(senha) < 6:
+            messages.error(request, "A senha precisa ter ao menos 6 caracteres.")
+        elif senha != confirmacao:
+            messages.error(request, "As senhas não coincidem.")
+        else:
+            cliente.definir_senha_totem(senha)
+            registrar_log(
+                request=request,
+                acao=LogAcesso.Acao.CONFIGURACAO,
+                descricao="Senha de manutenção do totem definida",
+                objeto=cliente,
+                empresa=request.empresa_ativa,
+            )
+            messages.success(
+                request,
+                "Senha definida. Use-a no totem para abrir o cadastro facial.",
+            )
+            return redirect("rh:senha_totem")
+
+    return render(
+        request,
+        "rh/configuracoes/senha_totem.html",
+        {"cliente": cliente, "tem_senha": bool(cliente.senha_totem)},
+    )

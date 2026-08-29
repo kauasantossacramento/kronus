@@ -291,6 +291,10 @@ REST_FRAMEWORK = {
         "api_key": "1000/hour",
         "totem_recognize": "600/hour",
         "totem_heartbeat": "3000/hour",
+        # Cadastro no proprio totem: um operador cadastrando cinco poses
+        # de varias pessoas seguidas cabe folgado; um script tentando
+        # senha, nao.
+        "totem_manutencao": "300/hour",
         "colaborador": "100/hour",
     },
 }
