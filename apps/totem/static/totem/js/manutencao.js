@@ -8,17 +8,17 @@
  * origem — mais barato do que compensá-la depois afrouxando o limiar,
  * que é o caminho que leva a reconhecer a pessoa errada.
  *
- * A entrada é escondida de propósito: três toques no relógio. A tela
- * fica numa parede, e um botão "Manutenção" visível seria um convite
+ * A entrada é escondida de propósito: três toques na logo. A tela fica
+ * numa parede, e um botão "Manutenção" visível seria um convite
  * permanente a quem passa. E só existe quando o cliente ligou a opção e
  * definiu a senha — o servidor decide, não o quiosque.
  */
 (function (global) {
   'use strict';
 
-  //: Três toques dentro desta janela abrem a senha. Curta o bastante
-  //: para não acontecer por acaso, longa o bastante para ser possível
-  //: com luva ou em tela que responde devagar.
+  //: Os três toques precisam caber nesta janela, contada do primeiro.
+  //: Curta o bastante para não acontecer por acaso; longa o bastante
+  //: para ser possível com luva ou em tela que responde devagar.
   var JANELA_TOQUES_MS = 1500;
   var TOQUES = 3;
 
@@ -51,23 +51,45 @@
     },
 
     // ── Entrada ────────────────────────────────────────────────
+    /**
+     * Três toques na logo abrem a senha.
+     *
+     * Na logo, e não no relógio, por duas razões.
+     *
+     * A primeira: o relógio é o que a pessoa olha e toca. Ele aparece em
+     * todas as telas, inclusive na de CPF, e quem espera a confirmação
+     * fica batendo nele.
+     *
+     * A segunda pesa mais. Na tela ociosa **qualquer** toque já abre a
+     * câmera — é assim que alguém registra o ponto quando o detector não
+     * engatilha. Ou seja, tocar três vezes em qualquer lugar é o gesto
+     * mais natural que existe ali, e o relógio caía bem no meio dele.
+     * Uma pessoa impaciente chegaria à tela de senha sem procurar.
+     *
+     * A logo é a única região que não faz nada quando tocada. E o toque
+     * nela para aqui: sem `stopPropagation`, o clique subiria para a
+     * tela ociosa e abriria a câmera junto.
+     */
     _ligarGestoDeEntrada: function () {
       var self = this;
       var toques = 0;
       var primeiro = 0;
 
-      var alvos = document.querySelectorAll('[data-relogio]');
+      var alvos = document.querySelectorAll('[data-kronus-logo]');
       Array.prototype.forEach.call(alvos, function (alvo) {
-        var area = alvo.closest('.totem-relogio') || alvo;
-        area.addEventListener('click', function () {
+        alvo.addEventListener('click', function (evento) {
+          evento.stopPropagation();
+
           var agora = Date.now();
           if (agora - primeiro > JANELA_TOQUES_MS) {
-            toques = 0;
+            toques = 1;
             primeiro = agora;
+            return;
           }
           toques += 1;
           if (toques >= TOQUES) {
             toques = 0;
+            primeiro = 0;
             self.abrirSenha();
           }
         });
