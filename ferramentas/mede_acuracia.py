@@ -31,9 +31,12 @@ import itertools
 import os
 import sys
 
-if __name__ == "__main__" and not os.environ.get("DJANGO_SETTINGS_MODULE"):
+if __name__ == "__main__":
+    # A raiz entra no path sempre, e nao so quando falta o settings: o
+    # ambiente de producao ja define DJANGO_SETTINGS_MODULE, e o `and`
+    # anterior pulava justamente onde o script mais precisa rodar.
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.development"
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
     import django
 
     django.setup()
