@@ -140,7 +140,28 @@ def main() -> int:
         )
 
     # ── 2. Separacao entre pessoas ────────────────────────────
+    #
+    # Medido sobre a galeria que o reconhecimento REALMENTE usa, e nao
+    # sobre tudo o que esta gravado: amostras ambiguas sao descartadas
+    # antes da comparacao, e medir sem esse filtro descreveria um
+    # sistema que nao existe.
     _linha("2. Pessoas diferentes ficam longe umas das outras?")
+    bruta = {p.pk: v for p, v in vetores_por_pessoa.items()}
+    usada = servico._sem_amostras_ambiguas(
+        {pk: servico._amostras_coerentes(v) for pk, v in bruta.items()}
+    )
+    por_pk = {p.pk: p for p in vetores_por_pessoa}
+    descartadas = {
+        por_pk[pk].nome_exibicao: len(bruta[pk]) - len(usada[pk])
+        for pk in bruta if len(bruta[pk]) != len(usada[pk])
+    }
+    if descartadas:
+        for nome, quantas in descartadas.items():
+            print(f"  {nome}: {quantas} amostra(s) fora da comparacao "
+                  f"(mais parecida com outra pessoa do que com as irmas)")
+        print()
+
+    vetores_por_pessoa = {por_pk[pk]: v for pk, v in usada.items()}
     pessoas = list(vetores_por_pessoa)
     if len(pessoas) < 2:
         print("  So ha uma pessoa cadastrada.")

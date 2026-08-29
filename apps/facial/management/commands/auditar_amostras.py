@@ -61,14 +61,34 @@ class Command(BaseCommand):
                 continue
 
             vetores = [r.obter_embedding() for r in registros]
+
+            # Amostras das OUTRAS pessoas da mesma empresa. Uma captura
+            # pode combinar com as irmas dentro do limite e ainda assim
+            # ficar perto de um colega — e essa e a que aproxima duas
+            # pessoas no reconhecimento, porque vale a menor distancia.
+            alheias = [
+                r.obter_embedding()
+                for r in FaceRegistro.objects.filter(
+                    ativo=True, colaborador__empresa=colaborador.empresa
+                ).exclude(colaborador=colaborador)
+            ]
+
             suspeitas = []
             for i, (registro, vetor) in enumerate(zip(registros, vetores)):
-                outras = sorted(
-                    distancia(vetor, v) for j, v in enumerate(vetores) if j != i
-                )
-                mediana = outras[len(outras) // 2]
+                irmas = [distancia(vetor, v) for j, v in enumerate(vetores) if j != i]
+                mediana = sorted(irmas)[len(irmas) // 2]
                 if mediana > limite:
-                    suspeitas.append((registro, mediana))
+                    suspeitas.append((registro, mediana, "diverge das irmãs"))
+                    continue
+
+                if not alheias:
+                    continue
+                perto_alheia = min(distancia(vetor, v) for v in alheias)
+                if perto_alheia < min(irmas):
+                    suspeitas.append((
+                        registro, perto_alheia,
+                        "mais parecida com outra pessoa do que com as irmãs",
+                    ))
 
             if not suspeitas:
                 continue
@@ -86,10 +106,10 @@ class Command(BaseCommand):
 
             total_suspeitas += len(suspeitas)
             self.stdout.write(self.style.WARNING(colaborador.nome_completo))
-            for registro, mediana in suspeitas:
+            for registro, valor, motivo in suspeitas:
                 self.stdout.write(
                     f"  amostra #{registro.pk} ({registro.angulo}) "
-                    f"mediana {mediana:.3f} > {limite:.2f}"
+                    f"{valor:.3f} — {motivo}"
                 )
                 if desativar:
                     registro.ativo = False
