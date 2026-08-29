@@ -53,17 +53,20 @@ from apps.facial.services import FaceRecognitionService
 #: proprio totem aplica antes de enviar (LARGURA_MINIMA/MAXIMA_ROSTO em
 #: face-detector.js): fora deles a imagem nem chega ao servidor, entao
 #: medir alem disso descreveria uma situacao que nao acontece.
+#: Calibrado no equipamento instalado: 0.28 de largura correspondeu a
+#: 80 cm. As demais distancias saem daí, porque a largura do rosto no
+#: quadro e inversamente proporcional a distancia.
 PROXIMIDADES = [
-    (0.60, "~20 cm — bem perto"),
-    (0.45, "~30 cm"),
-    (0.32, "~40 cm"),
-    (0.24, "~50 cm"),
-    (0.18, "~60 cm — limite que o totem aceita"),
+    (0.90, "~25 cm — bem perto"),
+    (0.64, "~35 cm"),
+    (0.45, "~50 cm"),
+    (0.37, "~60 cm"),
+    (0.32, "~70 cm — limite que o totem aceita"),
 ]
 
 #: Referencia: com que largura de rosto a foto de cadastro foi feita.
 #: As capturas do roteiro pedem o rosto preenchendo boa parte da moldura.
-LARGURA_DE_CADASTRO = 0.60
+LARGURA_DE_CADASTRO = 0.90
 
 
 def distancia(a, b) -> float:

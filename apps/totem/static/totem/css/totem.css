@@ -476,7 +476,9 @@ html, body {
   bottom: .8rem;
   z-index: 5;
   font-weight: 700;
-  font-size: .72rem;
+  /* Ajustável pelo painel: numa tela de 7 polegadas em pé, o que cabe
+     desta marca não é o que cabe da assinatura da KS TEC. */
+  font-size: var(--totem-marca-px, .72rem);
   letter-spacing: .15em;
   text-transform: uppercase;
   opacity: .6;

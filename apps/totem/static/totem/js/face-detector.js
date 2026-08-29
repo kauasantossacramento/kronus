@@ -64,16 +64,22 @@
      * pessoas parecidas. Foi nessa faixa que apareceram as
      * identificações no fio do limiar.
      *
-     * 0.28 dá ~180 px de rosto, cerca de 1,6× o que o modelo consome:
-     * reduzir 180 para 112 faz média de pixels reais, em vez de esticar
-     * os poucos que havia. Na prática são ~40 cm — a distância de quem
-     * veio bater o ponto, e não de quem passou no corredor.
+     * O valor de hoje vem de medição no equipamento instalado, e não de
+     * conta: com 0.28 o totem começava a tentar a **80 cm**. A estimativa
+     * anterior, de ~40 cm, saiu de supor um quadro de 640 px — a câmera
+     * do tablet tem outro campo de visão, e a conta não sobreviveu ao
+     * contato com o aparelho.
      *
-     * O custo é pedir "aproxime-se" com mais frequência. É um custo
-     * barato: a instrução aparece na tela e a pessoa dá um passo. O
-     * outro erro, o de identificar quem não é, não avisa ninguém.
+     * A largura do rosto no quadro é inversamente proporcional à
+     * distância, então 70 cm pede 0.28 × 80/70 ≈ 0.32.
+     *
+     * Por que insistir em perto: o recorte chega ao modelo com mais
+     * pixels reais, e é o detalhe que separa duas pessoas parecidas. O
+     * custo é pedir "aproxime-se" com mais frequência — a instrução
+     * aparece na tela e a pessoa dá um passo. O outro erro, o de
+     * identificar quem não é, não avisa ninguém.
      */
-    LARGURA_MINIMA_ROSTO: 0.28,
+    LARGURA_MINIMA_ROSTO: 0.32,
 
     /** Rosto acima disso está perto demais (recorte cortado). */
     LARGURA_MAXIMA_ROSTO: 0.85,

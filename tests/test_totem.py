@@ -679,3 +679,58 @@ class DuplaConfirmacaoTests(BaseTotemTestCase):
         ).json()
         self.assertEqual(dados["codigo"], "confirmando")
         self.assertFalse(RegistroPonto.objects.exists())
+
+
+class FrasesDeSucessoTests(BaseTotemTestCase):
+    """
+    A segunda linha da tela de sucesso e a voz da empresa: "Bom
+    trabalho!" cai bem num escritorio e soa estranho num hospital as
+    tres da manha.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.cadastrar_face(self.joao, ruido=10)
+
+    def test_sem_configurar_usa_as_frases_padrao(self):
+        from apps.core.constants import MENSAGENS_TOTEM
+
+        dados = self.reconhecer(10).json()
+        self.assertIn(dados["mensagem"], MENSAGENS_TOTEM)
+
+    def test_usa_as_frases_da_empresa(self):
+        self.empresa.frases_sucesso = "Obrigado!\nAté logo!"
+        self.empresa.save(update_fields=["frases_sucesso"])
+
+        dados = self.reconhecer(10).json()
+        self.assertIn(dados["mensagem"], ["Obrigado!", "Até logo!"])
+
+    def test_sem_sorteio_mostra_sempre_a_primeira(self):
+        self.empresa.frases_sucesso = "Registrado. Procure o RH.\nOutra"
+        self.empresa.frases_sorteadas = False
+        self.empresa.save(update_fields=["frases_sucesso", "frases_sorteadas"])
+
+        self.assertEqual(
+            self.empresa.frase_de_sucesso(), "Registrado. Procure o RH."
+        )
+
+    def test_lista_vazia_nao_deixa_a_tela_pela_metade(self):
+        # Espacos e linhas em branco nao contam; sem nada, voltam as
+        # padrao — uma lista vazia deixaria metade da mensagem sumir.
+        from apps.core.constants import MENSAGENS_TOTEM
+
+        self.empresa.frases_sucesso = "   \n\n  "
+        self.empresa.save(update_fields=["frases_sucesso"])
+        self.assertEqual(self.empresa.frases_de_sucesso(), list(MENSAGENS_TOTEM))
+
+    def test_a_altura_da_logo_do_totem_e_configuravel(self):
+        # Ja existia; o teste fixa que o campo continua chegando ao totem.
+        from django.urls import reverse
+
+        self.empresa.logo_altura_px = 140
+        self.empresa.save(update_fields=["logo_altura_px"])
+        dados = self.client.get(
+            reverse("api:totem:totem_config"),
+            HTTP_AUTHORIZATION=f"Token {self.totem.token_acesso}",
+        ).json()
+        self.assertEqual(dados["empresa"]["logo_altura_px"], 140)

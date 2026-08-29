@@ -56,6 +56,13 @@
   {% include "rh/configuracoes/_secao.html" with titulo="Jornada" descricao="Art. 58 §1º e Art. 71 da CLT" campos=form_config prefixos="tolerancia,intervalo,jornada" %}
   {% include "rh/configuracoes/_secao.html" with titulo="Horas extras e adicional noturno" descricao="Art. 59 e Art. 73 da CLT" campos=form_config prefixos="hora_extra,adicional,hora_ini,hora_fim,limite_hora" %}
   {% include "rh/configuracoes/_secao.html" with titulo="Banco de horas" descricao="Compensação e fechamento" campos=form_config prefixos="modo_compensacao,fecha_banco,prazo_compensacao" %}
+  {% comment %}
+    A secao agrupa por prefixo do nome do campo. `minutos_entre_marcacoes`
+    e `guardar_frames_reconhecimento` existiam no formulario e nao
+    apareciam em secao nenhuma — estavam no sistema e fora do alcance de
+    quem administra a empresa.
+  {% endcomment %}
+  {% include "rh/configuracoes/_secao.html" with titulo="Marcação no totem" descricao="Intervalo entre batidas e diagnóstico do reconhecimento" campos=form_config prefixos="minutos,guardar" %}
   {% include "rh/configuracoes/_secao.html" with titulo="Antifraude e LGPD" descricao="Detecção de GPS fictício e retenção de biometria" campos=form_config prefixos="anti_fake,exige_foto,liveness,apagar_foto,retencao" %}
   {% include "rh/configuracoes/_secao.html" with titulo="Exportação" descricao="Formato padrão e layout de folha" campos=form_config prefixos="exporta,layout" %}
 

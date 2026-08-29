@@ -343,7 +343,8 @@
   </div>
 </section>
 
-<div class="totem-marca">Kronus</div>
+<div class="totem-marca"
+     style="--totem-marca-px: {% firstof empresa.marca_kronus_px 13 %}px">Kronus</div>
 {% endblock %}
 
 {% block scripts %}

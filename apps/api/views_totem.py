@@ -42,7 +42,7 @@ from apps.api.serializers import (
     ReconhecimentoSerializer,
     RegistroTotemSerializer,
 )
-from apps.core.constants import MENSAGENS_TOTEM, MetodoRegistro
+from apps.core.constants import MetodoRegistro
 from apps.core.models import LogAcesso
 from apps.core.services import registrar_log
 from apps.core.utils import obter_ip
@@ -191,7 +191,10 @@ def _bater_ponto(colaborador, totem, request, *, metodo, confianca=None):
         "identificado": True,
         "colaborador": ColaboradorTotemSerializer(colaborador).data,
         "registro": RegistroTotemSerializer(registro).data,
-        "mensagem": random.choice(MENSAGENS_TOTEM),
+        # Da empresa quando ela definiu as suas; as padrao quando nao.
+        # Da empresa quando ela definiu as suas; as padrao quando nao —
+        # e sorteada ou fixa, conforme ela escolher.
+        "mensagem": totem.empresa.frase_de_sucesso(),
         "segundos_exibicao": totem.segundos_tela_sucesso,
     }, None
 

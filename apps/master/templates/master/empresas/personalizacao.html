@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load kronus_icons kronus_tags %}
+{% load kronus_icons kronus_tags static %}
 
 {% block cabecalho %}
 <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -109,8 +109,8 @@
 
         <div class="mt-5 grid gap-5 sm:grid-cols-2">
           {% for campo in form %}
-            {% if campo.name == "idle_screen_img" or campo.name == "msg_boas_vindas" or campo.name == "msg_boas_vindas_px" or campo.name == "slogan_totem" or campo.name == "slogan_px" or campo.name == "assinatura_altura_px" or campo.name == "msg_sucesso_ponto" or campo.name == "msg_sucesso_px" or campo.name == "tentativas_antes_do_cpf" or campo.name == "som_confirmacao" %}
-              <div class="{% if campo.field.widget.input_type == 'checkbox' %}sm:col-span-2 flex items-center gap-2{% elif campo.name == 'idle_screen_img' or campo.name == 'slogan_totem' %}sm:col-span-2{% endif %}">
+            {% if campo.name == "idle_screen_img" or campo.name == "msg_boas_vindas" or campo.name == "msg_boas_vindas_px" or campo.name == "slogan_totem" or campo.name == "slogan_px" or campo.name == "assinatura_altura_px" or campo.name == "marca_kronus_px" or campo.name == "msg_sucesso_ponto" or campo.name == "msg_sucesso_px" or campo.name == "frases_sucesso" or campo.name == "frases_sorteadas" or campo.name == "tentativas_antes_do_cpf" or campo.name == "som_confirmacao" %}
+              <div class="{% if campo.field.widget.input_type == 'checkbox' %}sm:col-span-2 flex items-center gap-2{% elif campo.name == 'idle_screen_img' or campo.name == 'slogan_totem' or campo.name == 'frases_sucesso' %}sm:col-span-2{% endif %}">
                 {% if campo.field.widget.input_type == 'checkbox' %}
                   {{ campo }}
                   <label for="{{ campo.id_for_label }}" class="text-sm text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
@@ -188,6 +188,77 @@
 
   {# Prévia: o que o colaborador vê ao abrir a página da empresa. #}
   <div class="space-y-6">
+    <div class="card p-5">
+      <div class="flex items-baseline justify-between gap-3">
+        <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Prévia do totem</h2>
+        <span class="text-[11px] text-[var(--kronus-gray-500)]">7&quot; em pé · 600×1024</span>
+      </div>
+      {% comment %}
+        Proporção do equipamento real, e não um retângulo qualquer.
+
+        As duas marcas do rodapé disputam a mesma faixa, e numa tela de
+        7 polegadas em pé essa faixa é estreita. Ajustar os tamanhos sem
+        ver o resultado significava ir até o totem para descobrir que a
+        assinatura tinha encostado na palavra Kronus.
+
+        A prévia é uma aproximação — a fonte e o recorte da câmera
+        variam com o aparelho. O que ela mostra com fidelidade é a
+        proporção entre as marcas e o espaço que sobra.
+      {% endcomment %}
+      <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+        As duas marcas do rodapé dividem uma faixa estreita. Aqui dá para
+        ver como ficam antes de ir até o equipamento.
+      </p>
+
+      <div class="mt-4 flex justify-center">
+        <div id="previa-totem"
+             class="relative overflow-hidden rounded-2xl border-4 border-slate-800 shadow-lg"
+             style="width: 200px; aspect-ratio: 600 / 1024; background: #0B1F33">
+
+          <div class="flex h-full flex-col items-center justify-center px-3 text-center">
+            {% if empresa.logo %}
+              <img id="previa-totem-logo" src="{{ empresa.logo.url }}" alt=""
+                   class="w-auto object-contain"
+                   style="height: {{ empresa.logo_altura_px|default:64 }}px;
+                          transform: scale(.42) translateY({{ empresa.logo_deslocamento_px|default:0 }}px);
+                          {{ empresa|css_logo_totem }}">
+            {% else %}
+              <img id="previa-totem-logo" src="{% static 'img/logo-kronus-branco.svg' %}" alt=""
+                   class="w-auto object-contain"
+                   style="height: {{ empresa.logo_altura_px|default:64 }}px; transform: scale(.42)">
+            {% endif %}
+
+            <p id="previa-totem-boas" class="mt-1 font-semibold text-white"
+               style="font-size: calc({{ empresa.msg_boas_vindas_px|default:28 }}px * .42)">
+              {{ empresa.msg_boas_vindas|default:"Registre seu ponto" }}
+            </p>
+            <p id="previa-totem-slogan" class="text-slate-400"
+               style="font-size: calc({{ empresa.slogan_px|default:15 }}px * .42)">
+              {{ empresa.slogan_totem|default:"Seu tempo registrado com precisão" }}
+            </p>
+
+            <div class="mt-3 rounded-full border-2 border-dashed border-amber-400/50"
+                 style="width: 54px; height: 68px"></div>
+          </div>
+
+          {# Rodapé: as duas marcas, no tamanho configurado #}
+          <div id="previa-totem-kronus"
+               class="absolute bottom-1.5 left-2 font-bold uppercase tracking-widest text-slate-500"
+               style="font-size: calc({{ empresa.marca_kronus_px|default:13 }}px * .42)">Kronus</div>
+          <div class="absolute bottom-1.5 right-2 flex items-center">
+            <img id="previa-totem-kstec" src="{{ KSTEC_LOGO }}" alt="KS TEC"
+                 class="w-auto object-contain opacity-70"
+                 style="height: calc({{ empresa.assinatura_altura_px|default:16 }}px * .42);
+                        filter: brightness(0) invert(1)">
+          </div>
+        </div>
+      </div>
+
+      <p class="mt-3 text-center text-[11px] text-[var(--kronus-gray-400)]">
+        Aproximação em escala. A fonte e o recorte da câmera variam com o aparelho.
+      </p>
+    </div>
+
     <div class="card p-5">
       <h2 class="font-display text-sm font-semibold text-[var(--kronus-gray-800)]">Prévia</h2>
       <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
@@ -297,6 +368,76 @@
 
   var corPrimaria = ligar('id_cor_primaria', function () {
     if (botao && corPrimaria) botao.style.background = corPrimaria.value;
+  });
+
+  // ── Previa do totem ───────────────────────────────────────
+  //
+  // A tela do equipamento e de 7 polegadas em pe, e as duas marcas do
+  // rodape dividem uma faixa estreita. Ajustar os tamanhos sem ver o
+  // resultado significava ir ate o totem para descobrir que uma tinha
+  // encostado na outra.
+  //
+  // A escala e a mesma da caixa desenhada: 200 px de largura para uma
+  // tela de 600, ou 0,42 — os tamanhos digitados sao em pixels do
+  // aparelho, e precisam encolher junto.
+  var ESCALA = 0.42;
+
+  function ligarTamanho(idCampo, idAlvo, aplicar) {
+    var alvo = document.getElementById(idAlvo);
+    var campo = ligar(idCampo, function () {
+      if (!alvo || !campo) return;
+      var valor = parseFloat(campo.value);
+      if (isNaN(valor)) return;
+      aplicar(alvo, valor * ESCALA);
+    });
+  }
+
+  ligarTamanho('id_marca_kronus_px', 'previa-totem-kronus', function (el, px) {
+    el.style.fontSize = px + 'px';
+  });
+  ligarTamanho('id_assinatura_altura_px', 'previa-totem-kstec', function (el, px) {
+    el.style.height = px + 'px';
+  });
+  ligarTamanho('id_msg_boas_vindas_px', 'previa-totem-boas', function (el, px) {
+    el.style.fontSize = px + 'px';
+  });
+  ligarTamanho('id_slogan_px', 'previa-totem-slogan', function (el, px) {
+    el.style.fontSize = px + 'px';
+  });
+
+  // A logo do totem tem altura e deslocamento, e o `transform` carrega
+  // os dois: mexer num sem reescrever o outro apagaria o primeiro.
+  var logoTotem = document.getElementById('previa-totem-logo');
+  var alturaLogo = document.getElementById('id_logo_altura_px');
+  var deslocaLogo = document.getElementById('id_logo_deslocamento_px');
+  var brancaTotem = document.getElementById('id_logo_branca_totem');
+
+  function ajustarLogoTotem() {
+    if (!logoTotem) return;
+    var altura = parseFloat(alturaLogo && alturaLogo.value);
+    var desloca = parseFloat(deslocaLogo && deslocaLogo.value) || 0;
+    if (!isNaN(altura)) logoTotem.style.height = altura + 'px';
+    logoTotem.style.transform =
+      'scale(' + ESCALA + ') translateY(' + desloca + 'px)';
+    if (brancaTotem) {
+      logoTotem.style.filter = brancaTotem.checked ? BRANCA : '';
+    }
+  }
+
+  [alturaLogo, deslocaLogo, brancaTotem].forEach(function (campo) {
+    if (!campo) return;
+    campo.addEventListener('input', ajustarLogoTotem);
+    campo.addEventListener('change', ajustarLogoTotem);
+  });
+  ajustarLogoTotem();
+
+  // Texto tambem: quem troca a mensagem quer ver se ela cabe.
+  [['id_msg_boas_vindas', 'previa-totem-boas'],
+   ['id_slogan_totem', 'previa-totem-slogan']].forEach(function (par) {
+    var alvo = document.getElementById(par[1]);
+    var campo = ligar(par[0], function () {
+      if (alvo && campo) alvo.textContent = campo.value;
+    });
   });
 })();
 </script>

@@ -178,12 +178,18 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             "slogan_totem",
             "slogan_px",
             "assinatura_altura_px",
+            "marca_kronus_px",
             "msg_sucesso_ponto",
             "msg_sucesso_px",
+            "frases_sucesso",
+            "frases_sorteadas",
             "tentativas_antes_do_cpf",
             "som_confirmacao",
         )
         widgets = {
+            "frases_sucesso": forms.Textarea(
+                attrs={"rows": 4, "placeholder": "Bom trabalho!"}
+            ),
             "cor_primaria": forms.TextInput(
                 attrs={"type": "color", "class": "h-10 w-20 rounded border-slate-300"}
             ),

@@ -435,6 +435,22 @@ class Empresa(BaseModel):
         default="Ponto registrado!",
         help_text="Use {nome} para o primeiro nome e {hora} para o horário.",
     )
+    frases_sucesso = models.TextField(
+        "Frases após o ponto",
+        blank=True,
+        help_text=(
+            "Uma por linha. Deixe em branco para usar as frases padrão."
+        ),
+    )
+    frases_sorteadas = models.BooleanField(
+        "Sortear a frase a cada batida",
+        default=True,
+        help_text=(
+            "Desligado, o totem mostra sempre a primeira da lista — útil "
+            "quando a mensagem faz parte do procedimento e precisa ser "
+            "sempre a mesma."
+        ),
+    )
     som_confirmacao = models.BooleanField(
         "Som ao registrar o ponto",
         default=True,
@@ -549,10 +565,21 @@ class Empresa(BaseModel):
     #: de distancia — que e exatamente a distancia de quem passa pela
     #: portaria.
     assinatura_altura_px = models.PositiveSmallIntegerField(
-        "Altura da assinatura no totem (px)",
+        "Altura da assinatura KS TEC no totem (px)",
         default=16,
         validators=[MinValueValidator(10), MaxValueValidator(72)],
-        help_text="Tamanho da marca no rodapé da tela do totem.",
+        help_text="Tamanho da marca da KS TEC no rodapé da tela do totem.",
+    )
+    #: A palavra "Kronus" no rodape, separada da assinatura da KS TEC.
+    #:
+    #: Sao duas marcas, com pesos diferentes: numa tela de 7 polegadas em
+    #: pe, o que cabe de uma nao e o que cabe da outra. Um numero so para
+    #: as duas obrigava a escolher qual ficaria errada.
+    marca_kronus_px = models.PositiveSmallIntegerField(
+        "Altura da marca Kronus no totem (px)",
+        default=13,
+        validators=[MinValueValidator(8), MaxValueValidator(48)],
+        help_text="Tamanho da palavra Kronus no rodapé da tela do totem.",
     )
 
     #: Fundo da pagina de acesso da empresa.
@@ -742,6 +769,38 @@ class Empresa(BaseModel):
         if self.logo_css:
             regras.append(self.logo_css.strip().rstrip(";") + ";")
         return " ".join(regras)
+
+    def frases_de_sucesso(self) -> list[str]:
+        """
+        Frases que acompanham o "ponto registrado".
+
+        Configuraveis porque a segunda linha e a voz da empresa: "Bom
+        trabalho!" cai bem num escritorio e soa estranho num hospital as
+        tres da manha. Em branco devolve as padrao — uma lista vazia
+        deixaria a tela com metade da mensagem.
+        """
+        from apps.core.constants import MENSAGENS_TOTEM
+
+        linhas = [
+            linha.strip()
+            for linha in (self.frases_sucesso or "").splitlines()
+            if linha.strip()
+        ]
+        return linhas or list(MENSAGENS_TOTEM)
+
+    def frase_de_sucesso(self) -> str:
+        """
+        A frase da vez.
+
+        Sortear e agradavel numa portaria movimentada e ruim onde a
+        mensagem faz parte do procedimento — ali a pessoa precisa ver
+        sempre a mesma coisa para notar quando algo mudou. Por isso a
+        escolha e da empresa; sem sorteio, vale a primeira da lista.
+        """
+        import random
+
+        frases = self.frases_de_sucesso()
+        return random.choice(frases) if self.frases_sorteadas else frases[0]
 
     @property
     def nome_exibicao(self) -> str:
