@@ -24,6 +24,7 @@ Entao:
 import logging
 import secrets
 
+from django.conf import settings
 from django.core.cache import cache
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -397,8 +398,26 @@ def amostra(request):
         empresa=pessoa.empresa,
         usuario=None,
     )
+    # O espalhamento vai junto para que quem esta cadastrando saiba, ali
+    # mesmo, que o cadastro saiu fraco — e refaca enquanto a pessoa ainda
+    # esta na frente da camera. Descobrir isso semanas depois, pelo
+    # colaborador que nunca e reconhecido, e tarde.
+    espalhamento = servico.espalhamento(pessoa)
+    limite = settings.FACE_ESPALHAMENTO_ACEITAVEL
+    fraco = espalhamento is not None and espalhamento > limite
+
     return Response(
-        {"ok": True, "qualidade": round(registro.qualidade, 1), "amostras": total}
+        {
+            "ok": True,
+            "qualidade": round(registro.qualidade, 1),
+            "amostras": total,
+            "espalhamento": round(espalhamento, 3) if espalhamento else None,
+            "cadastro_fraco": fraco,
+            "aviso": (
+                "As capturas estão muito diferentes entre si. Refaça o "
+                "cadastro com iluminação estável e sem virar demais o rosto."
+            ) if fraco else "",
+        }
     )
 
 

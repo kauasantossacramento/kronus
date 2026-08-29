@@ -421,15 +421,34 @@ DEEPFACE_DETECTOR = config("DEEPFACE_DETECTOR", default="mtcnn")
 #: usar o fallback por CPF (inconveniente); falso POSITIVO registra ponto
 #: no nome de outra pessoa (fraude, com consequencia trabalhista).
 #: 0,60 zerou os falsos positivos nas duas amostras medidas.
-#: Ajustado de 0,60 para 0,55 apos um falso positivo em producao.
+#: Medido em producao, e nao herdado do plano.
 #:
-#: A medicao de 0,60 valia para a comparacao contra a MEDIA das amostras
-#: da pessoa. A comparacao passou a ser contra CADA amostra, ficando com
-#: a menor distancia — o que baixa toda distancia, inclusive a de quem
-#: nao e a pessoa, e invalidou aquela calibracao. Ela nao foi refeita na
-#: hora, e o custo apareceu no totem: um visitante registrado no nome de
-#: outro.
-FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.55, cast=float)
+#: Historico curto: 0,68 (plano) -> 0,60 -> 0,55 -> 0,45. Cada corte veio
+#: de um falso positivo real, e o ultimo tem numero:
+#:
+#:     visitante aceito como o titular          0,4929
+#:     o proprio titular, no mesmo dia          0,516 e 0,523
+#:
+#: O impostor ficou MAIS PERTO do que a pessoa certa. Isso nao e limiar
+#: mal escolhido: e um cadastro que nao discrimina, feito com as poses
+#: espalhadas (0,18 a 0,51 entre si) e numa camera diferente da que
+#: registra o ponto.
+#:
+#: 0,45 fica abaixo do falso positivo medido e acima do reconhecimento
+#: legitimo de um cadastro bem feito (0,24 a 0,41, medido antes). O
+#: efeito colateral e assumido: cadastro ruim deixa de ser reconhecido, e
+#: a pessoa usa o CPF. Preferimos o incomodo a registrar ponto no nome
+#: de outro — e a saida definitiva e cadastrar no proprio totem.
+FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.45, cast=float)
+
+#: Espalhamento maximo entre as poses de um cadastro saudavel.
+#:
+#: Acima disso o cadastro e fraco: as capturas nao concordam entre si o
+#: bastante para sustentar uma identificacao. Nao bloqueia — avisa, e o
+#: aviso chega a quem cadastrou, que e quem pode refazer na hora.
+FACE_ESPALHAMENTO_ACEITAVEL = config(
+    "FACE_ESPALHAMENTO_ACEITAVEL", default=0.45, cast=float
+)
 
 #: Margem exigida sobre o segundo colocado, quando ha mais de uma pessoa.
 #:

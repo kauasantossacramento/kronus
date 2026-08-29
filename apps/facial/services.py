@@ -237,6 +237,33 @@ class FaceRecognitionService:
         )
         return total
 
+    def espalhamento(self, colaborador) -> float | None:
+        """
+        Maior distancia entre duas capturas do mesmo cadastro.
+
+        E a medida de saude do cadastro. Poses da mesma pessoa variam —
+        mas se a maior variacao chega perto da distancia que separa
+        pessoas diferentes, o cadastro nao sustenta uma identificacao:
+        em producao, um visitante ficou a 0,4929 do titular enquanto as
+        proprias poses dele estavam a ate 0,507 entre si.
+
+        Devolve `None` com menos de duas capturas, quando nao ha o que
+        comparar.
+        """
+        import itertools
+
+        vetores = [
+            r.obter_embedding()
+            for r in colaborador.registros_faciais.filter(ativo=True)
+            if r.embedding
+        ]
+        vetores = [v for v in vetores if v is not None and v.size]
+        if len(vetores) < 2:
+            return None
+        return max(
+            self._distancia(a, b) for a, b in itertools.combinations(vetores, 2)
+        )
+
     def consolidar_cadastro(self, colaborador) -> int:
         """
         Recalcula o embedding médio do colaborador a partir das amostras

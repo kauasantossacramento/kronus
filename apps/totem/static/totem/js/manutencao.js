@@ -106,7 +106,6 @@
     },
 
     sair: function () {
-      var self = this;
       this._fecharCamera();
       if (this.chave) {
         this._pedir('sair', 'POST', {}).catch(function () {});
@@ -114,7 +113,12 @@
       this.chave = '';
       this.pessoa = null;
       this.ativa = false;
-      self.config.aoSair();
+      // Esconder as telas da manutencao faz parte de sair. Sem isto elas
+      // continuavam por cima do "Registre seu ponto": o totem voltava ao
+      // ocioso por baixo, e a tela de senha ficava sobreposta, sem
+      // caminho de volta.
+      this._mostrar(null);
+      this.config.aoSair();
     },
 
     // ── Requisições ────────────────────────────────────────────
@@ -383,11 +387,19 @@
         }
 
         self.pose += 1;
-        var pessoa = self.pessoa;
-        pessoa.amostras = dados.amostras;
+        self.pessoa.amostras = dados.amostras;
 
         if (self.pose >= POSES.length) {
           self._fecharCamera();
+          // Um cadastro fraco precisa ser dito aqui, com a pessoa ainda
+          // na frente da câmera. Descobrir semanas depois, pelo
+          // colaborador que nunca é reconhecido, é tarde.
+          if (dados.cadastro_fraco) {
+            self._erro('erro-manut-captura', dados.aviso);
+            self.pose = 0;
+            self._atualizarPose();
+            return;
+          }
           self._carregarLista();
           return;
         }

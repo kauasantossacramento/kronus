@@ -23,7 +23,20 @@
   A ordem não é a do banco de dados: é a da conversa que quem cadastra
   tem com a pessoa.
 {% endcomment %}
-<form method="post" enctype="multipart/form-data" x-data="wizard()" class="max-w-3xl">
+{% comment %}
+  `novalidate` de proposito.
+
+  A validacao do navegador nao enxerga passos: com o formulario em
+  etapas, um campo obrigatorio de um passo oculto trava o envio e o
+  navegador nao consegue nem focar o campo para reclamar. O resultado e
+  o pior possivel — clicar em salvar e nao acontecer **nada**, sem
+  mensagem alguma. Foi o que aconteceu com `data_admissao`.
+
+  Quem valida e o servidor, que ja devolve o erro por campo; e o
+  formulario abre no passo onde o erro esta.
+{% endcomment %}
+<form method="post" enctype="multipart/form-data" x-data="wizard()" novalidate
+      class="max-w-3xl">
   {% csrf_token %}
 
   {% if form.non_field_errors %}
@@ -53,21 +66,24 @@
   </ol>
 
   {# ── Passo 1: quem é ─────────────────────────────────────── #}
-  <div x-show="passo === 0" class="card p-6">
+  <div data-passo="0" x-show="passo === 0" class="card p-6">
     <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Identificação</h2>
     <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+      Tudo o que é obrigatório está aqui, e só aqui: daqui em diante o
+      cadastro pode ser salvo e completado depois.
       O CPF identifica a pessoa nos arquivos fiscais. A data de nascimento é o
       segundo fator do registro por CPF no totem — sem ela correta, quem o rosto
-      não reconhecer fica sem alternativa.
+      não reconhecer fica sem alternativa. A admissão define a partir de quando
+      a jornada é cobrada.
     </p>
     <div class="mt-5 grid gap-5 sm:grid-cols-2">
       {% for campo in form %}
-        {% if campo.name == "nome_completo" or campo.name == "nome_social" or campo.name == "cpf" or campo.name == "data_nascimento" or campo.name == "email" or campo.name == "telefone" %}
+        {% if campo.name == "nome_completo" or campo.name == "nome_social" or campo.name == "cpf" or campo.name == "data_nascimento" or campo.name == "data_admissao" or campo.name == "email" or campo.name == "telefone" %}
           <div class="{% if campo.name == 'nome_completo' %}sm:col-span-2{% endif %}">
             <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
             <div class="mt-1.5">{{ campo }}</div>
             {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
-            {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+            {% if campo.errors %}<p data-campo-erro class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
           </div>
         {% endif %}
       {% endfor %}
@@ -75,7 +91,7 @@
   </div>
 
   {# ── Passo 2: jornada ────────────────────────────────────── #}
-  <div x-show="passo === 1" x-cloak class="card p-6">
+  <div data-passo="1" x-show="passo === 1" x-cloak class="card p-6">
     <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Jornada e vínculo</h2>
     <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
       A escala define o que é hora extra e o que é falta. Sem ela, o sistema
@@ -83,12 +99,12 @@
     </p>
     <div class="mt-5 grid gap-5 sm:grid-cols-2">
       {% for campo in form %}
-        {% if campo.name == "escala" or campo.name == "departamento" or campo.name == "cargo_ref" or campo.name == "cargo" or campo.name == "data_admissao" or campo.name == "matricula" %}
+        {% if campo.name == "escala" or campo.name == "departamento" or campo.name == "cargo_ref" or campo.name == "cargo" or campo.name == "matricula" %}
           <div>
             <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
             <div class="mt-1.5">{{ campo }}</div>
             {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
-            {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+            {% if campo.errors %}<p data-campo-erro class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
           </div>
         {% endif %}
       {% endfor %}
@@ -96,7 +112,7 @@
   </div>
 
   {# ── Passo 3: documentos ─────────────────────────────────── #}
-  <div x-show="passo === 2" x-cloak class="card p-6">
+  <div data-passo="2" x-show="passo === 2" x-cloak class="card p-6">
     <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Documentos e foto</h2>
     <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
       Complemento do cadastro. Nada aqui impede o ponto de funcionar.
@@ -108,7 +124,7 @@
             <label for="{{ campo.id_for_label }}" class="block text-sm font-medium text-[var(--kronus-gray-700)]">{{ campo.label }}</label>
             <div class="mt-1.5">{{ campo }}</div>
             {% if campo.help_text %}<p class="mt-1 text-xs text-[var(--kronus-gray-500)]">{{ campo.help_text }}</p>{% endif %}
-            {% if campo.errors %}<p class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
+            {% if campo.errors %}<p data-campo-erro class="mt-1 text-xs text-red-600">{{ campo.errors.0 }}</p>{% endif %}
           </div>
         {% endif %}
       {% endfor %}
@@ -116,7 +132,7 @@
   </div>
 
   {# ── Passo 4: acesso e biometria ─────────────────────────── #}
-  <div x-show="passo === 3" x-cloak class="card p-6">
+  <div data-passo="3" x-show="passo === 3" x-cloak class="card p-6">
     <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Acesso e biometria</h2>
 
     <div class="mt-5 space-y-4">
@@ -144,7 +160,14 @@
       </p>
 
       <label class="mt-3 flex items-start gap-2">
+        {% comment %}
+          Desligado enquanto a pessoa não chegou até aqui: campo
+          desabilitado não é enviado. Quem clica em "Salvar agora" no
+          primeiro passo nunca viu esta caixa — e ia parar numa tela de
+          captura de rosto sem ter pedido.
+        {% endcomment %}
         <input type="checkbox" name="ir_para_biometria" value="1" checked
+               :disabled="!visitados.includes(3)"
                class="mt-0.5 h-4 w-4 rounded border-[var(--kronus-gray-300)] text-[var(--kronus-primary-600)]">
         <span>
           <span class="text-sm font-medium text-[var(--kronus-gray-700)]">Cadastrar o rosto agora</span>
@@ -191,6 +214,22 @@
     return {
       passo: 0,
       visitados: [0],
+
+      init() {
+        // Abre no passo onde esta o erro. Sem isto, o servidor recusa,
+        // a pagina volta no passo 1 e a mensagem fica escondida tres
+        // passos adiante — de novo o "cliquei e nao aconteceu nada".
+        var erro = this.$el.querySelector('[data-campo-erro]');
+        var caixa = erro && erro.closest('[data-passo]');
+        if (!caixa) return;
+        var alvo = parseInt(caixa.dataset.passo, 10);
+        if (isNaN(alvo)) return;
+        for (var i = 0; i <= alvo; i += 1) {
+          if (!this.visitados.includes(i)) this.visitados.push(i);
+        }
+        this.passo = alvo;
+      },
+
       nomes: ['Identificação', 'Jornada', 'Documentos', 'Acesso'],
       ir(i) {
         // Só deixa pular para onde já se passou: adiante, o passo pode
