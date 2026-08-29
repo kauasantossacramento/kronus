@@ -179,7 +179,9 @@ class FaceRecognitionService:
             )
         ]
         anteriores = [v for v in anteriores if v is not None and len(v)]
-        if len(anteriores) < 2:
+        # Tres ou mais: com duas, a mediana e ruidosa demais para recusar
+        # a captura de alguem na frente da camera.
+        if len(anteriores) < 3:
             return
 
         distancias = sorted(self._distancia(vetor, v) for v in anteriores)
@@ -405,35 +407,70 @@ class FaceRecognitionService:
         """
         Distância de cada colaborador ao rosto, do mais próximo ao menos.
 
-        A comparação é contra **cada amostra**, e não contra a média
-        delas. A média não funciona no caso mais comum — cadastrar pela
-        webcam do computador e reconhecer na câmera do tablet: câmeras
+        Vale a **menor** distância entre as amostras da pessoa, e não a
+        distância até a média delas. A média não funciona no caso mais
+        comum — cadastrar pela webcam e reconhecer no tablet: câmeras
         diferentes produzem vetores em regiões diferentes, e o centroide
         entre elas não se parece com nenhuma.
 
-        Mas ficar com a menor distância entre as amostras, sem mais nada,
-        cria um problema pior. Uma única amostra ruim — foto tremida,
-        recorte errado, outra pessoa no quadro — passa a autorizar
-        sozinha: qualquer rosto próximo dela é aceito como o titular.
-        Aconteceu em produção, e o resultado foi ponto batido no nome de
-        outra pessoa.
+        A menor distância tem um risco conhecido: uma amostra ruim passa
+        a autorizar sozinha. Aconteceu em produção — uma captura de outro
+        rosto entrou no cadastro e um visitante foi identificado como o
+        titular. A proteção contra isso **não** está aqui, e sim em
+        `_amostras_coerentes`, que impede a amostra contaminada de
+        participar.
 
-        Por isso, quem tem três ou mais amostras é pontuado pela
-        **segunda** menor distância. Uma amostra fora do lugar deixa de
-        abrir a porta sozinha, e a tolerância entre câmeras se mantém:
-        basta que duas capturas concordem.
+        Foi uma tentativa de resolver isso aqui, exigindo a segunda menor
+        distância. Não se sustentou: o roteiro de cadastro pede cinco
+        poses, e poses da mesma pessoa ficam a 0,38–0,48 entre si. Exigir
+        que duas concordassem punia justamente o cadastro bem feito — o
+        titular passou a ser reconhecido no limite do limiar, quando
+        antes era reconhecido com folga.
         """
         pontos = []
         for pk, vetores in candidatos.items():
             amostras = vetores if isinstance(vetores, list) else [vetores]
-            distancias = sorted(
-                self._distancia(vetor, amostra) for amostra in amostras
+            pontos.append(
+                (pk, min(self._distancia(vetor, a) for a in amostras))
             )
-            posicao = 1 if len(distancias) >= 3 else 0
-            pontos.append((pk, distancias[posicao]))
 
         pontos.sort(key=lambda par: par[1])
         return pontos
+
+    @classmethod
+    def _amostras_coerentes(cls, amostras: list) -> list:
+        """
+        Descarta a amostra que não combina com as demais do titular.
+
+        Uma captura de outro rosto — ou um recorte errado — não é
+        diversidade de pose: é contaminação. E como o reconhecimento fica
+        com a menor distância, ela vira uma porta aberta para quem se
+        pareça com ela.
+
+        A medida é a **mediana** das distâncias às irmãs, porque separa
+        bem no caso real: entre poses legítimas fica em 0,38–0,48; a
+        contaminada medida em produção estava em 0,70.
+
+        Só age com três ou mais amostras. Com duas não há maioria: apontar
+        a divergente seria escolher uma das duas no cara ou coroa.
+        """
+        if len(amostras) < 3:
+            return amostras
+
+        limite = settings.FACE_DISTANCIA_MAXIMA_AMOSTRA
+        mantidas = []
+        for i, amostra in enumerate(amostras):
+            outras = sorted(
+                cls._distancia(amostra, v)
+                for j, v in enumerate(amostras) if j != i
+            )
+            if outras[len(outras) // 2] <= limite:
+                mantidas.append(amostra)
+
+        # Nunca deixar o colaborador sem referencia: se quase tudo
+        # diverge, o cadastro inteiro esta errado, e recusar tudo aqui
+        # so trocaria o erro por um colaborador que nao bate ponto.
+        return mantidas if len(mantidas) >= 2 else amostras
 
     @staticmethod
     def _distancia(vetor, amostra) -> float:
@@ -465,13 +502,10 @@ class FaceRecognitionService:
         Devolve `{colaborador_id: [vetor, vetor, ...]}` — cada captura
         entra como referência própria, e não diluída numa média.
         """
-        chave = f"{CACHE_PREFIXO}:empresa:{empresa_id}:v2"
+        chave = f"{CACHE_PREFIXO}:empresa:{empresa_id}:v3"
         cacheado = cache.get(chave)
         if cacheado is not None:
-            return {
-                pk: [np.frombuffer(d, dtype=np.float32) for d in dados]
-                for pk, dados in cacheado
-            }
+            return self._limpar(cacheado)
 
         from apps.facial.models import FaceRegistro
         from apps.rh.models import Colaborador
@@ -495,19 +529,34 @@ class FaceRecognitionService:
             if dados:
                 por_colaborador.setdefault(pk, []).append(bytes(dados))
 
-        # A media entra tambem: ela cobre quem foi cadastrado antes de as
-        # amostras passarem a ser guardadas, e nao atrapalha quem tem as
-        # duas — a menor distancia e que decide.
-        for pk, dados in elegiveis.exclude(
-            face_embedding__isnull=True
-        ).values_list("pk", "face_embedding"):
-            if dados:
-                por_colaborador.setdefault(pk, []).append(bytes(dados))
+        # A media entra **so** para quem nao tem amostra individual —
+        # cadastros anteriores a elas serem guardadas.
+        #
+        # Somar a media a quem ja tem amostras acrescentava um vetor que
+        # nao corresponde a captura nenhuma: o centroide de cinco poses
+        # cai numa regiao generica do espaco, perto de rostos em geral. E
+        # como vale a menor distancia, esse ponto medio funcionava como
+        # mais uma porta.
+        sem_amostras = [pk for pk in elegiveis.values_list("pk", flat=True)
+                        if pk not in por_colaborador]
+        if sem_amostras:
+            for pk, dados in elegiveis.filter(pk__in=sem_amostras).exclude(
+                face_embedding__isnull=True
+            ).values_list("pk", "face_embedding"):
+                if dados:
+                    por_colaborador.setdefault(pk, []).append(bytes(dados))
 
         serializado = list(por_colaborador.items())
         cache.set(chave, serializado, CACHE_TTL_SEGUNDOS)
+        return self._limpar(serializado)
+
+    @classmethod
+    def _limpar(cls, serializado) -> dict:
+        """Converte o cache em vetores, sem as amostras incoerentes."""
         return {
-            pk: [np.frombuffer(d, dtype=np.float32) for d in dados]
+            pk: cls._amostras_coerentes(
+                [np.frombuffer(d, dtype=np.float32) for d in dados]
+            )
             for pk, dados in serializado
         }
 
@@ -518,6 +567,7 @@ class FaceRecognitionService:
             return
         cache.delete(f"{CACHE_PREFIXO}:empresa:{empresa_id}")
         cache.delete(f"{CACHE_PREFIXO}:empresa:{empresa_id}:v2")
+        cache.delete(f"{CACHE_PREFIXO}:empresa:{empresa_id}:v3")
 
     # ══════════════════════════════════════════════════════════
     # Auditoria

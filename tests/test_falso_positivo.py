@@ -46,8 +46,13 @@ class PontuacaoTests(TestCase):
         """
         O defeito de producao, reproduzido.
 
-        Quatro amostras coerentes do titular, mais uma contaminada. Um
+        Quatro capturas coerentes do titular, mais uma contaminada. Um
         rosto que so se parece com a contaminada nao pode ser aceito.
+
+        A protecao nao esta na pontuacao — que continua sendo a menor
+        distancia, porque poses da mesma pessoa ficam naturalmente
+        distantes entre si. Esta em nao deixar a amostra contaminada
+        participar.
         """
         titular = vetor(1)
         contaminada = vetor(99)          # longe do titular
@@ -60,13 +65,17 @@ class PontuacaoTests(TestCase):
         ]
         visitante = perto(contaminada, 0.20, 21)
 
-        (_, distancia), = self.servico._pontuar(visitante, {7: amostras})
-
+        # Sem o filtro, o visitante entraria.
         menor = min(self.servico._distancia(visitante, a) for a in amostras)
         self.assertLess(menor, 0.55, "o cenario so faz sentido se a menor passaria")
+
+        limpas = self.servico._amostras_coerentes(amostras)
+        self.assertEqual(len(limpas), 4, "a contaminada deveria ficar de fora")
+
+        (_, distancia), = self.servico._pontuar(visitante, {7: limpas})
         self.assertGreater(
             distancia, 0.55,
-            "uma unica amostra ruim voltou a abrir a porta sozinha",
+            "sem a amostra contaminada, o visitante nao se parece com ninguem",
         )
 
     def test_o_titular_continua_sendo_reconhecido(self):
@@ -105,26 +114,52 @@ class MargemTests(TestCase):
     num sorteio: quem estiver um milesimo mais perto leva o ponto.
     """
 
-    def test_a_segunda_menor_distancia_e_a_que_conta(self):
+    def test_vale_a_menor_distancia_entre_as_amostras(self):
+        """
+        Exigir a SEGUNDA menor foi uma tentativa de conter a amostra
+        contaminada aqui, e nao se sustentou. O roteiro de cadastro pede
+        cinco poses, e poses da mesma pessoa ficam a 0,38-0,48 entre si
+        (medido em producao) — exigir que duas concordassem punia o
+        cadastro bem feito. O titular passou a ser reconhecido no limite
+        do limiar, quando antes era reconhecido com folga.
+        """
         servico = FaceRecognitionService.__new__(FaceRecognitionService)
         base = vetor(3)
-        # tres amostras: duas coerentes, uma solta
-        amostras = [perto(base, 0.10, 71), perto(base, 0.12, 72), vetor(77)]
+        amostras = [perto(base, 0.10, 71), perto(base, 0.40, 72),
+                    perto(base, 0.45, 74)]
         alvo = perto(base, 0.11, 73)
         (_, d), = servico._pontuar(alvo, {1: amostras})
         distancias = sorted(servico._distancia(alvo, a) for a in amostras)
-        self.assertAlmostEqual(d, distancias[1], places=5)
-
-    def test_com_menos_de_tres_amostras_usa_a_menor(self):
-        # Exigir a segunda com duas amostras puniria quem cadastrou o
-        # minimo, sem ganho: nao ha maioria a formar.
-        servico = FaceRecognitionService.__new__(FaceRecognitionService)
-        base = vetor(4)
-        amostras = [perto(base, 0.10, 81), perto(base, 0.30, 82)]
-        alvo = perto(base, 0.11, 83)
-        (_, d), = servico._pontuar(alvo, {1: amostras})
-        distancias = sorted(servico._distancia(alvo, a) for a in amostras)
         self.assertAlmostEqual(d, distancias[0], places=5)
+
+    def test_com_menos_de_tres_amostras_nada_e_descartado(self):
+        # Com duas nao ha maioria: apontar a divergente seria escolher
+        # uma das duas no cara ou coroa.
+        servico = FaceRecognitionService.__new__(FaceRecognitionService)
+        amostras = [vetor(81), vetor(82)]
+        self.assertEqual(len(servico._amostras_coerentes(amostras)), 2)
+
+    def test_poses_distantes_entre_si_nao_sao_descartadas(self):
+        """
+        A faixa medida em producao para o mesmo rosto em cinco poses:
+        mediana de 0,38 a 0,48. Nada disso pode ser tratado como
+        contaminacao — foi o erro que recusou uma captura legitima.
+        """
+        servico = FaceRecognitionService.__new__(FaceRecognitionService)
+        base = vetor(5)
+        poses = [base] + [perto(base, d, 90 + i)
+                          for i, d in enumerate((0.40, 0.45, 0.48, 0.44))]
+        self.assertEqual(
+            len(servico._amostras_coerentes(poses)), 5,
+            "poses legitimas foram tratadas como rosto diferente",
+        )
+
+    def test_nunca_deixa_o_colaborador_sem_referencia(self):
+        # Se quase tudo diverge, o cadastro inteiro esta errado — e
+        # recusar tudo aqui trocaria o erro por alguem que nao bate ponto.
+        servico = FaceRecognitionService.__new__(FaceRecognitionService)
+        soltas = [vetor(s) for s in (91, 92, 93, 94)]
+        self.assertEqual(len(servico._amostras_coerentes(soltas)), 4)
 
 
 @override_settings(FACE_MARGEM_MINIMA=0.06, FACE_RECOGNITION_THRESHOLD=0.55)

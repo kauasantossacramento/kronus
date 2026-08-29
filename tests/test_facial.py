@@ -1014,5 +1014,9 @@ class CamerasDiferentesTests(TestCase):
         )
         candidatos = FaceRecognitionService().candidatos([self.empresa])
 
-        # Três amostras mais a média guardada.
-        self.assertEqual(len(candidatos[colaborador.pk]), 4)
+        # Três amostras, e só. A média não entra mais para quem tem
+        # amostras: o centroide de poses diferentes não corresponde a
+        # captura nenhuma e cai numa região genérica do espaço, perto de
+        # rostos em geral — e como vale a menor distância, ele funcionava
+        # como mais uma porta de entrada.
+        self.assertEqual(len(candidatos[colaborador.pk]), 3)

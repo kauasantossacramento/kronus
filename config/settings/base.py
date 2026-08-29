@@ -435,16 +435,20 @@ FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.55, 
 #: lado do incomodo, e nao para o lado da fraude.
 FACE_MARGEM_MINIMA = config("FACE_MARGEM_MINIMA", default=0.06, cast=float)
 
-#: Distancia maxima entre uma amostra nova e as ja cadastradas.
+#: Distancia mediana acima da qual uma amostra nao e do mesmo rosto.
 #:
-#: Existe por um caso real: uma sexta captura entrou a 0,70 das outras
-#: cinco — distancia de pessoa diferente. Como o reconhecimento fica com
-#: a MENOR distancia entre as amostras, essa amostra virou uma porta
-#: aberta: qualquer rosto proximo dela era aceito como o titular. Uma
-#: amostra que nao se parece com as outras nao e diversidade de angulo,
-#: e contaminacao.
+#: Medido no cadastro real de producao, com as cinco poses que o roteiro
+#: pede (frontal, esquerda, direita, cima, baixo):
+#:
+#:     amostras legitimas da MESMA pessoa   mediana 0,38 a 0,48
+#:     amostra contaminada (outro rosto)    mediana 0,70
+#:
+#: 0,62 fica entre as duas faixas. O primeiro valor que usei, 0,55,
+#: caiu perto demais da variacao legitima entre poses e recusou uma
+#: captura boa — as poses "cima" e "baixo" sao naturalmente distantes
+#: da frontal, e isso e o cadastro funcionando, nao falhando.
 FACE_DISTANCIA_MAXIMA_AMOSTRA = config(
-    "FACE_DISTANCIA_MAXIMA_AMOSTRA", default=0.55, cast=float
+    "FACE_DISTANCIA_MAXIMA_AMOSTRA", default=0.62, cast=float
 )
 
 #: Motor de reconhecimento — ver apps.facial.providers.obter_provedor.
