@@ -41,6 +41,30 @@
         </button>
       </div>
 
+      {% comment %}
+        Recarregar a página é diferente de atualizar a configuração.
+
+        Salvar a personalização já manda o totem buscar cores, logo,
+        mensagens e slides e aplicar ao vivo, sem derrubar a tela cheia
+        — é o caminho normal, e cobre quase tudo.
+
+        Este botão é para o resto: código novo publicado, ou algo travado
+        na tela. Ele espera o equipamento ficar ocioso, então ninguém é
+        interrompido no meio de uma batida — mas a tela pisca, e a
+        escolha precisa ser de quem clica.
+      {% endcomment %}
+      <form method="post" action="{% url 'master:totem_recarregar' totem.pk %}"
+            class="mt-4 border-t border-[var(--kronus-gray-200)] pt-4">
+        {% csrf_token %}
+        <p class="text-xs text-[var(--kronus-gray-500)]">
+          Recarrega a página do totem assim que ele ficar ocioso. Use
+          quando houver versão nova ou a tela estiver travada.
+        </p>
+        <button type="submit" class="btn btn-outline mt-2 text-xs">
+          {% icone "raio" classe="h-3.5 w-3.5" %} Recarregar a página
+        </button>
+      </form>
+
       <form method="post" action="{% url 'master:totem_regenerar_token' totem.pk %}" class="mt-4 border-t border-[var(--kronus-gray-200)] pt-4"
             onsubmit="return confirm('Regenerar o token? A URL atual para de funcionar imediatamente e o tablet precisará ser reconfigurado.');">
         {% csrf_token %}

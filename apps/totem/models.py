@@ -174,6 +174,19 @@ class Totem(BaseModel):
     #: Pedido pontual de recarga, atendido no proximo heartbeat.
     #: Diferente da versao de configuracao da empresa: serve para o
     #: suporte destravar **um** equipamento sem mexer nos outros.
+    #: Recarga de verdade, pedida pelo suporte.
+    #:
+    #: Diferente de `recarga_solicitada_em`, que so faz o totem buscar a
+    #: configuracao e aplicar ao vivo — cores, logo, mensagens. Isso
+    #: cobre quase tudo e nao derruba a tela cheia, e por isso e o
+    #: padrao. Mas nao traz codigo novo, e quando o problema esta no
+    #: codigo o unico caminho e recarregar a pagina.
+    #:
+    #: Fica separado para a escolha ser deliberada: quem clica em
+    #: "recarregar" sabe que a tela vai piscar.
+    recarga_total_em = models.DateTimeField(
+        "Recarga total pedida em", null=True, blank=True
+    )
     recarga_solicitada_em = models.DateTimeField(
         "Recarga solicitada em", null=True, blank=True
     )
@@ -286,9 +299,27 @@ class Totem(BaseModel):
         self.save(update_fields=campos)
 
     def solicitar_recarga(self):
-        """Faz o totem recarregar a pagina no proximo heartbeat."""
+        """
+        Faz o totem buscar a configuracao e aplicar ao vivo.
+
+        O nome ficou de quando isto recarregava a pagina de verdade. Hoje
+        so atualiza cores, logo, mensagens e imagens — o que cobre quase
+        toda mudanca do painel e nao derruba a tela cheia. Para trazer
+        codigo novo, `pedir_recarga_total`.
+        """
         self.recarga_solicitada_em = timezone.now()
         self.save(update_fields=["recarga_solicitada_em", "updated_at"])
+
+    def pedir_recarga_total(self):
+        """
+        Pede a recarga da pagina, e nao so da configuracao.
+
+        Usar quando o problema esta no codigo — a atualizacao ao vivo
+        nao traz arquivo novo. O totem espera ficar ocioso antes de
+        recarregar, entao ninguem e interrompido no meio de uma batida.
+        """
+        self.recarga_total_em = timezone.now()
+        self.save(update_fields=["recarga_total_em", "updated_at"])
 
     def regenerar_token(self) -> str:
         self.token_acesso = gerar_token(32)

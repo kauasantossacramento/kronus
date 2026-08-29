@@ -339,3 +339,45 @@ class GrupoTotemUpdateView(MasterRequiredMixin, SucessoMensagemMixin, UpdateView
     success_url = reverse_lazy("master:grupo_totem_lista")
     mensagem_sucesso = "Grupo atualizado."
     extra_context = {"titulo": "Editar grupo", "menu_ativo": "totens"}
+
+
+@master_required
+@require_POST
+def totem_recarregar(request, pk):
+    """
+    Pede ao totem que recarregue a pagina.
+
+    Diferente de salvar a personalizacao, que ja manda o equipamento
+    buscar a configuracao e aplicar ao vivo — cores, logo, mensagens,
+    slides — sem derrubar a tela cheia. Isso cobre quase toda mudanca do
+    painel, e por isso e o caminho normal.
+
+    Este botao existe para o resto: quando ha codigo novo publicado, ou
+    quando algo travou na tela e so uma pagina limpa resolve. O totem
+    espera ficar ocioso antes de recarregar, entao ninguem e
+    interrompido no meio de uma batida — mas a tela pisca, e a escolha
+    precisa ser de quem clica.
+    """
+    totem = get_object_or_404(Totem, pk=pk)
+    totem.pedir_recarga_total()
+    messages.success(
+        request,
+        f"Recarga pedida ao {totem.identificador}. Ela acontece assim que o "
+        f"equipamento ficar ocioso.",
+    )
+    return redirect("master:totem_detalhe", pk=pk)
+
+
+@master_required
+@require_POST
+def totens_recarregar_todos(request):
+    """Mesma coisa, para a frota inteira."""
+    totens = Totem.objects.filter(ativo=True)
+    for totem in totens:
+        totem.pedir_recarga_total()
+    messages.success(
+        request,
+        f"Recarga pedida a {totens.count()} totem(ns). Cada um recarrega ao "
+        f"ficar ocioso.",
+    )
+    return redirect("master:totem_lista")

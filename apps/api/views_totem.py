@@ -509,6 +509,14 @@ def heartbeat(request):
                     if totem.recarga_solicitada_em
                     else None
                 ),
+                # Recarga da pagina, pedida pelo suporte. Separada da de
+                # cima: aquela aplica configuracao ao vivo, esta traz
+                # codigo novo — e so a segunda faz a tela piscar.
+                "recarga_total_em": (
+                    totem.recarga_total_em.isoformat()
+                    if totem.recarga_total_em
+                    else None
+                ),
             },
         }
     )

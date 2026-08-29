@@ -103,11 +103,13 @@ class AssinaturaService:
         if com_teste:
             assinatura.status = Assinatura.Status.TESTE
             assinatura.data_fim_teste = hoje + timedelta(days=cls.DIAS_DE_TESTE)
-            assinatura.proxima_cobranca = assinatura.data_fim_teste
+            assinatura.proxima_cobranca = cls.no_dia_do_cliente(
+                cliente, assinatura.data_fim_teste
+            )
         else:
             assinatura.status = Assinatura.Status.PENDENTE
-            assinatura.proxima_cobranca = hoje + timedelta(
-                days=config.dias_ate_vencimento
+            assinatura.proxima_cobranca = cls.no_dia_do_cliente(
+                cliente, hoje + timedelta(days=config.dias_ate_vencimento)
             )
         assinatura.save()
 
@@ -126,6 +128,42 @@ class AssinaturaService:
                     assinatura.pk,
                 )
         return assinatura
+
+    @staticmethod
+    def no_dia_do_cliente(cliente, referencia):
+        """
+        Move a data para o dia de vencimento combinado com o cliente.
+
+        O cadastro guarda `dia_vencimento` desde sempre, e a assinatura
+        o ignorava: a cobranca caia N dias depois da contratacao, no dia
+        que desse. Para quem fecha o financeiro no dia 10, uma fatura no
+        dia 23 e uma conversa por mes.
+
+        Nunca puxa para tras: o vencimento vai para o proximo dia 10 a
+        partir da referencia, e nao para o dia 10 que ja passou.
+
+        Mes que nao tem o dia pedido cai no ultimo. Dia 31 em fevereiro
+        nao existe, e adiar para marco atrasaria a cobranca de um mes
+        inteiro.
+        """
+        import calendar
+        from datetime import date
+
+        dia = getattr(cliente, "dia_vencimento", None)
+        if not dia:
+            return referencia
+
+        def no_mes(ano, mes):
+            ultimo = calendar.monthrange(ano, mes)[1]
+            return date(ano, mes, min(dia, ultimo))
+
+        candidata = no_mes(referencia.year, referencia.month)
+        if candidata >= referencia:
+            return candidata
+
+        mes = referencia.month + 1
+        ano = referencia.year + (1 if mes > 12 else 0)
+        return no_mes(ano, 1 if mes > 12 else mes)
 
     @staticmethod
     def _valor_do_ciclo(plano, ciclo) -> Decimal:

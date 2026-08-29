@@ -155,6 +155,19 @@
       // Sem esta comparacao, um totem instalado ficava preso na versao
       // com que foi aberto ate alguem ir ate la — que era exatamente o
       // que acontecia.
+      // Recarga pedida pelo suporte: mesmo caminho do codigo novo,
+      // com a mesma cortesia de esperar a tela ficar ociosa.
+      var pedido = String(config.recarga_total_em || '');
+      if (pedido) {
+        if (this._recargaPedida === undefined) {
+          this._recargaPedida = pedido;
+        } else if (pedido !== this._recargaPedida) {
+          this._recargaPedida = pedido;
+          console.info('[Kronus] Recarga pedida pelo suporte.');
+          this.aoPedirRecargaTotal();
+        }
+      }
+
       var estaticos = String(config.estaticos || '');
       if (estaticos) {
         if (this._versaoEstaticos === undefined) {

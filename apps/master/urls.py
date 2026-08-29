@@ -50,6 +50,12 @@ urlpatterns = [
         views_totem.TotemUpdateView.as_view(),
         name="totem_editar",
     ),
+    # Recarga de verdade — distinta da atualizacao ao vivo, que ja
+    # acontece ao salvar a personalizacao. Ver views_totem.
+    path("totens/recarregar/", views_totem.totens_recarregar_todos,
+         name="totens_recarregar"),
+    path("totens/<int:pk>/recarregar/", views_totem.totem_recarregar,
+         name="totem_recarregar"),
     path("totens/<int:pk>/comodato/", views_totem.totem_comodato, name="totem_comodato"),
     path(
         "totens/<int:pk>/token/",
