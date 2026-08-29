@@ -243,6 +243,7 @@ def _distribuicao_status(empresa, hoje):
         StatusDia.JUSTIFICADO: "#3B82F6",
         StatusDia.ATESTADO: "#8B5CF6",
         StatusDia.FOLGA: "#94A3B8",
+        StatusDia.COMPENSADO: "#0EA5E9",
         StatusDia.FERIADO: "#D4A017",
         StatusDia.FERIAS: "#06B6D4",
         StatusDia.AFASTAMENTO: "#64748B",

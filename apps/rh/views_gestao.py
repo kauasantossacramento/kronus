@@ -222,7 +222,38 @@ class JustificativaCreateView(BaseRHFormView, CreateView):
 
     def form_valid(self, form):
         form.instance.solicitada_por = self.request.user
-        return super().form_valid(form)
+        resposta = super().form_valid(form)
+
+        # Quem concede folga compensatoria precisa ver a conta. O debito
+        # so acontece na aprovacao, mas dizer aqui evita a descoberta
+        # tardia de que o saldo nao cobria o dia.
+        aviso = form.aviso_de_saldo()
+        if aviso:
+            messages.info(self.request, _texto_do_saldo(aviso))
+        return resposta
+
+
+def _texto_do_saldo(aviso) -> str:
+    """Frase unica sobre o efeito da folga no banco."""
+    if not aviso.get("minutos"):
+        return (
+            "Neste dia a escala não prevê jornada, então a folga não "
+            "debita nada do banco de horas."
+        )
+
+    def hm(minutos):
+        sinal = "-" if minutos < 0 else ""
+        minutos = abs(int(minutos))
+        return f"{sinal}{minutos // 60}h{minutos % 60:02d}"
+
+    frase = (
+        f"Ao aprovar, {hm(aviso['minutos'])} serão descontadas do banco "
+        f"de horas ({hm(aviso['saldo_antes'])} → "
+        f"{hm(aviso['saldo_depois'])})."
+    )
+    if aviso["saldo_depois"] < 0:
+        frase += " O saldo ficará negativo."
+    return frase
 
 
 @rh_required

@@ -407,15 +407,28 @@ class ConsolidacaoService:
             data_inicio__lte=dia, data_fim__gte=dia
         ).exists()
 
-        justificado = colaborador.justificativas.filter(
-            status=StatusAprovacao.APROVADO, data=dia, abona_dia=True
+        from apps.core.constants import TipoJustificativa
+
+        aprovadas = colaborador.justificativas.filter(
+            status=StatusAprovacao.APROVADO, data=dia
+        )
+        # Compensacao e abono se excluem: uma debita a jornada do banco,
+        # a outra perdoa a divida. Tratar a folga compensatoria como
+        # "justificada" — que era o unico caminho antes — dava a folga e
+        # mantinha as horas no banco, para serem pagas depois.
+        compensado = aprovadas.filter(
+            tipo=TipoJustificativa.FOLGA_COMPENSATORIA
         ).exists()
+        justificado = (
+            not compensado and aprovadas.filter(abona_dia=True).exists()
+        )
 
         return {
             "eh_feriado": eh_feriado,
             "coberto_por_atestado": coberto_por_atestado,
             "coberto_por_afastamento": coberto_por_afastamento,
             "justificado": justificado,
+            "compensado": compensado,
         }
 
     # ══════════════════════════════════════════════════════════

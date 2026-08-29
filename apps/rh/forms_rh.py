@@ -140,11 +140,66 @@ class JustificativaForm(FormEscopadoPorEmpresa):
         return motivo
 
     def clean(self):
+        from apps.core.constants import TipoJustificativa
+
         dados = super().clean()
         data = dados.get("data")
-        if data and data > timezone.localdate():
+        tipo = dados.get("tipo")
+
+        # Folga compensatoria e o unico tipo que se agenda: ela se
+        # combina antes, e nao se explica depois. Os demais justificam
+        # algo que ja aconteceu, e uma data futura ali e digitacao errada.
+        if (
+            data
+            and data > timezone.localdate()
+            and tipo != TipoJustificativa.FOLGA_COMPENSATORIA
+        ):
             self.add_error("data", "Não é possível justificar um dia futuro.")
+
+        if tipo == TipoJustificativa.FOLGA_COMPENSATORIA:
+            # `abona_dia` nao se aplica: a folga compensatoria debita a
+            # jornada do banco, e nunca perdoa. Deixar a caixa decidir
+            # daria duas leituras para o mesmo lancamento.
+            dados["abona_dia"] = True
+
         return dados
+
+    def aviso_de_saldo(self):
+        """
+        Quanto sai do banco, e quanto sobra.
+
+        Devolvido para a view avisar quem concede — o calculo definitivo
+        e o da consolidacao, aqui e so a previsao para a decisao ser
+        tomada com o numero na frente.
+        """
+        from apps.core.constants import TipoJustificativa
+        from apps.ponto.models import BancoHoras
+
+        dados = getattr(self, "cleaned_data", None) or {}
+        if dados.get("tipo") != TipoJustificativa.FOLGA_COMPENSATORIA:
+            return None
+
+        colaborador = dados.get("colaborador")
+        data = dados.get("data")
+        if not colaborador or not data:
+            return None
+
+        escala = colaborador.escala
+        minutos = escala.minutos_esperados(data) if escala else 0
+        if not minutos:
+            return {"minutos": 0, "saldo_antes": None, "saldo_depois": None}
+
+        saldo = (
+            BancoHoras.objects.filter(colaborador=colaborador, data__lt=data)
+            .order_by("-data")
+            .values_list("saldo_acumulado", flat=True)
+            .first()
+        ) or 0
+        return {
+            "minutos": minutos,
+            "saldo_antes": saldo,
+            "saldo_depois": saldo - minutos,
+        }
 
 
 class JustificativaColaboradorForm(JustificativaForm):

@@ -274,6 +274,11 @@ class FolhaExporter:
                 dias_falta=Count("pk", filter=Q(status=StatusDia.FALTA)),
                 dias_atestado=Count("pk", filter=Q(status=StatusDia.ATESTADO)),
                 dias_dsr=Count("pk", filter=Q(status=StatusDia.FOLGA)),
+                # Contado a parte: folga compensada nao e descanso
+                # semanal, e sim hora ja trabalhada sendo devolvida.
+                dias_compensados=Count(
+                    "pk", filter=Q(status=StatusDia.COMPENSADO)
+                ),
             )
         )
         totais = {item["colaborador_id"]: item for item in agregado}

@@ -113,6 +113,7 @@ class CalculadoraJornada:
         coberto_por_atestado: bool = False,
         coberto_por_afastamento: bool = False,
         justificado: bool = False,
+        compensado: bool = False,
     ) -> ResultadoDia:
         """
         `registros` deve vir ordenado por `data_hora`, já em horário local,
@@ -140,6 +141,7 @@ class CalculadoraJornada:
             coberto_por_atestado=coberto_por_atestado,
             coberto_por_afastamento=coberto_por_afastamento,
             justificado=justificado,
+            compensado=compensado,
         )
 
         # Dias abonados não geram débito: o saldo é zerado.
@@ -150,6 +152,19 @@ class CalculadoraJornada:
             StatusDia.AFASTAMENTO,
         ):
             resultado.saldo_dia = max(resultado.saldo_dia, 0)
+            resultado.minutos_atraso = 0
+            resultado.minutos_saida_antecipada = 0
+
+        # A folga compensada faz o contrário do abono: **debita**.
+        #
+        # O saldo do dia já é `trabalhado - esperado`, ou seja, menos a
+        # jornada inteira quando ninguém bateu ponto. É exatamente o que
+        # sai do banco, e por isso não há conta nova aqui — o que muda é
+        # o nome do dia e o fato de o débito não ser perdoado.
+        #
+        # Atraso e saída antecipada saem: não houve jornada a cumprir, e
+        # deixá-los marcaria de irregular um dia acordado.
+        if resultado.status == StatusDia.COMPENSADO:
             resultado.minutos_atraso = 0
             resultado.minutos_saida_antecipada = 0
 
@@ -297,11 +312,17 @@ class CalculadoraJornada:
         coberto_por_atestado,
         coberto_por_afastamento,
         justificado,
+        compensado=False,
     ) -> str:
         if coberto_por_atestado:
             return StatusDia.ATESTADO
         if coberto_por_afastamento:
             return StatusDia.AFASTAMENTO
+        # Antes do abono: os dois chegam como justificativa aprovada, e o
+        # que os separa e o efeito no saldo. Se a compensacao caisse em
+        # JUSTIFICADO, o bloco de abono zeraria o debito logo abaixo.
+        if compensado and not registros:
+            return StatusDia.COMPENSADO
         if justificado:
             return StatusDia.JUSTIFICADO
         if eh_feriado:

@@ -50,6 +50,11 @@ class StatusDia(models.TextChoices):
     """Status consolidado de um dia no espelho de ponto."""
 
     COMPLETO = "completo", "Completo"
+    #: Folga tirada contra o banco de horas. Nao e a mesma coisa que
+    #: FOLGA (descanso previsto na escala, que nao custa nada) nem que
+    #: JUSTIFICADO (ausencia perdoada): aqui a jornada do dia sai do
+    #: saldo, e o espelho precisa mostrar isso com esse nome.
+    COMPENSADO = "compensado", "Folga compensada"
     INCOMPLETO = "incompleto", "Incompleto"
     FALTA = "falta", "Falta"
     JUSTIFICADO = "justificado", "Justificado"
@@ -79,6 +84,18 @@ class StatusAprovacao(models.TextChoices):
 
 
 class TipoJustificativa(models.TextChoices):
+    #: Folga trocada por horas ja trabalhadas.
+    #:
+    #: Separada das demais porque o efeito no banco e o oposto: as
+    #: outras ABONAM o dia (a divida e perdoada e o saldo nao se mexe);
+    #: esta DEBITA a jornada do dia contra o saldo acumulado. E o uso
+    #: classico do banco de horas — o acordo de compensacao existe para
+    #: trocar hora extra por descanso em vez de pagamento (CLT Art. 59).
+    #:
+    #: Sem essa distincao so havia dois caminhos, os dois errados: deixar
+    #: como falta, que mancha o espelho de quem tinha acordo, ou abonar,
+    #: que da a folga e mantem as horas no banco para receber depois.
+    FOLGA_COMPENSATORIA = "folga_compensatoria", "Folga compensatória (banco de horas)"
     FALTA = "falta", "Falta"
     ATRASO = "atraso", "Atraso"
     SAIDA_ANTECIPADA = "saida_antecipada", "Saída antecipada"

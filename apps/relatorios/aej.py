@@ -517,6 +517,11 @@ class AEJGenerator:
         mapa = {
             StatusDia.FALTA: AUSENCIA["falta"],
             StatusDia.FOLGA: AUSENCIA["dsr"],
+            # O codigo 4 ja existia na tabela e nao tinha dono: nao havia
+            # como marcar um dia como folga compensatoria. Sem ele, o dia
+            # saia do AEJ como ausencia nenhuma, e a fiscalizacao via uma
+            # jornada nao cumprida sem explicacao no arquivo.
+            StatusDia.COMPENSADO: AUSENCIA["folga_compensatoria"],
         }
 
         for banco in self._bancos(colaborador):
