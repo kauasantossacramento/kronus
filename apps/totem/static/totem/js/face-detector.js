@@ -56,12 +56,24 @@
     /**
      * Fração mínima da largura do quadro que o rosto deve ocupar.
      *
-     * 0.18 corresponde, num quadro de 640 px, a um rosto de ~115 px —
-     * aproximadamente 60 cm da câmera. Abaixo disso o recorte tem
-     * poucos pixels úteis e o embedding sai pobre, o que aparece
-     * depois como "não reconheci" numa pessoa cadastrada.
+     * O ArcFace consome um recorte de 112×112. O valor anterior, 0.18,
+     * era exatamente o ponto em que o recorte deixa de precisar ser
+     * ampliado — num quadro de 640 px, ~115 px de rosto, algo como 60 cm
+     * da câmera. Funcionava no papel e mal na prática: um recorte no
+     * limite não tem detalhe sobrando, e detalhe é o que separa duas
+     * pessoas parecidas. Foi nessa faixa que apareceram as
+     * identificações no fio do limiar.
+     *
+     * 0.28 dá ~180 px de rosto, cerca de 1,6× o que o modelo consome:
+     * reduzir 180 para 112 faz média de pixels reais, em vez de esticar
+     * os poucos que havia. Na prática são ~40 cm — a distância de quem
+     * veio bater o ponto, e não de quem passou no corredor.
+     *
+     * O custo é pedir "aproxime-se" com mais frequência. É um custo
+     * barato: a instrução aparece na tela e a pessoa dá um passo. O
+     * outro erro, o de identificar quem não é, não avisa ninguém.
      */
-    LARGURA_MINIMA_ROSTO: 0.18,
+    LARGURA_MINIMA_ROSTO: 0.28,
 
     /** Rosto acima disso está perto demais (recorte cortado). */
     LARGURA_MAXIMA_ROSTO: 0.85,
@@ -289,7 +301,7 @@
     instrucaoPara: function (motivo) {
       var textos = {
         sem_rosto: 'Posicione o rosto no centro',
-        longe: 'Aproxime-se um pouco',
+        longe: 'Aproxime-se da câmera',
         perto: 'Afaste-se um pouco',
         descentralizado: 'Centralize o rosto',
         estabilizando: 'Fique parado…',

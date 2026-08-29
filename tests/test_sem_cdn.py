@@ -144,3 +144,52 @@ class DetectorNaoDesisteCedoTests(TestCase):
         # esta sem detector — e o que tornava a falha silenciosa, agora
         # compensado pelo aviso na tela.
         self.assertIn("pronto: false", self.js)
+
+
+class ProximidadeTests(TestCase):
+    """
+    O totem so envia ao servidor quando a pessoa esta perto.
+
+    Existe por uma faixa de defeitos concreta: identificacoes no fio do
+    limiar, vindas de rostos distantes. O ArcFace consome um recorte de
+    112x112; um rosto que ocupa o minimo para nao precisar ser ampliado
+    nao tem detalhe sobrando — e detalhe e o que separa duas pessoas
+    parecidas.
+    """
+
+    def setUp(self):
+        self.js = (
+            RAIZ / "apps/totem/static/totem/js/face-detector.js"
+        ).read_text(encoding="utf-8")
+
+    def _valor(self, nome):
+        import re
+        achado = re.search(rf"{nome}:\s*([0-9.]+)", self.js)
+        self.assertIsNotNone(achado, f"{nome} sumiu do detector")
+        return float(achado.group(1))
+
+    def test_exige_o_rosto_ocupando_boa_parte_do_quadro(self):
+        minimo = self._valor("LARGURA_MINIMA_ROSTO")
+        # 0.175 e o ponto em que o recorte deixa de ser ampliado (112 px
+        # num quadro de 640). Ficar nele nao basta: e preciso folga.
+        self.assertGreaterEqual(
+            minimo, 0.25,
+            "abaixo disso o recorte chega ao modelo sem detalhe sobrando, "
+            "e foi essa faixa que produziu identificacao no fio do limiar",
+        )
+
+    def test_ainda_recusa_quem_esta_perto_demais(self):
+        # Rosto cortado pela moldura tambem estraga o recorte.
+        self.assertLess(
+            self._valor("LARGURA_MINIMA_ROSTO"),
+            self._valor("LARGURA_MAXIMA_ROSTO"),
+        )
+
+    def test_acordar_a_tela_continua_sendo_mais_facil_que_enviar(self):
+        # Presenca e envio sao decisoes diferentes: a tela acorda com
+        # pouco, o envio exige enquadramento. Igualar as duas faria o
+        # totem so acordar quando ja desse para identificar — e a pessoa
+        # ficaria na frente de uma tela apagada.
+        self.assertLess(
+            self._valor("CONFIANCA_PRESENCA"), self._valor("CONFIANCA_MINIMA")
+        )
