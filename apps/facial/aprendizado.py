@@ -144,6 +144,10 @@ def registrar_aprendizado(servico, colaborador, imagem_bytes, resultado) -> bool
         if not _traz_algo_novo(servico, colaborador, imagem_bytes):
             return False
 
+        # A trava que faltava. Ver `_nao_aproxima_de_outro`.
+        if not _nao_aproxima_de_outro(servico, colaborador, imagem_bytes):
+            return False
+
         # `cadastrar_amostra` traz as travas que ja existem: recusa a
         # captura que e de outra pessoa e aposenta o excedente. Reusar
         # em vez de gravar direto evita que o caminho automatico seja
@@ -200,3 +204,79 @@ def _traz_algo_novo(servico, colaborador, imagem_bytes) -> bool:
     except Exception:
         logger.info("Nao foi possivel medir a novidade da captura; aprendendo.")
         return True
+
+
+#: Quanto a amostra aprendida pode encostar em outra pessoa.
+#:
+#: Uma amostra que fica a menos disto de outro cadastro nao entra, mesmo
+#: sendo do titular. Nao e o mesmo que o limiar do reconhecimento: ali
+#: se decide uma batida, que erra e se corrige na proxima; aqui se
+#: decide uma referencia permanente, que erra e passa a errar sempre.
+DISTANCIA_MINIMA_DE_OUTROS = 0.45
+
+
+def _nao_aproxima_de_outro(servico, colaborador, imagem_bytes) -> bool:
+    """
+    A foto aprendida encosta em outra pessoa?
+
+    Existe pelo caso das irmas Alves dos Santos: Elisangela e Edjane
+    ficam a 0,2630 uma da outra no cadastro supervisionado. Sem esta
+    trava, bastava uma batida em que a semelhanca ajudasse para o rosto
+    de uma entrar na galeria da outra — e ali ficar.
+
+    O estrago do aprendizado errado nao e uma batida errada: e um
+    cadastro que passa a aceitar duas pessoas para sempre, sem que
+    ninguem tenha conferido. Por isso a exigencia aqui e mais dura que a
+    do reconhecimento, e a duvida pesa contra aprender.
+
+    Duas perguntas, e as duas precisam passar:
+      1. a foto esta longe o bastante das OUTRAS pessoas?
+      2. ela nao aproxima o titular de quem ele ja e mais parecido?
+
+    Falhar em medir **impede** o aprendizado, ao contrario de
+    `_traz_algo_novo`, onde a duvida libera. La o risco e guardar uma
+    foto redundante; aqui e contaminar um cadastro.
+    """
+    try:
+        vetor = servico.provedor.gerar_embedding(imagem_bytes)
+        galeria = servico.candidatos([colaborador.empresa])
+
+        outros = {
+            pk: vs for pk, vs in galeria.items()
+            if pk != colaborador.pk and vs
+        }
+        if not outros:
+            return True  # sozinho na empresa: nao ha de quem se confundir
+
+        perto_de_outro = min(
+            servico._distancia(vetor, v) for vs in outros.values() for v in vs
+        )
+        if perto_de_outro < DISTANCIA_MINIMA_DE_OUTROS:
+            logger.info(
+                "Nao aprendeu: a captura fica a %.3f de outro cadastro "
+                "(minimo %.2f). colaborador=%s",
+                perto_de_outro, DISTANCIA_MINIMA_DE_OUTROS, colaborador.pk,
+            )
+            return False
+
+        # Ja existe alguem perto do titular? Entao a amostra nova nao
+        # pode estreitar essa distancia — seria empurrar os dois
+        # cadastros um para o outro, que e como a confusao se instala.
+        atuais = galeria.get(colaborador.pk) or []
+        if atuais:
+            antes = min(
+                servico._distancia(a, b)
+                for a in atuais
+                for vs in outros.values() for b in vs
+            )
+            if perto_de_outro < antes:
+                logger.info(
+                    "Nao aprendeu: aproximaria %s de outro cadastro "
+                    "(%.3f -> %.3f).", colaborador.pk, antes, perto_de_outro,
+                )
+                return False
+        return True
+    except Exception:
+        # Ao contrario de `_traz_algo_novo`, aqui a duvida bloqueia.
+        logger.info("Nao foi possivel conferir a vizinhanca; nao aprendeu.")
+        return False

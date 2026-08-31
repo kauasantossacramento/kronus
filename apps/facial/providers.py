@@ -348,6 +348,7 @@ ARQUIVOS_DE_PESO = {
     "Facenet512": "facenet512_weights.h5",
     "VGG-Face": "vgg_face_weights.h5",
     "SFace": "face_recognition_sface_2021dec.onnx",
+    "GhostFaceNet": "ghostfacenet_v1.h5",
 }
 
 

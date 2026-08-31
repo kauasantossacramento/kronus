@@ -72,6 +72,96 @@
   //: As mesmas poses do cadastro pelo painel. A variação entre elas é o
   //: que faz o reconhecimento aguentar a pessoa virar o rosto no dia a
   //: dia — sem isso, só o ângulo exato do cadastro é reconhecido.
+  /**
+   * Fala a instrucao em voz alta.
+   *
+   * Quem esta sendo cadastrado olha para a camera, e nao para o texto:
+   * ler a instrucao na tela obriga a desviar o rosto justamente na hora
+   * de mante-lo parado. A voz resolve isso sem tirar ninguem da posicao.
+   *
+   * `speechSynthesis` e nativa do navegador — nao ha biblioteca a
+   * carregar nem rede a esperar, o que importa num totem que precisa
+   * funcionar offline.
+   *
+   * Silenciosa quando nao ha suporte: a instrucao continua na tela, e o
+   * cadastro nunca depende da voz para funcionar.
+   */
+  var Voz = {
+    ligada: true,
+    _vozPt: null,
+
+    _escolherVoz: function () {
+      if (this._vozPt || !window.speechSynthesis) return this._vozPt;
+      var vozes = window.speechSynthesis.getVoices() || [];
+      for (var i = 0; i < vozes.length; i += 1) {
+        if ((vozes[i].lang || '').toLowerCase().indexOf('pt') === 0) {
+          this._vozPt = vozes[i];
+          break;
+        }
+      }
+      return this._vozPt;
+    },
+
+    falar: function (texto, opcoes) {
+      if (!this.ligada || !texto || !window.speechSynthesis) return;
+      try {
+        var op = opcoes || {};
+        // Cancela o que estava falando: instrucoes se sucedem rapido, e
+        // ouvir a anterior enquanto a nova aparece na tela confunde.
+        window.speechSynthesis.cancel();
+        var fala = new window.SpeechSynthesisUtterance(texto);
+        fala.lang = 'pt-BR';
+        fala.rate = op.rate || 1.0;
+        fala.pitch = 1.0;
+        var voz = this._escolherVoz();
+        if (voz) fala.voice = voz;
+        window.speechSynthesis.speak(fala);
+      } catch (e) {
+        // Voz e conforto, nunca requisito: falhar aqui nao pode
+        // atrapalhar o cadastro.
+      }
+    },
+
+    calar: function () {
+      try {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
+  };
+
+  // As vozes chegam de forma assincrona em alguns navegadores.
+  if (window.speechSynthesis) {
+    try {
+      window.speechSynthesis.onvoiceschanged = function () {
+        Voz._vozPt = null;
+        Voz._escolherVoz();
+      };
+    } catch (e) {}
+  }
+
+  /**
+   * O que dizer para cada enquadramento errado.
+   *
+   * O detector ja media a posicao do rosto — perto, longe,
+   * descentralizado — e o cadastro so usava a distancia. Quem estava
+   * torto na frente da camera via "capture assim mesmo" e capturava
+   * torto: e assim que nasce a amostra que fica perto de todo mundo.
+   */
+  var CORRECAO = {
+    longe: 'Chegue mais perto da câmera',
+    perto: 'Afaste-se um pouco',
+    descentralizado: 'Centralize o rosto na tela',
+    ajustar: 'Ajuste a posição do rosto',
+    sem_rosto: 'Olhe para a câmera'
+  };
+
+  //: Intervalo minimo entre duas falas de correcao.
+  //:
+  //: O laco roda varias vezes por segundo. Sem a pausa, a mesma frase
+  //: sairia em rajada e viraria ruido — que e o mesmo que silencio,
+  //: porque a pessoa para de escutar.
+  var PAUSA_ENTRE_FALAS_MS = 3500;
+
   var POSES = [
     { angulo: 'frontal', instrucao: 'Olhe para a frente' },
     { angulo: 'esquerda', instrucao: 'Vire levemente para a sua esquerda' },
@@ -414,6 +504,13 @@
       }
       if (instrucao) instrucao.textContent = pose.instrucao;
 
+      // So fala quando a pose muda de fato: `_atualizarPose` tambem e
+      // chamada em redesenhos, e repetir a mesma frase soa como travamento.
+      if (this._poseFalada !== this.pose) {
+        this._poseFalada = this.pose;
+        Voz.falar(pose.instrucao);
+      }
+
       var progresso = document.getElementById('manut-progresso');
       if (progresso) {
         progresso.innerHTML = '';
@@ -461,6 +558,9 @@
           // A pausa existe para ela ter esse tempo — sem ela, o disparo
           // automático repetiria o mesmo erro em rajada.
           self._erro('erro-manut-captura', dados.mensagem || 'Repita a captura.');
+          // O erro de enquadramento e exatamente o momento em que a
+          // pessoa esta olhando para a camera, e nao para o texto.
+          Voz.falar(dados.mensagem || 'Repita a captura.');
           self._estaveis = 0;
           self._prontoDesde = 0;
           self._liberadoEm = Date.now() + PAUSA_ENTRE_POSES_MS;
@@ -470,6 +570,9 @@
 
         self.pose += 1;
         self.pessoa.amostras = dados.amostras;
+        // Confirmacao curta: a instrucao da proxima pose vem logo em
+        // seguida, e uma frase longa aqui atropelaria aquela.
+        Voz.falar(self.pose >= POSES.length ? 'Cadastro concluído.' : 'Boa.');
         // Zera a contagem de leituras: sem isto o proximo quadro ja
         // nasceria "estavel" e a foto seguinte sairia na mesma pose.
         if (global.KronusFaceDetector) global.KronusFaceDetector.reiniciar();
@@ -519,6 +622,9 @@
       }
       var texto = document.getElementById('manut-revisao-texto');
       if (texto) texto.textContent = aviso;
+      // Este e o aviso que mais se perde: aparece no fim, quando quem
+      // cadastrou ja considera o trabalho terminado.
+      Voz.falar(aviso, { rate: 0.95 });
       this._mostrar('tela-manut-revisao');
     },
 
@@ -583,7 +689,26 @@
           if (self.pronto) {
             liberado = false;
             botao.disabled = false;
+            self._corrigindo = null;
             self._dispararQuandoPronto(contexto, tela, instrucao, r.proporcao);
+          } else if (r.motivo && CORRECAO[r.motivo]
+                     && !liberado && Date.now() - desde <= LIBERAR_APOS_MS) {
+            // A posicao entra no cadastro: em vez de esperar calado o
+            // tempo de liberacao e capturar torto, diz o que corrigir.
+            //
+            // So ate `LIBERAR_APOS_MS`. Depois disso a valvula de escape
+            // abaixo assume e libera o botao: um detector que nunca
+            // confirma nao pode deixar o operador preso sem poder
+            // cadastrar ninguem.
+            var texto = CORRECAO[r.motivo];
+            if (instrucao) instrucao.textContent = texto;
+            botao.disabled = true;
+            if (self._corrigindo !== r.motivo
+                || Date.now() - (self._falouEm || 0) > PAUSA_ENTRE_FALAS_MS) {
+              self._corrigindo = r.motivo;
+              self._falouEm = Date.now();
+              Voz.falar(texto);
+            }
           } else if (liberado || Date.now() - desde > LIBERAR_APOS_MS) {
             liberado = true;
             botao.disabled = false;
