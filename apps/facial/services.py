@@ -181,9 +181,10 @@ class FaceRecognitionService:
         from apps.facial.providers import obter_provedor_confirmacao
 
         try:
+            # Sem `disponivel` aqui tambem: ver a nota em
+            # `_segunda_opiniao`. No cadastro o ping custaria os mesmos
+            # ~2 s por amostra, e o `except` ja cobre o caso sem worker.
             provedor = obter_provedor_confirmacao()
-            if not provedor.disponivel:
-                return
             registro.definir_embedding_confirmacao(
                 provedor.gerar_embedding(imagem_bytes)
             )
@@ -814,10 +815,16 @@ class FaceRecognitionService:
             if len(galeria) < 2 or escolhido_id not in galeria:
                 return None
 
+            # Sem perguntar `disponivel`: no provedor delegado essa
+            # pergunta e um ping a todos os workers do Celery, medido em
+            # 2065 ms contra 713 ms da inferencia em si — o triplo do
+            # trabalho util, gasto para saber se vale a pena trabalhar.
+            #
+            # A resposta ja vem de graca: sem worker, `gerar_embedding`
+            # levanta MotorIndisponivel, o `except` abaixo devolve None
+            # e a conferencia se abstem. Mesmo desfecho, dois segundos
+            # antes.
             provedor = obter_provedor_confirmacao()
-            if not provedor.disponivel:
-                return None
-
             pontos = self._pontuar(provedor.gerar_embedding(frame), galeria)
             if not pontos:
                 return None

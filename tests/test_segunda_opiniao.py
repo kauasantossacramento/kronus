@@ -244,3 +244,71 @@ class ArquiteturaDaConfirmacaoTests(TestCase):
             self.assertIsInstance(
                 obter_provedor_confirmacao(), ProvedorIndisponivel
             )
+
+
+class CustoDaConferenciaTests(TestCase):
+    """
+    A conferencia nao pode perguntar se pode conferir.
+
+    `ProvedorDelegado.disponivel` faz um ping a todos os workers do
+    Celery: medido em producao, 2065 ms contra 713 ms da inferencia —
+    o triplo do trabalho util, so para decidir se vale trabalhar. Como
+    a indisponibilidade ja chega como excecao, o guard so somava espera.
+
+    Este teste existe porque a regressao e invisivel: o resultado
+    continua certo, so fica tres vezes mais lento — e quem esta parado
+    na frente do totem e quem paga.
+    """
+
+    def test_a_conferencia_nao_faz_ping_no_worker(self):
+        alvo = np.array([1.0, 0.0], dtype=np.float32)
+        galeria = {1: [alvo], 2: [np.array([0.0, 1.0], dtype=np.float32)]}
+
+        servico = FaceRecognitionService.__new__(FaceRecognitionService)
+        servico._galeria_de_confirmacao = lambda ids: galeria
+
+        perguntou = []
+
+        class ProvedorEspiao:
+            @property
+            def disponivel(self):
+                perguntou.append(True)
+                return True
+
+            def gerar_embedding(self, _):
+                return alvo
+
+        import apps.facial.providers as provedores
+
+        original = provedores.obter_provedor_confirmacao
+        provedores.obter_provedor_confirmacao = lambda: ProvedorEspiao()
+        try:
+            servico._segunda_opiniao(b"quadro", 1, galeria)
+        finally:
+            provedores.obter_provedor_confirmacao = original
+
+        self.assertEqual(
+            perguntou, [], "a conferencia perguntou `disponivel` — 2 s por batida"
+        )
+
+    def test_sem_worker_a_conferencia_se_abstem_sem_derrubar(self):
+        """A excecao ja e a resposta: abstem-se, e o ponto segue."""
+        from apps.facial.providers import MotorIndisponivel
+
+        galeria = {1: [np.array([1.0, 0.0], dtype=np.float32)],
+                   2: [np.array([0.0, 1.0], dtype=np.float32)]}
+        servico = FaceRecognitionService.__new__(FaceRecognitionService)
+        servico._galeria_de_confirmacao = lambda ids: galeria
+
+        class ProvedorMorto:
+            def gerar_embedding(self, _):
+                raise MotorIndisponivel("worker fora do ar")
+
+        import apps.facial.providers as provedores
+
+        original = provedores.obter_provedor_confirmacao
+        provedores.obter_provedor_confirmacao = lambda: ProvedorMorto()
+        try:
+            self.assertIsNone(servico._segunda_opiniao(b"quadro", 1, galeria))
+        finally:
+            provedores.obter_provedor_confirmacao = original
