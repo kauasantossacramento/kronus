@@ -87,6 +87,102 @@ def _registrar_evento(totem, tipo, detalhes="", metadados=None):
         logger.exception("Falha ao registrar evento do totem %s", totem.pk)
 
 
+def _felicitacao(colaborador) -> str:
+    """
+    Mensagem de aniversario, quando for o dia.
+
+    Compara dia e mes, e nao a data inteira — o ano do nascimento nunca
+    coincide com hoje, e comparar tudo nunca daria aniversario nenhum.
+
+    Devolve texto vazio nos demais dias: assim a tela decide mostrar ou
+    nao sem precisar de uma segunda chave no payload.
+    """
+    nascimento = getattr(colaborador, "data_nascimento", None)
+    if not nascimento:
+        return ""
+    hoje = timezone.localdate()
+    if (nascimento.day, nascimento.month) != (hoje.day, hoje.month):
+        return ""
+    primeiro = (colaborador.nome_exibicao or "").split()[0].title()
+    return f"Feliz aniversário, {primeiro}!"
+
+
+def _aniversariantes_de_hoje(totem) -> list:
+    """
+    Primeiros nomes de quem faz aniversario hoje, para a tela ociosa.
+
+    Vai no heartbeat, que ja bate a cada 30 segundos, em vez de num
+    endpoint novo: um totem fica ligado dias seguidos, e uma lista
+    renderizada uma vez na abertura da pagina ainda estaria mostrando os
+    aniversariantes de anteontem.
+
+    Guardada em cache ate o fim do dia — a lista nao muda, e consultar o
+    banco a cada 30 segundos por totem seria pagar caro por um dado
+    parado.
+
+    Segue as empresas que o totem atende: num grupo, o totem da recepcao
+    atende varios CNPJs e o aniversario nao pertence a um deles so.
+    """
+    from apps.rh.models import Colaborador
+
+    hoje = timezone.localdate()
+    chave = f"kronus:aniversarios:{totem.pk}:{hoje.isoformat()}"
+    guardado = cache.get(chave)
+    if guardado is not None:
+        return guardado
+
+    try:
+        empresas = totem.empresas_atendidas()
+        pessoas = Colaborador.objects.filter(
+            empresa__in=empresas,
+            ativo=True,
+            data_nascimento__day=hoje.day,
+            data_nascimento__month=hoje.month,
+        ).order_by("nome_completo")
+        nomes = [
+            (p.nome_exibicao or "").split()[0].title()
+            for p in pessoas
+            if (p.nome_exibicao or "").strip()
+        ]
+    except Exception:
+        logger.exception("Falha ao levantar aniversariantes do totem %s", totem.pk)
+        nomes = []
+
+    # Ate a virada do dia: a lista de amanha e outra, e um cache longo
+    # deixaria o parabens atrasado.
+    amanha = timezone.localtime().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ) + timedelta(days=1)
+    segundos = max(60, int((amanha - timezone.localtime()).total_seconds()))
+    cache.set(chave, nomes, segundos)
+    return nomes
+
+
+def _despedida(colaborador, registro) -> str:
+    """
+    "Ate amanha" quando a batida encerra a jornada.
+
+    So na saida: a batida do intervalo tambem e uma "saida" no sentido
+    coloquial, e quem volta do almoco ouvindo "ate amanha" fica em
+    duvida se o ponto foi registrado no lugar certo.
+
+    Sexta-feira ganha "bom fim de semana" — o "ate amanha" literal
+    estaria errado, e errar isso e o tipo de detalhe que faz a mensagem
+    parecer automatica demais.
+    """
+    from apps.core.constants import TipoRegistro
+
+    if getattr(registro, "tipo", None) != TipoRegistro.SAIDA:
+        return ""
+
+    primeiro = (colaborador.nome_exibicao or "").split()
+    nome = primeiro[0].title() if primeiro else ""
+    # 4 = sexta-feira em `weekday()`.
+    if timezone.localdate().weekday() == 4:
+        return f"Bom fim de semana, {nome}!" if nome else "Bom fim de semana!"
+    return f"Até amanhã, {nome}!" if nome else "Até amanhã!"
+
+
 def _anotar_desfecho(resultado, desfecho) -> None:
     """
     Registra o que de fato aconteceu com a tentativa.
@@ -215,6 +311,16 @@ def _bater_ponto(colaborador, totem, request, *, metodo, confianca=None):
         "identificado": True,
         "colaborador": ColaboradorTotemSerializer(colaborador).data,
         "registro": RegistroTotemSerializer(registro).data,
+        # Aniversario de quem acabou de bater.
+        #
+        # Vai no proprio payload da batida, e nao numa consulta a parte:
+        # a tela de sucesso dura poucos segundos, e uma segunda ida ao
+        # servidor chegaria depois de ela ter sumido.
+        "aniversario": _felicitacao(colaborador),
+        # "Ate amanha" fecha a jornada. Perde para o aniversario: as
+        # duas na mesma tela de poucos segundos viram parede de texto, e
+        # o aniversario e o mais raro dos dois.
+        "despedida": _despedida(colaborador, registro),
         # Da empresa quando ela definiu as suas; as padrao quando nao.
         # Da empresa quando ela definiu as suas; as padrao quando nao —
         # e sorteada ou fixa, conforme ela escolher.
@@ -535,6 +641,7 @@ def heartbeat(request):
                 "ativo": totem.ativo,
                 "permite_fallback_cpf": totem.permite_fallback_cpf,
             },
+            "aniversariantes": _aniversariantes_de_hoje(totem),
             # O totem compara com o que carregou. Numero maior, ou uma
             # recarga pedida pelo suporte, e ele se recarrega sozinho —
             # e por isso que trocar a logo no painel aparece no quiosque

@@ -950,3 +950,94 @@ html, body {
   color: var(--totem-text-muted);
   letter-spacing: .02em;
 }
+
+/* ── Selo de "toque para bater o ponto" ─────────────────────────
+   Sobrepõe os slides de propósito: o conteúdo da tela ociosa some
+   atrás do mural da empresa, e a instrução de como começar é
+   justamente o que não pode sumir.
+
+   Escuro e translúcido para não competir com a marca nem com o
+   slide — quem precisa dele lê, quem não precisa não repara. */
+.totem-selo-toque {
+  position: absolute;
+  top: clamp(0.75rem, 2.5vh, 1.5rem);
+  right: clamp(0.75rem, 2.5vw, 1.5rem);
+  z-index: 5;                 /* acima dos slides */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(15, 18, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: clamp(0.72rem, 1.6vw, 0.9rem);
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(6px);
+  pointer-events: none;       /* o toque é da tela inteira, não do selo */
+  max-width: min(60vw, 22rem);
+}
+
+.totem-selo-toque svg {
+  width: 1.15em;
+  height: 1.15em;
+  flex: 0 0 auto;
+  opacity: 0.9;
+  /* A mão “toca”: o movimento chama o olho sem piscar nem gritar. */
+  animation: totem-toque-pulsa 2.4s ease-in-out infinite;
+}
+
+@keyframes totem-toque-pulsa {
+  0%, 70%, 100% { transform: translateY(0); }
+  80%           { transform: translateY(2px); }
+  90%           { transform: translateY(0); }
+}
+
+/* ── Aniversariantes do dia ─────────────────────────────────── */
+.totem-aniversario {
+  margin-top: 0.6rem;
+  font-size: clamp(0.85rem, 2vw, 1.05rem);
+  color: rgba(255, 255, 255, 0.9);
+  animation: totem-aniversario-entra 0.6s ease-out both;
+}
+
+@keyframes totem-aniversario-entra {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Palmas para o aniversariante ───────────────────────────────
+   Sobem na tela de sucesso, e só no dia. Duram menos que a tela,
+   para não empurrar o próximo da fila. */
+.totem-palmas {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.totem-palmas span {
+  position: absolute;
+  bottom: -2rem;
+  font-size: clamp(1.4rem, 4vw, 2.4rem);
+  animation: totem-palma-sobe var(--dur, 2.8s) ease-out forwards;
+  animation-delay: var(--atraso, 0s);
+  opacity: 0;
+}
+
+@keyframes totem-palma-sobe {
+  0%   { opacity: 0; transform: translateY(0) scale(0.8) rotate(0deg); }
+  12%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-70vh) scale(1.1) rotate(var(--giro, 12deg)); }
+}
+
+/* Quem pediu menos movimento não recebe animação nenhuma. */
+@media (prefers-reduced-motion: reduce) {
+  .totem-selo-toque svg,
+  .totem-aniversario,
+  .totem-palmas span { animation: none; }
+  .totem-palmas { display: none; }
+}

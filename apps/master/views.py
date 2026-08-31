@@ -616,3 +616,49 @@ def sair_do_ambiente(request):
 
     request.session.pop(CHAVE_SESSAO_EMPRESA, None)
     return redirect("master:dashboard")
+
+
+@master_required
+def semelhancas(request):
+    """
+    Quem se parece com quem, por empresa, e o que fazer a respeito.
+
+    Semelhanca entre cadastros nao e defeito: irmaos existem. O que esta
+    tela responde nao e "ha semelhanca?", e sim "esta semelhanca ja
+    atrapalha, e o que resolve?" — por isso cada par vem com acao.
+
+    O calculo compara todos contra todos e e caro. Fica em cache; o
+    botao "recalcular" existe para depois de um recadastro, quando quem
+    esta olhando quer ver o efeito do que acabou de fazer.
+    """
+    from apps.clientes.models import Empresa
+    from apps.facial import semelhancas as analise
+
+    empresas = Empresa.objects.select_related("cliente").filter(
+        ativo=True
+    ).order_by("cliente__razao_social", "razao_social")
+
+    escolhida = request.GET.get("empresa")
+    empresa = None
+    if escolhida:
+        empresa = empresas.filter(pk=escolhida).first()
+    if empresa is None:
+        empresa = empresas.first()
+
+    relatorio = None
+    if empresa is not None:
+        recalcular = request.GET.get("recalcular") == "1"
+        if recalcular:
+            analise.esquecer(empresa.pk)
+        relatorio = analise.levantar(empresa, usar_cache=not recalcular)
+
+    return render(
+        request,
+        "master/semelhancas.html",
+        {
+            "empresas": empresas,
+            "empresa": empresa,
+            "relatorio": relatorio,
+            "titulo": "Semelhanças entre cadastros",
+        },
+    )

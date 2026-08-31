@@ -626,3 +626,52 @@ def colaborador_transferir(request, pk):
         f"As batidas anteriores continuam em {origem.nome_exibicao}.",
     )
     return redirect("rh:colaborador_lista")
+
+
+@rh_required
+def aniversariantes(request):
+    """
+    Calendario de aniversarios do mes.
+
+    A data ja estava no cadastro; o que faltava era um lugar onde alguem
+    olhasse. Quem abre esta tela quer saber quem vem primeiro — por isso
+    a lista ao lado do calendario vai por dia, e nao por nome.
+
+    Navega por mes porque o uso real e antecipar: em 28 de marco alguem
+    quer saber quem faz aniversario em abril, para encomendar o bolo.
+    """
+    from apps.core.mixins import escopo_empresas
+    from apps.rh import aniversariantes as calendario
+
+    hoje = timezone.localdate()
+    try:
+        ano = int(request.GET.get("ano") or hoje.year)
+        mes = int(request.GET.get("mes") or hoje.month)
+    except (TypeError, ValueError):
+        ano, mes = hoje.year, hoje.month
+    if not 1 <= mes <= 12:
+        ano, mes = hoje.year, hoje.month
+
+    empresas = escopo_empresas(request.user)
+    lista = calendario.do_mes(empresas, ano, mes)
+
+    anterior = (ano - 1, 12) if mes == 1 else (ano, mes - 1)
+    proximo = (ano + 1, 1) if mes == 12 else (ano, mes + 1)
+
+    return render(
+        request,
+        "rh/aniversariantes.html",
+        {
+            "menu_ativo": "aniversariantes",
+            "titulo": "Aniversariantes",
+            "ano": ano,
+            "mes": mes,
+            "mes_nome": calendario.MESES[mes - 1],
+            "dias_semana": calendario.DIAS_DA_SEMANA,
+            "semanas": calendario.grade(ano, mes, lista),
+            "aniversariantes": lista,
+            "com_email": sum(1 for a in lista if a["email"]),
+            "anterior": {"ano": anterior[0], "mes": anterior[1]},
+            "proximo": {"ano": proximo[0], "mes": proximo[1]},
+        },
+    )

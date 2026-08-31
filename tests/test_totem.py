@@ -814,8 +814,25 @@ class IniciarPorToqueTests(BaseTotemTestCase):
             f"/totem/{self.totem.token_acesso}/"
         ).content.decode()
 
-    def test_desligado_por_padrao(self):
+    def test_o_totem_novo_ja_nasce_pedindo_toque(self):
+        """
+        A empresa continua com o padrao antigo; o equipamento e que
+        mudou.
+
+        A busca automatica tentava identificar quem passava sem olhar
+        para a tela — e uma tentativa sem intencao de bater ponto e uma
+        chance a mais de confundir pessoas parecidas, sem nenhum ganho.
+        """
         self.assertFalse(self.empresa.iniciar_por_toque)
+        self.assertTrue(self.totem.comeca_por_toque)
+        self.assertTrue(self._config()["interface"]["iniciar_por_toque"])
+
+    def test_quem_quiser_a_leitura_automatica_escolhe(self):
+        from apps.totem.models import Totem
+
+        self.totem.inicio_do_ponto = Totem.Inicio.PRESENCA
+        self.totem.save(update_fields=["inicio_do_ponto"])
+        self.assertFalse(self.totem.comeca_por_toque)
         self.assertFalse(self._config()["interface"]["iniciar_por_toque"])
 
     def test_a_opcao_chega_ao_totem(self):
@@ -827,11 +844,25 @@ class IniciarPorToqueTests(BaseTotemTestCase):
     def test_a_tela_diz_como_comecar(self):
         # Instrucoes opostas: a errada deixa a pessoa esperando em frente
         # a uma tela que nao vai reagir.
+        from apps.totem.models import Totem
+
+        self.assertIn("Toque na tela para registrar", self._pagina())
+
+        self.totem.inicio_do_ponto = Totem.Inicio.PRESENCA
+        self.totem.save(update_fields=["inicio_do_ponto"])
         self.assertIn("Aproxime-se para registrar", self._pagina())
 
-        self.empresa.iniciar_por_toque = True
-        self.empresa.save(update_fields=["iniciar_por_toque"])
-        self.assertIn("Toque na tela para registrar", self._pagina())
+    def test_o_selo_de_toque_sobrepoe_os_slides(self):
+        """
+        Fica fora do conteudo da tela ociosa de proposito.
+
+        O conteudo some atras do mural da empresa, e a instrucao de como
+        comecar e justamente o que nao pode sumir: quem chega e ve slides
+        passando fica parado esperando a tela reagir sozinha.
+        """
+        pagina = self._pagina()
+        self.assertIn("totem-selo-toque", pagina)
+        self.assertIn("Toque para registrar o seu ponto", pagina)
 
     def test_o_laco_so_dispara_sozinho_quando_a_opcao_esta_desligada(self):
         import pathlib
@@ -1036,7 +1067,16 @@ class InicioPorTotemTests(BaseTotemTestCase):
             HTTP_AUTHORIZATION=f"Token {self.totem.token_acesso}",
         ).json()["interface"]["iniciar_por_toque"]
 
-    def test_por_padrao_segue_a_empresa(self):
+    def test_seguir_a_empresa_continua_sendo_uma_escolha(self):
+        """
+        O padrao do equipamento virou TOQUE, mas "seguir a empresa"
+        segue disponivel — e um totem configurado assim continua
+        obedecendo a empresa, para os dois lados.
+        """
+        from apps.totem.models import Totem
+
+        self.totem.inicio_do_ponto = Totem.Inicio.EMPRESA
+        self.totem.save(update_fields=["inicio_do_ponto"])
         self.assertFalse(self._config())
 
         self.empresa.iniciar_por_toque = True

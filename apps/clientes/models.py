@@ -598,11 +598,19 @@ class Empresa(BaseModel):
     #: cabelo, oculos novo. Sem aprender, a pessoa se afasta da propria
     #: referencia e o totem passa a pedir CPF de quem sempre reconheceu.
     #:
-    #: Desligado por padrao: aprender com o proprio resultado e
-    #: realimentacao, e quem liga precisa saber que ligou.
+    #: Ligado por padrao.
+    #:
+    #: Ficou desligado enquanto aprender com o proprio resultado era
+    #: realimentacao sem freio. As travas mudaram isso: so aprende com
+    #: batida folgada, so o que traz condicao nova, e nunca o que encosta
+    #: em outra pessoa — a ultima e a que impede o rosto de uma irma de
+    #: entrar na galeria da outra. Com elas, o risco de nao aprender
+    #: passou a ser maior que o de aprender: sem aprender, a pessoa se
+    #: afasta da propria referencia e o totem passa a pedir CPF de quem
+    #: sempre reconheceu.
     aprendizado_facial = models.BooleanField(
         "Aprender com as batidas",
-        default=False,
+        default=True,
         help_text=(
             "O cadastro facial se atualiza sozinho com as batidas mais "
             "nítidas, mantendo a maioria das referências vinda do "

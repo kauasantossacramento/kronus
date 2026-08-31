@@ -1,0 +1,78 @@
+{% comment %}
+  Parabéns em nome da empresa.
+
+  Estilo embutido, e não em folha externa: cliente de e-mail ignora
+  <link> e boa parte deles descarta <style> no <head>. Tabela em vez de
+  flex pela mesma razão — o Outlook renderiza com um motor antigo.
+
+  A marca do Kronus fica no rodapé, discreta: quem faz aniversário
+  trabalha para a empresa, e a mensagem é dela. A assinatura de quem
+  construiu a ferramenta pertence ao fim, não ao topo.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Feliz aniversário</title></head>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+               style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;
+                      box-shadow:0 1px 3px rgba(16,24,40,0.08);">
+
+          <tr>
+            <td align="center" style="background:#101828;padding:28px 24px;">
+              {% if empresa.logo %}
+                <img src="{{ empresa.logo.url }}" alt="{{ empresa.nome_exibicao }}"
+                     style="max-height:44px;max-width:200px;display:block;">
+              {% else %}
+                <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">
+                  {{ empresa.nome_exibicao }}
+                </p>
+              {% endif %}
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:34px 28px 8px;">
+              <p style="margin:0;font-size:40px;line-height:1;">&#127881;</p>
+              <h1 style="margin:16px 0 0;font-size:24px;color:#101828;font-weight:bold;">
+                Feliz aniversário, {{ primeiro_nome }}!
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 32px 28px;">
+              <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#475467;text-align:center;">
+                A equipe da <strong>{{ empresa.nome_exibicao }}</strong> deseja a você
+                um dia muito especial, cercado de quem gosta de você.
+              </p>
+              <p style="margin:0;font-size:15px;line-height:1.6;color:#475467;text-align:center;">
+                Que este novo ano traga saúde, conquistas e boas histórias.
+                Obrigado por fazer parte do nosso time.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:0 32px 30px;">
+              <div style="height:1px;background:#eaecf0;"></div>
+              <p style="margin:18px 0 0;font-size:12px;color:#98a2b3;">
+                Enviado automaticamente pelo
+                <strong style="color:#667085;">Kronus</strong> — ponto eletrônico
+                com reconhecimento facial.
+              </p>
+              <p style="margin:6px 0 0;font-size:11px;color:#b0b7c3;">
+                Você recebeu esta mensagem porque seu e-mail está no cadastro
+                da {{ empresa.nome_exibicao }}.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

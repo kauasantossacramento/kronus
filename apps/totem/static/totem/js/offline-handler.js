@@ -117,6 +117,17 @@
           if (dados && dados.servidor) {
             self.aoSincronizar(dados.servidor);
           }
+          // Aniversariantes vem no heartbeat porque o totem fica ligado
+          // dias seguidos: uma lista carregada na abertura da pagina
+          // continuaria parabenizando quem fez aniversario anteontem.
+          if (dados && dados.aniversariantes && global.KronusUI
+              && global.KronusUI.aniversariantes) {
+            try {
+              global.KronusUI.aniversariantes(dados.aniversariantes);
+            } catch (e) {
+              // Enfeite nunca derruba o sinal de vida do totem.
+            }
+          }
           self._verificarConfiguracao(dados);
           return dados;
         })

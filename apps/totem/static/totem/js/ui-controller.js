@@ -10,6 +10,22 @@
 (function (global) {
   'use strict';
 
+  //: Emojis da comemoracao, montados por code point.
+  //:
+  //: Escritos assim, e nao colados direto, porque este arquivo passa
+  //: por copia entre maquinas com codificacoes diferentes — e um emoji
+  //: corrompido vira caixinha na tela do cliente.
+  var EMOJI_FESTA = String.fromCodePoint(0x1F389);          // 🎉
+  var SIMBOLOS_FESTA = [
+    String.fromCodePoint(0x1F44F),                          // 👏
+    String.fromCodePoint(0x1F389),                          // 🎉
+    String.fromCodePoint(0x1F388),                          // 🎈
+    String.fromCodePoint(0x1F44F),
+    String.fromCodePoint(0x2728)                            // ✨
+  ];
+
+
+
   var UIController = {
     estadoAtual: null,
     elementos: {},
@@ -126,6 +142,111 @@
     },
 
     // ── Estado 3 — sucesso ─────────────────────────────────────
+    /**
+     * Toque curto de confirmacao, sintetizado na hora.
+     *
+     * Sem arquivo de audio de proposito: o totem precisa funcionar
+     * offline, e um .mp3 e mais um recurso para o Service Worker
+     * guardar e para a rede perder. A Web Audio API gera o som no
+     * proprio aparelho, sempre disponivel.
+     *
+     * Duas notas subindo — o padrao que se le como "deu certo" sem
+     * precisar olhar para a tela, que e o ponto: quem bateu ja esta se
+     * virando para sair. No aniversario sao quatro, em acorde.
+     *
+     * Falha em silencio. Navegador que bloqueia audio sem gesto do
+     * usuario e comum, e o ponto foi registrado de qualquer forma — a
+     * tela continua sendo a confirmacao que vale.
+     */
+    tocarSucesso: function (festivo) {
+      try {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        if (!this._audio) this._audio = new Ctx();
+        var ctx = this._audio;
+        // O contexto nasce suspenso ate o primeiro gesto; no totem o
+        // toque na tela ja aconteceu antes da batida.
+        if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+
+        var notas = festivo ? [523.25, 659.25, 783.99, 1046.5] : [587.33, 880.0];
+        var agora = ctx.currentTime;
+        notas.forEach(function (hz, i) {
+          var osc = ctx.createOscillator();
+          var vol = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = hz;
+          var inicio = agora + i * 0.11;
+          var fim = inicio + 0.18;
+          // Rampa em vez de liga/desliga: corte seco vira estalo.
+          vol.gain.setValueAtTime(0.0001, inicio);
+          vol.gain.exponentialRampToValueAtTime(0.22, inicio + 0.02);
+          vol.gain.exponentialRampToValueAtTime(0.0001, fim);
+          osc.connect(vol);
+          vol.connect(ctx.destination);
+          osc.start(inicio);
+          osc.stop(fim + 0.02);
+        });
+      } catch (e) {
+        // Som e confirmacao extra, nunca requisito.
+      }
+    },
+
+    /**
+     * Palmas subindo, so no aniversario.
+     *
+     * Duram menos que a tela de sucesso de proposito: a fila continua
+     * andando, e uma animacao que passa do tempo da tela empurraria o
+     * proximo da fila para dentro da festa do anterior.
+     */
+    _palmas: function (el) {
+      if (!el) return;
+      var caixa = el.querySelector('[data-palmas]');
+      if (!caixa) {
+        caixa = document.createElement('div');
+        caixa.className = 'totem-palmas';
+        caixa.setAttribute('data-palmas', '');
+        el.appendChild(caixa);
+      }
+      caixa.innerHTML = '';
+      for (var i = 0; i < 12; i += 1) {
+        var s = document.createElement('span');
+        s.textContent = SIMBOLOS_FESTA[i % SIMBOLOS_FESTA.length];
+        s.style.left = (5 + Math.random() * 88) + '%';
+        s.style.setProperty('--atraso', (Math.random() * 1.2).toFixed(2) + 's');
+        s.style.setProperty('--dur', (2.2 + Math.random() * 1.4).toFixed(2) + 's');
+        s.style.setProperty('--giro', Math.round(-25 + Math.random() * 50) + 'deg');
+        caixa.appendChild(s);
+      }
+    },
+
+    /**
+     * Aniversariantes do dia na tela ociosa.
+     *
+     * Vem do heartbeat, e nao da abertura da pagina: o totem fica ligado
+     * dias seguidos, e um texto renderizado uma vez so continuaria
+     * parabenizando quem fez aniversario anteontem.
+     */
+    aniversariantes: function (nomes) {
+      var el = document.querySelector('[data-aniversario]');
+      if (!el) return;
+      if (!nomes || !nomes.length) {
+        el.hidden = true;
+        el.textContent = '';
+        return;
+      }
+      var lista;
+      if (nomes.length === 1) {
+        lista = nomes[0];
+      } else if (nomes.length === 2) {
+        lista = nomes[0] + ' e ' + nomes[1];
+      } else {
+        lista = nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1];
+      }
+      var verbo = nomes.length === 1 ? ' e aniversario de ' : ' sao aniversarios de ';
+      el.textContent = EMOJI_FESTA + ' Hoje' + verbo + lista + '!';
+      el.hidden = false;
+    },
+
     preencherSucesso: function (dados) {
       var el = this.elementos.sucesso;
       if (!el) return;
@@ -138,7 +259,13 @@
       this._texto(el.tipo, registro.tipo_exibicao);
       this._texto(el.hora, registro.hora);
       this._texto(el.data, registro.data);
-      this._texto(el.mensagem, dados.mensagem);
+      // No aniversario a felicitacao toma o lugar da frase de sucesso:
+      // as duas juntas viram parede de texto numa tela de 5 segundos.
+      this._texto(el.mensagem, dados.aniversario || dados.despedida || dados.mensagem);
+      this.tocarSucesso(!!dados.aniversario);
+      if (dados.aniversario) {
+        this._palmas(document.getElementById('tela-sucesso'));
+      }
       this._texto(el.nsr, registro.nsr ? 'NSR ' + registro.nsr : '');
       this._texto(el.verificacao, registro.codigo_verificacao);
 

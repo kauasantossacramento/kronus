@@ -13,6 +13,8 @@ app_name = "rh"
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    # Calendario de aniversarios do mes. Ver views.aniversariantes.
+    path("aniversariantes/", views.aniversariantes, name="aniversariantes"),
     # -- Colaboradores -----------------------------------------
     path("colaboradores/", views.ColaboradorListView.as_view(), name="colaborador_lista"),
     path(

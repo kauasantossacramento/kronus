@@ -161,10 +161,9 @@ def registrar_aprendizado(servico, colaborador, imagem_bytes, resultado) -> bool
         registro.aprendida = True
         registro.save(update_fields=["aprendida", "updated_at"])
 
-        if aprendidas.count() > MAXIMO_APRENDIDAS - 1:
-            for velha in aprendidas.order_by("created_at")[
-                : aprendidas.count() - (MAXIMO_APRENDIDAS - 1)
-            ]:
+        excedente = aprendidas.count() - (MAXIMO_APRENDIDAS - 1)
+        if excedente > 0:
+            for velha in _piores_aprendidas(servico, colaborador, aprendidas, excedente):
                 velha.ativo = False
                 velha.save(update_fields=["ativo", "updated_at"])
 
@@ -280,3 +279,49 @@ def _nao_aproxima_de_outro(servico, colaborador, imagem_bytes) -> bool:
         # Ao contrario de `_traz_algo_novo`, aqui a duvida bloqueia.
         logger.info("Nao foi possivel conferir a vizinhanca; nao aprendeu.")
         return False
+
+
+def _piores_aprendidas(servico, colaborador, aprendidas, quantas: int) -> list:
+    """
+    Quais amostras aprendidas sair, quando a cota enche.
+
+    Antes saia a mais antiga. Idade e um criterio pobre: a amostra mais
+    velha pode ser a melhor que a pessoa tem, e a mais nova pode ser a
+    que a aproxima de um sosia. Trocar por idade mantem o cadastro
+    recente e nao o mantem **bom**.
+
+    Agora sai a que mais encosta em outra pessoa. Assim cada aprendizado
+    deixa a galeria um pouco mais separada do resto — o cadastro melhora
+    com o uso em vez de so acompanhar o tempo. E o que faz diferenca
+    justamente em quem tem um parecido na empresa.
+
+    Empate, ou impossibilidade de medir, volta ao criterio antigo: a
+    mais antiga sai. Um criterio pior e melhor que nenhum.
+    """
+    try:
+        galeria = servico.candidatos([colaborador.empresa])
+        outros = [
+            v for pk, vs in galeria.items() if pk != colaborador.pk for v in vs
+        ]
+        if not outros:
+            return list(aprendidas.order_by("created_at")[:quantas])
+
+        def encosta_quanto(registro):
+            vetor = registro.obter_embedding()
+            if vetor is None:
+                # Sem vetor nao ha o que defender: sai primeiro.
+                return -1.0
+            return min(servico._distancia(vetor, o) for o in outros)
+
+        # Menor distancia a outra pessoa = pior amostra.
+        ordenadas = sorted(aprendidas, key=encosta_quanto)
+        piores = ordenadas[:quantas]
+        for r in piores:
+            logger.info(
+                "Aposentando a amostra aprendida %s: era a mais proxima de "
+                "outro cadastro.", r.pk,
+            )
+        return piores
+    except Exception:
+        logger.exception("Falha ao escolher a amostra a aposentar; usando a idade.")
+        return list(aprendidas.order_by("created_at")[:quantas])

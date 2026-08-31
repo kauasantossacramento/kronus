@@ -17,6 +17,8 @@ urlpatterns = [
     # Suporte: ver o ambiente com os olhos do cliente. Ver views.entrar_como.
     path("empresas/<int:pk>/entrar/", views.entrar_como, name="entrar_como"),
     path("sair-do-ambiente/", views.sair_do_ambiente, name="sair_do_ambiente"),
+    # Painel de semelhancas entre cadastros faciais. Ver views.semelhancas.
+    path("semelhancas/", views.semelhancas, name="semelhancas"),
     path(
         "clientes/<int:pk>/editar/",
         views.ClienteUpdateView.as_view(),

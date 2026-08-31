@@ -209,11 +209,17 @@ class Totem(BaseModel):
         PRESENCA = "presenca", "Reconhecer a presença automaticamente"
         TOQUE = "toque", "Somente ao tocar na tela"
 
+    #: Totem novo nasce exigindo o toque.
+    #:
+    #: A busca automatica tentava identificar quem passava sem olhar
+    #: para a tela — e uma tentativa sem intencao de bater ponto e uma
+    #: chance a mais de confundir pessoas parecidas, sem nenhum ganho.
+    #: Quem quiser a leitura automatica escolhe; o padrao pede o toque.
     inicio_do_ponto = models.CharField(
         "Início do reconhecimento",
         max_length=10,
         choices=Inicio.choices,
-        default=Inicio.EMPRESA,
+        default=Inicio.TOQUE,
     )
 
     atende_todo_o_cliente = models.BooleanField(

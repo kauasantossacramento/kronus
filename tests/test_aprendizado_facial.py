@@ -82,16 +82,41 @@ class MaioriaSupervisionadaTests(TestCase):
         )
 
 
-class DesligadoPorPadraoTests(TestCase):
-    def test_a_empresa_precisa_ligar(self):
+class LigadoPorPadraoTests(TestCase):
+    """
+    O aprendizado passou a nascer ligado.
+
+    Ficou desligado enquanto aprender com o proprio resultado era
+    realimentacao sem freio. As travas mudaram isso: so aprende com
+    batida folgada, so o que traz condicao nova, e nunca o que encosta
+    em outra pessoa — esta ultima e a que impede o rosto de uma irma de
+    entrar na galeria da outra.
+
+    Com elas, o risco de NAO aprender ficou maior: sem aprender, a
+    pessoa se afasta da propria referencia e o totem passa a pedir CPF
+    de quem sempre reconheceu.
+    """
+
+    def test_a_empresa_ja_nasce_aprendendo(self):
         from apps.clientes.models import Empresa
 
         campo = Empresa._meta.get_field("aprendizado_facial")
-        self.assertFalse(
+        self.assertTrue(
             campo.default,
-            "aprender com o proprio resultado e realimentacao: quem liga "
-            "precisa saber que ligou",
+            "sem aprender, a pessoa se afasta da propria referencia",
         )
+
+    def test_as_travas_que_permitem_ligar_continuam_de_pe(self):
+        """
+        O padrao novo se apoia nelas: se alguma sumir, ligar por padrao
+        deixa de ser seguro e este teste tem de doer.
+        """
+        from apps.facial import aprendizado
+
+        self.assertTrue(hasattr(aprendizado, "_nao_aproxima_de_outro"))
+        self.assertTrue(hasattr(aprendizado, "_traz_algo_novo"))
+        self.assertGreater(aprendizado.MARGEM_PARA_APRENDER, 0.1)
+        self.assertLessEqual(aprendizado.FRACAO_PARA_APRENDER, 0.5)
 
     def test_a_amostra_registra_de_onde_veio(self):
         from apps.facial.models import FaceRegistro

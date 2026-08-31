@@ -63,6 +63,15 @@ app.conf.beat_schedule = {
         "task": "apps.totem.tasks.monitorar_totens_offline",
         "schedule": crontab(minute="*/5"),
     },
+    # Parabens do dia, em nome da empresa.
+    #
+    # 8h05: cedo o bastante para chegar antes do expediente comecar, e
+    # nao tao cedo que o e-mail se perca no meio da madrugada. Uma vez
+    # por dia — um parabens duplicado e pior que um que faltou.
+    "parabenizar-aniversariantes": {
+        "task": "apps.rh.tasks.parabenizar_aniversariantes",
+        "schedule": crontab(hour=8, minute=5),
+    },
     # Secao 14, regra 5 — expurgo de dados biometricos apos desligamento
     "expurgar-dados-faciais": {
         "task": "apps.facial.tasks.expurgar_embeddings_desligados",

@@ -54,6 +54,30 @@
   <div class="totem-slides" data-kronus-slides
        data-transicao="{{ empresa.slides_transicao }}"></div>
 
+  {% comment %}
+    Selo de "toque para bater o ponto".
+
+    Fica fora de `totem-idle__conteudo` de proposito: o conteudo some
+    atras dos slides, e a instrucao de como comecar e justamente o que
+    nao pode sumir. Quem chega e ve um mural passando precisa saber que
+    a tela espera um toque — sem isso fica parado na frente dela.
+
+    Discreto por escolha: escuro e translucido, para nao competir com a
+    marca nem com o slide da empresa.
+  {% endcomment %}
+  {% if totem.comeca_por_toque %}
+    <div class="totem-selo-toque" data-selo-toque aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 11V6.5a1.5 1.5 0 0 1 3 0V11"></path>
+        <path d="M12 11V9.5a1.5 1.5 0 0 1 3 0V11"></path>
+        <path d="M15 11v-.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5.2-3l-1.6-2.8a1.5 1.5 0 0 1 2.4-1.8L9 15"></path>
+        <path d="M9 11v4"></path>
+      </svg>
+      <span>Toque para registrar o seu ponto</span>
+    </div>
+  {% endif %}
+
   <div class="totem-idle__conteudo" data-idle-conteudo>
     <div class="totem-idle__marca" data-kronus-logo
          style="--totem-logo-altura: {{ empresa.logo_altura_px }}px;
@@ -68,6 +92,13 @@
        style="--totem-msg-px: {{ empresa.msg_boas_vindas_px }}px">{{ empresa.msg_boas_vindas }}</p>
     <p class="totem-idle__tagline"
        style="--totem-slogan-px: {{ empresa.slogan_px }}px">{% firstof empresa.slogan_totem KRONUS.TAGLINE_TOTEM %}</p>
+
+    {% comment %}
+      Aniversariantes do dia. Preenchido pelo heartbeat, que bate a cada
+      30 s: um totem fica ligado dias seguidos, e um texto renderizado na
+      abertura da pagina ainda mostraria o aniversario de anteontem.
+    {% endcomment %}
+    <p class="totem-aniversario" data-aniversario hidden></p>
   {% comment %}
     Como se começa. "Aproxime-se" e "Toque na tela" são instruções
     opostas, e a errada deixa a pessoa esperando em frente a uma tela

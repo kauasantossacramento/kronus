@@ -1,0 +1,137 @@
+"""
+Kronus — aniversariantes: calendario, totem e e-mail.
+
+A data ja estava no cadastro; o que faltava era chegar a quem usa. Sao
+tres caminhos, e cada um alcanca alguem que os outros nao alcancam: o
+calendario e para o RH planejar, a tela do totem alcanca quem nao tem
+e-mail, e o e-mail chega a quem nao passa pelo totem naquele dia.
+"""
+from datetime import date, timedelta
+
+from django.test import TestCase
+
+from apps.rh.aniversariantes import MESES, grade
+
+
+class GradeDoCalendarioTests(TestCase):
+    """
+    A grade sai pronta da view.
+
+    Template que faz aritmetica de calendario e template que erra em
+    fevereiro — e o erro so aparece uma vez a cada quatro anos.
+    """
+
+    def test_semanas_sempre_com_sete_casas(self):
+        for mes in range(1, 13):
+            for semana in grade(2026, mes, []):
+                self.assertEqual(len(semana), 7, f"mes {mes}")
+
+    def test_fevereiro_bissexto_tem_29_dias(self):
+        dias = [c["dia"] for s in grade(2024, 2, []) for c in s if c]
+        self.assertEqual(max(dias), 29)
+
+    def test_fevereiro_comum_tem_28(self):
+        dias = [c["dia"] for s in grade(2026, 2, []) for c in s if c]
+        self.assertEqual(max(dias), 28)
+
+    def test_todos_os_dias_do_mes_aparecem_uma_vez(self):
+        dias = [c["dia"] for s in grade(2026, 8, []) for c in s if c]
+        self.assertEqual(sorted(dias), list(range(1, 32)))
+
+    def test_as_casas_vazias_vem_como_none(self):
+        # 1/8/2026 e sabado: cinco casas vazias antes dele.
+        primeira = grade(2026, 8, [])[0]
+        self.assertEqual(primeira[:5], [None] * 5)
+
+    def test_o_aniversariante_cai_no_proprio_dia(self):
+        pessoa = {"id": 1, "nome": "Ana", "dia": 15, "idade": 30,
+                  "cargo": "", "empresa": "X", "email": "", "hoje": False}
+        celulas = {c["dia"]: c for s in grade(2026, 8, [pessoa]) for c in s if c}
+        self.assertEqual(celulas[15]["pessoas"], [pessoa])
+        self.assertEqual(celulas[14]["pessoas"], [])
+
+    def test_os_meses_estao_em_portugues(self):
+        self.assertEqual(MESES[2], "março")
+        self.assertEqual(len(MESES), 12)
+
+
+class FelicitacaoNoTotemTests(TestCase):
+    """A mensagem que aparece na tela de quem acabou de bater."""
+
+    class Pessoa:
+        def __init__(self, nascimento, nome="Maria Silva"):
+            self.data_nascimento = nascimento
+            self.nome_exibicao = nome
+
+    def _felicitar(self, pessoa):
+        from apps.api.views_totem import _felicitacao
+
+        return _felicitacao(pessoa)
+
+    def test_parabeniza_no_dia(self):
+        hoje = date.today()
+        pessoa = self.Pessoa(date(1990, hoje.month, hoje.day))
+        self.assertIn("Maria", self._felicitar(pessoa))
+
+    def test_compara_dia_e_mes_e_nao_o_ano(self):
+        """
+        O ano do nascimento nunca coincide com hoje: comparar a data
+        inteira nunca daria aniversario nenhum.
+        """
+        hoje = date.today()
+        self.assertTrue(self._felicitar(self.Pessoa(date(1970, hoje.month, hoje.day))))
+
+    def test_nos_outros_dias_nao_diz_nada(self):
+        outro = date.today() + timedelta(days=3)
+        self.assertEqual(self._felicitar(self.Pessoa(date(1990, outro.month, outro.day))), "")
+
+    def test_sem_data_de_nascimento_nao_quebra(self):
+        self.assertEqual(self._felicitar(self.Pessoa(None)), "")
+
+
+class DespedidaTests(TestCase):
+    """
+    "Ate amanha" so quando a jornada acaba.
+
+    A batida do intervalo tambem e uma "saida" no sentido coloquial, e
+    quem volta do almoco ouvindo "ate amanha" fica em duvida se o ponto
+    entrou no lugar certo.
+    """
+
+    class Pessoa:
+        nome_exibicao = "Joao Souza"
+
+    class Registro:
+        def __init__(self, tipo):
+            self.tipo = tipo
+
+    def _despedir(self, tipo):
+        from apps.api.views_totem import _despedida
+
+        return _despedida(self.Pessoa(), self.Registro(tipo))
+
+    def test_a_saida_ganha_despedida(self):
+        from apps.core.constants import TipoRegistro
+
+        self.assertIn("Joao", self._despedir(TipoRegistro.SAIDA))
+
+    def test_a_entrada_nao(self):
+        from apps.core.constants import TipoRegistro
+
+        self.assertEqual(self._despedir(TipoRegistro.ENTRADA), "")
+
+    def test_o_intervalo_nao(self):
+        from apps.core.constants import TipoRegistro
+
+        self.assertEqual(self._despedir(TipoRegistro.INTERVALO_INICIO), "")
+        self.assertEqual(self._despedir(TipoRegistro.INTERVALO_FIM), "")
+
+    def test_na_sexta_o_ate_amanha_estaria_errado(self):
+        from unittest.mock import patch
+
+        from apps.core.constants import TipoRegistro
+
+        sexta = date(2026, 8, 28)   # sexta-feira
+        self.assertEqual(sexta.weekday(), 4)
+        with patch("apps.api.views_totem.timezone.localdate", return_value=sexta):
+            self.assertIn("fim de semana", self._despedir(TipoRegistro.SAIDA))

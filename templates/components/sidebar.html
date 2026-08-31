@@ -32,6 +32,7 @@
       <a href="{% url 'master:plano_lista' %}"   class="sidebar-link {% if menu_ativo == 'planos' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Planos</span></a>
       <a href="{% url 'master:totem_lista' %}"   class="sidebar-link {% if menu_ativo == 'totens' %}ativo{% endif %}">{% icone "totem" classe="h-[18px] w-[18px] shrink-0" %}<span>Totens</span></a>
       <a href="{% url 'master:reconhecimentos' %}" class="sidebar-link {% if menu_ativo == 'reconhecimentos' %}ativo{% endif %}">{% icone "rosto" classe="h-[18px] w-[18px] shrink-0" %}<span>Reconhecimentos</span></a>
+      <a href="{% url 'master:semelhancas' %}" class="sidebar-link {% if menu_ativo == 'semelhancas' %}ativo{% endif %}">{% icone "rosto" classe="h-[18px] w-[18px] shrink-0" %}<span>Semelhanças</span></a>
       <a href="{% url 'master:comercial_demos' %}" class="sidebar-link {% if menu_ativo == 'comercial' %}ativo{% endif %}">{% icone "estrela" classe="h-[18px] w-[18px] shrink-0" %}<span>Comercial</span></a>
       <a href="{% url 'master:assinaturas' %}"   class="sidebar-link {% if menu_ativo == 'assinaturas' %}ativo{% endif %}">{% icone "cartao" classe="h-[18px] w-[18px] shrink-0" %}<span>Assinaturas</span></a>
       <a href="{% url 'master:custos' %}"        class="sidebar-link {% if menu_ativo == 'custos' %}ativo{% endif %}">{% icone "grafico" classe="h-[18px] w-[18px] shrink-0" %}<span>Custos e margem</span></a>
@@ -54,6 +55,7 @@
       <a href="{% url 'rh:colaborador_lista' %}"  class="sidebar-link {% if menu_ativo == 'colaboradores' %}ativo{% endif %}">{% icone "usuarios" classe="h-[18px] w-[18px] shrink-0" %}<span>Colaboradores</span></a>
       <a href="{% url 'rh:departamento_lista' %}" class="sidebar-link {% if menu_ativo == 'departamentos' %}ativo{% endif %}">{% icone "pasta" classe="h-[18px] w-[18px] shrink-0" %}<span>Departamentos</span></a>
       <a href="{% url 'rh:cargo_lista' %}"        class="sidebar-link {% if menu_ativo == 'cargos' %}ativo{% endif %}">{% icone "medalha" classe="h-[18px] w-[18px] shrink-0" %}<span>Cargos</span></a>
+      <a href="{% url 'rh:aniversariantes' %}"    class="sidebar-link {% if menu_ativo == 'aniversariantes' %}ativo{% endif %}">{% icone "calendario" classe="h-[18px] w-[18px] shrink-0" %}<span>Aniversariantes</span></a>
 
       <p class="px-3 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-white/40">Ponto</p>
       <a href="{% url 'rh:registro_lista' %}"  class="sidebar-link {% if menu_ativo == 'registros' %}ativo{% endif %}">{% icone "relogio" classe="h-[18px] w-[18px] shrink-0" %}<span>Registros de Ponto</span></a>

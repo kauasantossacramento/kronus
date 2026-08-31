@@ -56,10 +56,23 @@ def tenant(request):
         "colaborador_atual": getattr(request, "colaborador", None),
         "tema": tema,
         "eh_master": bool(user and user.is_authenticated and user.tipo == TipoUsuario.MASTER),
+        # O master dentro do ambiente de um cliente enxerga o menu do
+        # cliente.
+        #
+        # Sem isto, "entrar no ambiente" entregava metade do que promete:
+        # a empresa ativa mudava, mas a barra lateral continuava a do
+        # Master — e dar suporte sem conseguir abrir as telas que a
+        # pessoa esta descrevendo e o mesmo que nao ter entrado.
+        #
+        # Nao amplia permissao nenhuma: o master ja alcanca todas as
+        # empresas. O que muda e o caminho ate elas.
         "eh_rh": bool(
             user
             and user.is_authenticated
-            and user.tipo in (TipoUsuario.RH, TipoUsuario.CLIENTE)
+            and (
+                user.tipo in (TipoUsuario.RH, TipoUsuario.CLIENTE)
+                or (user.tipo == TipoUsuario.MASTER and empresa is not None)
+            )
         ),
         "eh_colaborador": bool(
             user and user.is_authenticated and user.tipo == TipoUsuario.COLABORADOR

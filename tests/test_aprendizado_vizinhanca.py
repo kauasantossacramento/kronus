@@ -114,3 +114,65 @@ class VizinhancaTests(TestCase):
         self.assertGreater(
             DISTANCIA_MINIMA_DE_OUTROS, settings.FACE_RECOGNITION_THRESHOLD - 0.01
         )
+
+
+class AposentadoriaPorQualidadeTests(TestCase):
+    """
+    Quando a cota enche, sai a pior — não a mais velha.
+
+    Idade e um criterio pobre: a amostra mais antiga pode ser a melhor
+    que a pessoa tem, e a mais nova pode ser justamente a que a aproxima
+    de um sosia. Trocar por idade mantem o cadastro recente sem manter
+    ele bom.
+
+    Saindo a que mais encosta em outra pessoa, cada aprendizado deixa a
+    galeria um pouco mais separada — o cadastro melhora com o uso.
+    """
+
+    def setUp(self):
+        from apps.facial.aprendizado import _piores_aprendidas
+
+        self.escolher = _piores_aprendidas
+        self.eu = vetor(11)
+        self.vizinho = vetor(12)
+
+    def _registro(self, pk, v):
+        class Reg:
+            def __init__(self, pk, v):
+                self.pk = pk
+                self._v = v
+
+            def obter_embedding(self):
+                return self._v
+
+        return Reg(pk, v)
+
+    def _servico(self, galeria):
+        return ServicoFalso(galeria, self.eu)
+
+    def test_sai_a_que_mais_encosta_no_vizinho(self):
+        boa = self._registro(1, mistura(self.eu, vetor(20), 0.1))
+        ruim = self._registro(2, mistura(self.eu, self.vizinho, 0.7))
+        servico = self._servico({1: [self.eu], 2: [self.vizinho]})
+
+        piores = self.escolher(servico, Colaborador(1), [boa, ruim], 1)
+        self.assertEqual([r.pk for r in piores], [2])
+
+    def test_sem_outras_pessoas_volta_a_idade(self):
+        """Sozinho na empresa não há de quem se afastar."""
+        class Fila(list):
+            def order_by(self, _campo):
+                return self
+
+        a = self._registro(1, self.eu)
+        b = self._registro(2, self.eu)
+        servico = self._servico({1: [self.eu]})
+        piores = self.escolher(servico, Colaborador(1), Fila([a, b]), 1)
+        self.assertEqual([r.pk for r in piores], [1])
+
+    def test_amostra_sem_vetor_sai_primeiro(self):
+        sem = self._registro(9, None)
+        boa = self._registro(1, mistura(self.eu, vetor(21), 0.1))
+        servico = self._servico({1: [self.eu], 2: [self.vizinho]})
+        piores = self.escolher(servico, Colaborador(1), [boa, sem], 1)
+        self.assertEqual([r.pk for r in piores], [9])
