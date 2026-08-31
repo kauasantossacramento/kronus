@@ -76,12 +76,14 @@ class DecisaoTests(TestCase):
         with override_settings(FACE_MARGEM_CONFIRMACAO=0.06):
             import apps.facial.providers as provedores
 
-            original = provedores.DeepFaceProvider
-            provedores.DeepFaceProvider = lambda modelo=None: Provedor()
+            original = provedores.obter_provedor_confirmacao
+            provedores.obter_provedor_confirmacao = lambda: Provedor()
             try:
-                self.assertTrue(self.servico._segunda_opiniao(b"", 1, galeria))
+                self.assertIs(
+                    self.servico._segunda_opiniao(b"quadro", 1, galeria), True
+                )
             finally:
-                provedores.DeepFaceProvider = original
+                provedores.obter_provedor_confirmacao = original
 
     def test_discorda_quando_aponta_outra_pessoa(self):
         outro = vetor(2)
@@ -96,12 +98,17 @@ class DecisaoTests(TestCase):
 
         import apps.facial.providers as provedores
 
-        original = provedores.DeepFaceProvider
-        provedores.DeepFaceProvider = lambda modelo=None: Provedor()
+        original = provedores.obter_provedor_confirmacao
+        provedores.obter_provedor_confirmacao = lambda: Provedor()
         try:
-            self.assertFalse(self.servico._segunda_opiniao(b"", 1, galeria))
+            # `is False`, e nao `assertFalse`: `None` tambem e falsy, e
+            # `None` aqui significaria "nao conferiu" — o oposto de
+            # "conferiu e discordou".
+            self.assertIs(
+                self.servico._segunda_opiniao(b"quadro", 1, galeria), False
+            )
         finally:
-            provedores.DeepFaceProvider = original
+            provedores.obter_provedor_confirmacao = original
 
     def test_sem_galeria_do_segundo_modelo_nao_bloqueia(self):
         """
@@ -171,3 +178,69 @@ class DesfechoRegistradoTests(TestCase):
         )
         self.assertIn("modelo=settings.DEEPFACE_MODEL", fonte)
         self.assertIn("confirmacao=", fonte)
+
+
+class ArquiteturaDaConfirmacaoTests(TestCase):
+    """
+    A segunda opiniao nao pode carregar modelo no processo web.
+
+    O `ProvedorDelegado` existe porque cada modelo custa ~1,1 GB *por
+    processo*: dois workers web com copia propria estouram um servidor
+    de 3,9 GB e empurram o Postgres para o swap. A conferencia dobraria
+    esse custo se pedisse o DeepFace direto — por isso ela passa pelo
+    mesmo seletor, e a inferencia vai para o worker dedicado, que e de
+    concorrencia 1 e guarda os dois modelos numa copia so.
+
+    Este teste existe para que a regressao apareca aqui, e nao como
+    memoria estourada em producao.
+    """
+
+    def test_em_producao_a_confirmacao_e_delegada(self):
+        from apps.facial.providers import ProvedorDelegado, obter_provedor_confirmacao
+
+        with override_settings(
+            FACE_PROVIDER="delegado", FACE_MODELO_CONFIRMACAO="ArcFace"
+        ):
+            provedor = obter_provedor_confirmacao()
+
+        self.assertIsInstance(provedor, ProvedorDelegado)
+        self.assertEqual(provedor.modelo, "ArcFace")
+
+    def test_o_worker_recebe_qual_modelo_usar(self):
+        """
+        Sem o modelo no argumento, o worker responderia com o modelo
+        principal — e a "segunda opiniao" seria a primeira de novo,
+        concordando sempre e nao filtrando nada.
+        """
+        from apps.facial.providers import ProvedorDelegado
+
+        enviados = {}
+
+        class TarefaFalsa:
+            def apply_async(self, args, queue):
+                enviados["args"] = args
+
+                class Resultado:
+                    def get(self, timeout, propagate):
+                        return {"embedding": [1.0, 0.0]}
+
+                return Resultado()
+
+        import apps.facial.tasks as tarefas
+
+        original = tarefas.gerar_embedding_remoto
+        tarefas.gerar_embedding_remoto = TarefaFalsa()
+        try:
+            ProvedorDelegado(modelo="ArcFace").gerar_embedding(b"imagem")
+        finally:
+            tarefas.gerar_embedding_remoto = original
+
+        self.assertEqual(enviados["args"][1], "ArcFace")
+
+    def test_sem_modelo_de_confirmacao_a_conferencia_se_abstem(self):
+        from apps.facial.providers import ProvedorIndisponivel, obter_provedor_confirmacao
+
+        with override_settings(FACE_MODELO_CONFIRMACAO=""):
+            self.assertIsInstance(
+                obter_provedor_confirmacao(), ProvedorIndisponivel
+            )

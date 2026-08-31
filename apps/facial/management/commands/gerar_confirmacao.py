@@ -30,7 +30,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opcoes):
         from apps.facial.models import FaceRegistro
-        from apps.facial.providers import DeepFaceProvider
+        from apps.facial.providers import obter_provedor_confirmacao
         from apps.facial.services import FaceRecognitionService
 
         modelo = settings.FACE_MODELO_CONFIRMACAO
@@ -66,7 +66,7 @@ class Command(BaseCommand):
             ))
             return
 
-        provedor = DeepFaceProvider(modelo=modelo)
+        provedor = obter_provedor_confirmacao()
         if not provedor.disponivel:
             self.stdout.write(self.style.ERROR(
                 f"Os pesos do modelo {modelo} não estão disponíveis neste "

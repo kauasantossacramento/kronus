@@ -473,6 +473,12 @@ class ProvedorDelegado(ProvedorFacial):
     #: a primeira chamada, que carrega o modelo (~4,4 s).
     TIMEOUT = 15
 
+    def __init__(self, modelo: str = None):
+        #: Qual modelo o worker deve usar. A segunda opiniao pede o
+        #: ArcFace enquanto o principal e o Facenet512 — e os dois
+        #: carregam la, nunca aqui.
+        self.modelo = modelo
+
     @property
     def disponivel(self) -> bool:
         """
@@ -499,7 +505,7 @@ class ProvedorDelegado(ProvedorFacial):
         b64 = base64.b64encode(imagem_bytes).decode()
         try:
             resultado = gerar_embedding_remoto.apply_async(
-                args=[b64], queue="facial"
+                args=[b64, self.modelo], queue="facial"
             ).get(timeout=self.TIMEOUT, propagate=True)
         except (NenhumRostoDetectado, MultiplosRostosDetectados):
             # Erros de dominio atravessam intactos: o totem precisa
@@ -548,4 +554,39 @@ def obter_provedor(nome: str = None) -> ProvedorFacial:
         return delegado
 
     local = DeepFaceProvider()
+    return local if local.disponivel else ProvedorIndisponivel()
+
+
+def obter_provedor_confirmacao() -> ProvedorFacial:
+    """
+    Provedor do **segundo** modelo, o que da a opiniao de desempate.
+
+    Existe para que a segunda opiniao siga a mesma regra do primeiro
+    modelo: em producao a inferencia vai para o worker dedicado. Pedir
+    `DeepFaceProvider(modelo=...)` direto aqui carregaria mais 1,1 GB
+    dentro de cada worker web — exatamente o que `ProvedorDelegado` foi
+    escrito para impedir.
+
+    O worker facial e de concorrencia 1, entao os dois modelos convivem
+    residentes num processo so, carregados uma vez cada.
+    """
+    modelo = getattr(settings, "FACE_MODELO_CONFIRMACAO", "")
+    if not modelo:
+        return ProvedorIndisponivel()
+
+    nome = getattr(settings, "FACE_PROVIDER", "auto")
+    if nome == "deterministico":
+        return ProvedorDeterministico()
+    if nome == "indisponivel":
+        return ProvedorIndisponivel()
+    if nome == "deepface":
+        return DeepFaceProvider(modelo=modelo)
+    if nome == "delegado":
+        return ProvedorDelegado(modelo=modelo)
+
+    delegado = ProvedorDelegado(modelo=modelo)
+    if delegado.disponivel:
+        return delegado
+
+    local = DeepFaceProvider(modelo=modelo)
     return local if local.disponivel else ProvedorIndisponivel()

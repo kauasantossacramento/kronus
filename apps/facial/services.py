@@ -178,10 +178,10 @@ class FaceRecognitionService:
         reconhecimento segue com um modelo so, que e o comportamento
         anterior. Trocar um cadastro que existe por nenhum seria pior.
         """
-        from apps.facial.providers import DeepFaceProvider
+        from apps.facial.providers import obter_provedor_confirmacao
 
         try:
-            provedor = DeepFaceProvider(modelo=settings.FACE_MODELO_CONFIRMACAO)
+            provedor = obter_provedor_confirmacao()
             if not provedor.disponivel:
                 return
             registro.definir_embedding_confirmacao(
@@ -807,14 +807,14 @@ class FaceRecognitionService:
         calibrar um limiar novo — e limiar mal calibrado foi exatamente o
         que produziu os falsos positivos que isto veio corrigir.
         """
-        from apps.facial.providers import DeepFaceProvider
+        from apps.facial.providers import obter_provedor_confirmacao
 
         try:
             galeria = self._galeria_de_confirmacao(candidatos.keys())
             if len(galeria) < 2 or escolhido_id not in galeria:
                 return None
 
-            provedor = DeepFaceProvider(modelo=settings.FACE_MODELO_CONFIRMACAO)
+            provedor = obter_provedor_confirmacao()
             if not provedor.disponivel:
                 return None
 

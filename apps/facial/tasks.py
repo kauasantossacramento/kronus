@@ -123,7 +123,7 @@ def reconsolidar_cadastros(empresa_id: int = None):
     time_limit=60,
     soft_time_limit=45,
 )
-def gerar_embedding_remoto(imagem_b64: str) -> dict:
+def gerar_embedding_remoto(imagem_b64: str, modelo: str = None) -> dict:
     """
     Gera um embedding no worker dedicado.
 
@@ -142,6 +142,11 @@ def gerar_embedding_remoto(imagem_b64: str) -> dict:
     A imagem trafega em base64 porque o serializador do Celery é JSON:
     trocá-lo por pickle para economizar 33% de tamanho abriria execução
     remota de código a quem alcançasse o Redis.
+
+    `modelo` atende a segunda opiniao, que pergunta ao ArcFace enquanto o
+    principal e o Facenet512. Vem por parametro para que o segundo modelo
+    carregue **aqui tambem**, e nao no worker web — que e a razao de toda
+    esta tarefa existir. Ambos ficam residentes neste processo unico.
     """
     import base64
 
@@ -150,7 +155,7 @@ def gerar_embedding_remoto(imagem_b64: str) -> dict:
     dados = base64.b64decode(imagem_b64)
     # Direto no DeepFace: passar por `obter_provedor` correria o risco de
     # o worker estar configurado como delegado e chamar a si mesmo.
-    vetor = DeepFaceProvider().gerar_embedding(dados)
+    vetor = DeepFaceProvider(modelo=modelo).gerar_embedding(dados)
     return {"embedding": [float(x) for x in vetor]}
 
 
