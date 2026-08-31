@@ -850,6 +850,34 @@ class Empresa(BaseModel):
         return random.choice(frases) if self.frases_sorteadas else frases[0]
 
     @property
+    def fundo_do_login_e_escuro(self) -> bool:
+        """
+        O fundo escolhido pede texto claro por cima?
+
+        A tela do portal foi escrita para fundo claro: titulo quase preto,
+        subtitulo cinza, rodape cinza mais claro ainda. Quando a empresa
+        escolhe um fundo escuro — e escolhe, porque a logo dela costuma
+        ser branca — esses textos somem.
+
+        Luminancia relativa pela formula do WCAG, com o corte em 0,45:
+        acima disso o fundo e claro o bastante para o texto escuro
+        original, abaixo o texto precisa inverter.
+        """
+        cor = (self.cor_fundo_login or "").strip().lstrip("#")
+        if len(cor) != 6:
+            return False
+        try:
+            canais = [int(cor[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        except ValueError:
+            return False
+
+        def linear(c):
+            return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+        r, g, b = (linear(c) for c in canais)
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 0.45
+
+    @property
     def nome_exibicao(self) -> str:
         return self.nome_fantasia or self.razao_social
 

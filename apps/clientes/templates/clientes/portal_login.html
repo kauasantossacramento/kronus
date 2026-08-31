@@ -73,10 +73,15 @@
             {% icone "ampulheta" classe="h-8 w-8 text-white" %}
           </div>
         {% endif %}
-        <h1 class="mt-4 font-display text-xl font-semibold text-[var(--kronus-gray-900)]">
+        {% comment %}
+          O texto acompanha o fundo escolhido. Esta tela foi escrita para
+          fundo claro; sobre o verde de uma empresa que usa logo branca,
+          o titulo quase preto e o subtitulo cinza desaparecem.
+        {% endcomment %}
+        <h1 class="mt-4 font-display text-xl font-semibold {% if empresa_portal.fundo_do_login_e_escuro %}text-white{% else %}text-[var(--kronus-gray-900)]{% endif %}">
           {{ empresa_portal.nome_exibicao }}
         </h1>
-        <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">Registro de ponto</p>
+        <p class="mt-1 text-sm {% if empresa_portal.fundo_do_login_e_escuro %}text-white/70{% else %}text-[var(--kronus-gray-500)]{% endif %}">Registro de ponto</p>
       </div>
 
       <div class="card p-6">
@@ -125,9 +130,9 @@
     </div>
   </main>
 
-  <footer class="py-6 text-center text-xs text-[var(--kronus-gray-400)]">
+  <footer class="py-6 text-center text-xs {% if empresa_portal.fundo_do_login_e_escuro %}text-white/60{% else %}text-[var(--kronus-gray-400)]{% endif %}">
     {{ empresa_portal.cliente.razao_social }}<br>
-    <span class="text-[var(--kronus-gray-300)]">Kronus · ponto eletrônico</span>
+    <span class="{% if empresa_portal.fundo_do_login_e_escuro %}text-white/45{% else %}text-[var(--kronus-gray-300)]{% endif %}">Kronus · ponto eletrônico</span>
   </footer>
 </div>
 
