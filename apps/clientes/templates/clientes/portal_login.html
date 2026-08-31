@@ -32,7 +32,12 @@
       --kronus-primary-600: {{ empresa_portal.cor_primaria }};
       --kronus-gold-500: {{ empresa_portal.cor_secundaria }};
     }
-    body { background: {{ empresa_portal.cor_fundo_login }}; }
+    /* Sem classe utilitaria no `body` para brigar com esta regra.
+       `body { }` tem especificidade de elemento e perde para qualquer
+       classe — a cor da empresa era escrita aqui e sobrescrita logo
+       depois pelo padrao do Kronus, e o efeito na tela era nenhum.
+       O `firstof` mantem o padrao para quem nao escolheu cor. */
+    body { background: {% firstof empresa_portal.cor_fundo_login "#F8FAFC" %}; }
     {% with css_logo=empresa_portal|css_logo_login %}
       {% if css_logo %}
         [data-kronus-logo], [data-kronus-logo] img { {{ css_logo }} }
@@ -40,7 +45,7 @@
     {% endwith %}
   </style>
 </head>
-<body class="min-h-full bg-[var(--kronus-gray-50)] font-sans antialiased">
+<body class="min-h-full font-sans antialiased">
 
 <div class="flex min-h-screen flex-col">
   <main class="flex flex-1 items-center justify-center px-4 py-10">
