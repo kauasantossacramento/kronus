@@ -197,7 +197,9 @@ class ConfigTotemSerializer(serializers.Serializer):
             # nao dependa de republicar o app do quiosque.
             "liveness_quadros": 4 if config.exigir_liveness else 0,
             "minutos_entre_marcacoes": config.minutos_entre_marcacoes,
-            "iniciar_por_toque": totem.empresa.iniciar_por_toque,
+            # Do totem, e nao da empresa: dois equipamentos da mesma
+            # empresa podem viver em lugares com movimento diferente.
+            "iniciar_por_toque": totem.comeca_por_toque,
             # O totem so mostra a porta de manutencao quando ela existe.
             # Um caminho que aparece e recusa ensina que ele esta ali.
             "cadastro_facial_no_totem": (

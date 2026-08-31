@@ -158,4 +158,51 @@
     </div>
   </div>
 </div>
+
+{% comment %}
+  Duas acoes que faltavam depois do cadastro.
+
+  A caixa "criar acesso" fica no formulario, e quem nao a marcou na hora
+  ficava sem caminho — era refazer o colaborador. E a transferencia
+  existe porque a pessoa muda de unidade dentro do mesmo grupo, e antes
+  o unico jeito era apagar e recadastrar, perdendo o historico de ponto.
+{% endcomment %}
+<div class="card mt-6 p-6">
+  <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Acesso e lotação</h2>
+
+  <div class="mt-4 grid gap-6 sm:grid-cols-2">
+    <form method="post" action="{% url 'rh:colaborador_gerar_acesso' colaborador.pk %}">
+      {% csrf_token %}
+      <p class="text-sm font-medium text-[var(--kronus-gray-700)]">Credenciais de acesso</p>
+      <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+        Cria o login se ainda não existir, e confere o vínculo com a
+        empresa. A senha provisória aparece uma vez só.
+      </p>
+      <button type="submit" class="btn btn-outline mt-3 text-xs">
+        {% icone "chave" classe="h-3.5 w-3.5" %} Gerar acesso
+      </button>
+    </form>
+
+    {% if empresas_do_cliente %}
+      <form method="post" action="{% url 'rh:colaborador_transferir' colaborador.pk %}">
+        {% csrf_token %}
+        <p class="text-sm font-medium text-[var(--kronus-gray-700)]">Transferir de empresa</p>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+          As batidas já registradas continuam na empresa onde
+          aconteceram.
+        </p>
+        <select name="destino" required
+                class="mt-3 w-full rounded-lg border border-[var(--kronus-gray-300)] px-2 py-1.5 text-sm">
+          {% for e in empresas_do_cliente %}
+            <option value="{{ e.pk }}">{{ e.nome_exibicao }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-outline mt-2 text-xs">
+          {% icone "predio" classe="h-3.5 w-3.5" %} Transferir
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
 {% endblock %}

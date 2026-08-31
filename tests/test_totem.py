@@ -1016,3 +1016,91 @@ class VerificacaoDeVersaoTests(BaseTotemTestCase):
         ).content.decode()
         trecho = pagina[pagina.index("registro.update()"):][:80]
         self.assertIn("catch", trecho)
+
+
+class InicioPorTotemTests(BaseTotemTestCase):
+    """
+    Dois equipamentos da mesma empresa vivem em lugares diferentes.
+
+    Um na portaria, com movimento medido; outro na copa, por onde todo
+    mundo passa o dia inteiro. Na copa a deteccao automatica acende a
+    tela para quem so foi pegar cafe — e cada quadro enviado gasta
+    servidor com quem nao ia bater ponto.
+    """
+
+    def _config(self):
+        from django.urls import reverse
+
+        return self.client.get(
+            reverse("api:totem:totem_config"),
+            HTTP_AUTHORIZATION=f"Token {self.totem.token_acesso}",
+        ).json()["interface"]["iniciar_por_toque"]
+
+    def test_por_padrao_segue_a_empresa(self):
+        self.assertFalse(self._config())
+
+        self.empresa.iniciar_por_toque = True
+        self.empresa.save(update_fields=["iniciar_por_toque"])
+        self.assertTrue(self._config())
+
+    def test_o_totem_pode_exigir_toque_sozinho(self):
+        # A empresa continua no automatico; so este equipamento muda.
+        self.totem.inicio_do_ponto = Totem.Inicio.TOQUE
+        self.totem.save(update_fields=["inicio_do_ponto"])
+
+        self.assertFalse(self.empresa.iniciar_por_toque)
+        self.assertTrue(self._config())
+
+    def test_o_totem_pode_manter_o_automatico_contra_a_empresa(self):
+        self.empresa.iniciar_por_toque = True
+        self.empresa.save(update_fields=["iniciar_por_toque"])
+        self.totem.inicio_do_ponto = Totem.Inicio.PRESENCA
+        self.totem.save(update_fields=["inicio_do_ponto"])
+
+        self.assertFalse(self._config())
+
+    def test_a_pagina_diz_o_que_vale_para_este_equipamento(self):
+        self.totem.inicio_do_ponto = Totem.Inicio.TOQUE
+        self.totem.save(update_fields=["inicio_do_ponto"])
+        pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+        self.assertIn("Toque na tela para registrar", pagina)
+        self.assertIn("iniciarPorToque: true", pagina)
+
+
+class AbrangenciaDoTotemTests(BaseTotemTestCase):
+    """
+    Um cliente com matriz e filiais tem uma assinatura so, e quem
+    trabalha numa unidade passa pela outra.
+    """
+
+    def test_por_padrao_atende_so_a_propria_empresa(self):
+        self.assertFalse(self.totem.atende_todo_o_cliente)
+        self.assertEqual(
+            set(self.totem.empresas_atendidas()), {self.empresa}
+        )
+
+    def test_marcado_alcanca_as_outras_empresas_do_cliente(self):
+        self.totem.atende_todo_o_cliente = True
+        self.totem.save(update_fields=["atende_todo_o_cliente"])
+        self.assertIn(self.filial, self.totem.empresas_atendidas())
+
+    def test_nunca_atravessa_a_fronteira_do_cliente(self):
+        """
+        O teto e a assinatura. Alcancar empresa de outro cliente seria
+        vazamento entre contas, marcado ou nao.
+        """
+        from apps.clientes.models import Cliente, Empresa
+
+        outro = Cliente.objects.create(
+            razao_social="Outro", cnpj="11444777000161",
+            plano=self.plano, email_contato="o@x.com",
+        )
+        alheia = Empresa.objects.create(
+            cliente=outro, razao_social="Alheia", cnpj="34028316000103",
+        )
+
+        self.totem.atende_todo_o_cliente = True
+        self.totem.save(update_fields=["atende_todo_o_cliente"])
+        self.assertNotIn(alheia, self.totem.empresas_atendidas())

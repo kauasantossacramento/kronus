@@ -26,6 +26,16 @@ urlpatterns = [
         name="colaborador_detalhe",
     ),
     path(
+        "colaboradores/<int:pk>/acesso/",
+        views.colaborador_gerar_acesso,
+        name="colaborador_gerar_acesso",
+    ),
+    path(
+        "colaboradores/<int:pk>/transferir/",
+        views.colaborador_transferir,
+        name="colaborador_transferir",
+    ),
+    path(
         "colaboradores/<int:pk>/editar/",
         views.ColaboradorUpdateView.as_view(),
         name="colaborador_editar",

@@ -74,7 +74,7 @@
     que não vai reagir.
   {% endcomment %}
   <p class="totem-comecar" data-comecar>
-    {% if empresa.iniciar_por_toque %}Toque na tela para registrar o ponto
+    {% if totem.comeca_por_toque %}Toque na tela para registrar o ponto
     {% else %}Aproxime-se para registrar o ponto{% endif %}
   </p>
   </div>
@@ -511,7 +511,7 @@
       identificador: '{{ totem.identificador|escapejs }}',
       versao: '{{ versao_app }}',
       versaoEstaticos: '{{ versao_estaticos }}',
-      iniciarPorToque: {{ empresa.iniciar_por_toque|yesno:"true,false" }},
+      iniciarPorToque: {{ totem.comeca_por_toque|yesno:"true,false" }},
       permiteFallback: {{ totem.permite_fallback_cpf|yesno:"true,false" }},
       tentativasReconhecimento: {{ empresa.tentativas_antes_do_cpf }},
       segundosSucesso: {{ totem.segundos_tela_sucesso }},

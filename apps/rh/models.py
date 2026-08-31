@@ -226,6 +226,74 @@ class Colaborador(TenantBaseModel):
         super().save(*args, **kwargs)
 
     # -- acesso ao sistema -------------------------------------
+    def mover_para(self, destino):
+        """
+        Transfere o colaborador para outra empresa do mesmo cliente.
+
+        Acontece de verdade: a pessoa e contratada por uma unidade e passa
+        a atuar em outra do mesmo grupo. Sem isto, o caminho era apagar e
+        recadastrar — e junto se perdia o historico de ponto, que e prova
+        trabalhista.
+
+        O que **nao** se move: as batidas ja registradas. Elas ficam na
+        empresa onde aconteceram, porque foi ali que o trabalho foi
+        prestado, e cada uma carrega o NSR daquela empresa numa corrente
+        encadeada. Reescrever isso quebraria a corrente inteira e
+        falsificaria o arquivo fiscal.
+
+        O que se move: o cadastro, o vinculo de acesso e o
+        reconhecimento facial — daqui para a frente a pessoa e da nova
+        empresa.
+
+        Recusa fora do cliente: a fronteira da assinatura e o limite de
+        tudo neste sistema.
+        """
+        from django.core.exceptions import ValidationError
+
+        if destino.pk == self.empresa_id:
+            return self
+
+        if destino.cliente_id != self.empresa.cliente_id:
+            raise ValidationError(
+                "A empresa de destino pertence a outro cliente."
+            )
+
+        origem = self.empresa
+        self.empresa = destino
+        # A escala e da empresa antiga e pode nem existir na nova; deixar
+        # apontando para fora produziria uma jornada que o destino nao
+        # reconhece.
+        if self.escala_id and self.escala.empresa_id != destino.pk:
+            self.escala = None
+        if self.departamento_id and self.departamento.empresa_id != destino.pk:
+            self.departamento = None
+        if self.cargo_ref_id and self.cargo_ref.empresa_id != destino.pk:
+            self.cargo_ref = None
+        self.save(update_fields=[
+            "empresa", "escala", "departamento", "cargo_ref", "updated_at",
+        ])
+
+        # O acesso acompanha: sem o vinculo, a pessoa entra e nao ve nada.
+        from apps.accounts.models import CustomUser
+
+        usuario = None
+        if self.cpf:
+            usuario = CustomUser.objects.filter(cpf=self.cpf).first()
+        if usuario is None and self.email:
+            usuario = CustomUser.objects.filter(email=self.email).first()
+        if usuario:
+            usuario.empresas.add(destino)
+            usuario.empresas.remove(origem)
+
+        # As amostras faciais pertencem ao colaborador, e nao a empresa:
+        # elas seguem sozinhas. O que precisa mudar e o cache de
+        # candidatos das duas pontas, que e montado por empresa.
+        from apps.facial.services import FaceRecognitionService
+
+        FaceRecognitionService.invalidar_cache(origem.pk)
+        FaceRecognitionService.invalidar_cache(destino.pk)
+        return self
+
     def garantir_usuario(self, criar_senha=True):
         """
         Cria (ou vincula) o login do colaborador.

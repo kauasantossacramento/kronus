@@ -7,6 +7,7 @@ ativa. Os modulos de ponto, banco de horas, atestados e relatorios
 sao preenchidos nas Fases 2 e 4.
 """
 from django.contrib import messages
+from django.views.decorators.http import require_POST
 from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db.models import Count, Q
@@ -314,6 +315,14 @@ class ColaboradorDetailView(BaseRHView, DetailView):
     menu_ativo = "colaboradores"
 
     def get_context_data(self, **kwargs):
+        # As outras empresas da mesma assinatura. Vazio quando o cliente
+        # so tem uma — e ai a transferencia nem aparece, em vez de
+        # oferecer um destino que nao existe.
+        from apps.clientes.models import Empresa
+
+        kwargs["empresas_do_cliente"] = Empresa.objects.filter(
+            cliente=self.request.empresa_ativa.cliente
+        ).exclude(pk=self.object.empresa_id)
         from apps.ponto.services import ConsolidacaoService
 
         contexto = super().get_context_data(**kwargs)
@@ -525,3 +534,95 @@ class CargoUpdateView(BaseRHFormView, UpdateView):
     mensagem_sucesso = "Cargo atualizado."
     menu_ativo = "cargos"
     extra_context = {"titulo": "Editar cargo"}
+
+
+@rh_required
+@empresa_ativa_required
+@require_POST
+def colaborador_gerar_acesso(request, pk):
+    """
+    Cria (ou repara) o login do colaborador depois do cadastro.
+
+    A caixa "criar acesso" fica no cadastro, e quem nao a marcou na hora
+    ficava sem caminho: era refazer o colaborador. Pior — quem marcou
+    antes da correcao do vinculo de empresa tem login que entra e nao
+    mostra nada, e `garantir_usuario` conserta esse caso tambem.
+
+    A senha aparece **uma vez**, aqui. Guardar para mostrar depois
+    exigiria guardar em texto puro.
+    """
+    colaborador = get_object_or_404(
+        Colaborador, pk=pk, empresa=request.empresa_ativa
+    )
+    usuario, senha = colaborador.garantir_usuario()
+
+    if senha:
+        messages.success(
+            request,
+            f"Acesso criado para {colaborador.nome_exibicao}. Senha "
+            f"provisória: {senha} — anote agora, ela não será exibida de "
+            f"novo. Será trocada no primeiro login.",
+        )
+    else:
+        messages.info(
+            request,
+            f"{colaborador.nome_exibicao} já tinha acesso; o vínculo com "
+            f"{request.empresa_ativa.nome_exibicao} foi conferido.",
+        )
+
+    registrar_log(
+        request=request,
+        acao=LogAcesso.Acao.CONFIG,
+        descricao=f"Acesso gerado para {colaborador.nome_exibicao}",
+        objeto=colaborador,
+        empresa=request.empresa_ativa,
+    )
+    return redirect("rh:colaborador_detalhe", pk=pk)
+
+
+@rh_required
+@empresa_ativa_required
+@require_POST
+def colaborador_transferir(request, pk):
+    """
+    Move o colaborador para outra empresa do mesmo cliente.
+
+    As batidas ja registradas ficam onde aconteceram — foi ali que o
+    trabalho foi prestado, e cada uma carrega o NSR daquela empresa numa
+    corrente encadeada.
+    """
+    from django.core.exceptions import ValidationError
+
+    from apps.clientes.models import Empresa
+
+    colaborador = get_object_or_404(
+        Colaborador, pk=pk, empresa=request.empresa_ativa
+    )
+    destino = get_object_or_404(
+        Empresa, pk=request.POST.get("destino"),
+        cliente=request.empresa_ativa.cliente,
+    )
+
+    origem = colaborador.empresa
+    try:
+        colaborador.mover_para(destino)
+    except ValidationError as erro:
+        messages.error(request, erro.messages[0])
+        return redirect("rh:colaborador_detalhe", pk=pk)
+
+    registrar_log(
+        request=request,
+        acao=LogAcesso.Acao.ALTERACAO,
+        descricao=(
+            f"{colaborador.nome_exibicao} transferido de "
+            f"{origem.nome_exibicao} para {destino.nome_exibicao}"
+        ),
+        objeto=colaborador,
+        empresa=origem,
+    )
+    messages.success(
+        request,
+        f"{colaborador.nome_exibicao} agora é de {destino.nome_exibicao}. "
+        f"As batidas anteriores continuam em {origem.nome_exibicao}.",
+    )
+    return redirect("rh:colaborador_lista")

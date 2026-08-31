@@ -184,6 +184,47 @@ class Totem(BaseModel):
     #:
     #: Fica separado para a escolha ser deliberada: quem clica em
     #: "recarregar" sabe que a tela vai piscar.
+    #: O totem atende as outras empresas do mesmo cliente?
+    #:
+    #: Um cliente com matriz e filiais tem uma assinatura so, e quem
+    #: trabalha numa unidade passa pela outra. Obrigar a montar um grupo
+    #: para cada combinacao e trabalho de cadastro que so existe porque o
+    #: sistema pede.
+    #:
+    #: Desligado por padrao. Ligar amplia quem pode bater ponto ali, e
+    #: essa e uma decisao de quem administra — nao um efeito colateral de
+    #: cadastrar a segunda empresa.
+    #:
+    #: Nunca atravessa a fronteira do cliente: o alcance maximo e a
+    #: propria assinatura.
+    #: Como este equipamento comeca: sozinho, ou ao toque.
+    #:
+    #: A empresa define o padrao; o totem pode discordar. Dois
+    #: equipamentos da mesma empresa vivem em lugares diferentes — um na
+    #: portaria, com movimento medido, outro na copa, por onde todo mundo
+    #: passa o dia inteiro. Na copa a deteccao automatica acende a tela
+    #: para quem so foi pegar cafe.
+    class Inicio(models.TextChoices):
+        EMPRESA = "empresa", "Seguir a configuração da empresa"
+        PRESENCA = "presenca", "Reconhecer a presença automaticamente"
+        TOQUE = "toque", "Somente ao tocar na tela"
+
+    inicio_do_ponto = models.CharField(
+        "Início do reconhecimento",
+        max_length=10,
+        choices=Inicio.choices,
+        default=Inicio.EMPRESA,
+    )
+
+    atende_todo_o_cliente = models.BooleanField(
+        "Atende todas as empresas do cliente",
+        default=False,
+        help_text=(
+            "Colaboradores de qualquer empresa deste cliente podem bater "
+            "ponto neste equipamento. A batida continua sendo registrada "
+            "na empresa de cada um."
+        ),
+    )
     recarga_total_em = models.DateTimeField(
         "Recarga total pedida em", null=True, blank=True
     )
@@ -346,6 +387,20 @@ class Totem(BaseModel):
         self.save(update_fields=["token_acesso", "updated_at"])
         return self.token_acesso
 
+    @property
+    def comeca_por_toque(self) -> bool:
+        """
+        Resolve o padrao da empresa com a escolha deste equipamento.
+
+        A escolha do totem vence quando existe; "seguir a empresa" e o
+        que mantem o comportamento de quem nunca mexeu nisso.
+        """
+        if self.inicio_do_ponto == self.Inicio.TOQUE:
+            return True
+        if self.inicio_do_ponto == self.Inicio.PRESENCA:
+            return False
+        return bool(self.empresa.iniciar_por_toque)
+
     def empresas_atendidas(self):
         """
         Empresas cujos colaboradores podem bater ponto neste equipamento.
@@ -372,6 +427,10 @@ class Totem(BaseModel):
         filtro = Q(pk=self.empresa_id)
         if self.grupo_id:
             filtro |= Q(grupos_totem=self.grupo_id)
+        if self.atende_todo_o_cliente and self.empresa.cliente_id:
+            # O teto continua sendo a assinatura: um totem nunca alcanca
+            # empresa de outro cliente, marcado ou nao.
+            filtro |= Q(cliente_id=self.empresa.cliente_id)
         return Empresa.objects.filter(filtro).distinct()
 
 

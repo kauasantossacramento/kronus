@@ -15,6 +15,19 @@ from django.db import models
 from apps.core.models import BaseModel
 
 
+def _modelo_em_uso() -> str:
+    """Modelo configurado no momento em que a amostra e criada."""
+    from django.conf import settings
+
+    return settings.DEEPFACE_MODEL
+
+
+def _detector_em_uso() -> str:
+    from django.conf import settings
+
+    return settings.DEEPFACE_DETECTOR
+
+
 class FaceRegistro(BaseModel):
     """Uma amostra facial do colaborador."""
 
@@ -41,8 +54,16 @@ class FaceRegistro(BaseModel):
     angulo = models.CharField(
         "Ângulo", max_length=10, choices=Angulo.choices, default=Angulo.FRONTAL
     )
-    modelo = models.CharField("Modelo", max_length=30, default="ArcFace")
-    detector = models.CharField("Detector", max_length=30, default="retinaface")
+    #: O padrao acompanha a configuracao, e nao um nome escrito aqui.
+    #:
+    #: Estava fixo em "ArcFace" e em "retinaface", os valores de quando
+    #: o codigo foi escrito. Depois da troca de modelo isso virou uma
+    #: armadilha: uma amostra criada sem informar o modelo nascia
+    #: marcada com o antigo, e o reconhecimento — que filtra pelo modelo
+    #: em uso — a ignorava em silencio. Sem erro, sem aviso, so um
+    #: cadastro que nao reconhece.
+    modelo = models.CharField("Modelo", max_length=30, default=_modelo_em_uso)
+    detector = models.CharField("Detector", max_length=30, default=_detector_em_uso)
     qualidade = models.FloatField(
         "Qualidade da amostra", null=True, blank=True,
         help_text="Score de nitidez/enquadramento calculado no pré-processamento."

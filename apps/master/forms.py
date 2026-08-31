@@ -94,6 +94,8 @@ class TotemForm(forms.ModelForm):
             # abrir a tela de comodato depois. O contrato e as datas
             # continuam la — o que falta aqui e so a marcacao.
             "em_comodato",
+            "inicio_do_ponto",
+            "atende_todo_o_cliente",
             "permite_fallback_cpf",
             "segundos_tela_sucesso",
             "segundos_countdown_offline",

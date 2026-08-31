@@ -471,14 +471,31 @@ DEEPFACE_DETECTOR = config("DEEPFACE_DETECTOR", default="mtcnn")
 #: espalhadas (0,18 a 0,51 entre si) e numa camera diferente da que
 #: registra o ponto.
 #:
-#: 0,52 vem da medicao com o Facenet512, entre as duas faixas reais:
+#: 0,45, e o numero vem do uso real — nao mais de fotos de cadastro
+#: comparadas entre si.
 #:
-#:     pior caso legitimo (mesma pessoa, poses opostas)   0,464
-#:     melhor caso impostor (duas pessoas, pose igual)    0,617
+#: Vinte e cinco tentativas num dia, com seis pessoas cadastradas:
 #:
-#: Encostado no lado legitimo de proposito. Um falso negativo custa uma
-#: digitacao de CPF; um falso positivo custa ponto no nome de outro.
-FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.52, cast=float)
+#:     reconhecimentos legitimos    0,11 a 0,40
+#:     ---------------------------- vao limpo -------------------------
+#:     falsos positivos             0,505 · 0,512 · 0,516
+#:     recusas corretas             0,52 a 0,65
+#:
+#: O limiar anterior, 0,52, tinha sido calibrado comparando as fotos do
+#: cadastro umas com as outras. Capturas ao vivo se comportam diferente:
+#: as legitimas ficam mais perto do que aquela medicao sugeria, e as de
+#: quem se parece com alguem ficam logo acima de 0,50. Os dois falsos
+#: positivos do dia caem exatamente nessa faixa — passaram por menos de
+#: dois centesimos.
+#:
+#: 0,45 fica no meio do vao: rejeita os tres casos ruins e nao encosta
+#: em nenhum acerto (o pior legitimo foi 0,40).
+#:
+#: A dupla confirmacao nao pega este caso, e vale dizer por que: ela
+#: derruba o acerto de UM quadro por acaso, e um rosto parecido nao e
+#: acaso — ele se repete no quadro seguinte. Contra semelhanca
+#: persistente, quem decide e o limiar.
+FACE_RECOGNITION_THRESHOLD = config("FACE_RECOGNITION_THRESHOLD", default=0.45, cast=float)
 
 #: Distancia abaixo da qual duas capturas sao, na pratica, a mesma
 #: pessoa.
