@@ -14,6 +14,9 @@ urlpatterns = [
     path("clientes/", views.ClienteListView.as_view(), name="cliente_lista"),
     path("clientes/novo/", views.ClienteCreateView.as_view(), name="cliente_criar"),
     path("clientes/<int:pk>/", views.ClienteDetailView.as_view(), name="cliente_detalhe"),
+    # Suporte: ver o ambiente com os olhos do cliente. Ver views.entrar_como.
+    path("empresas/<int:pk>/entrar/", views.entrar_como, name="entrar_como"),
+    path("sair-do-ambiente/", views.sair_do_ambiente, name="sair_do_ambiente"),
     path(
         "clientes/<int:pk>/editar/",
         views.ClienteUpdateView.as_view(),

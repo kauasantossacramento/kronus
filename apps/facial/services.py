@@ -63,6 +63,12 @@ class ResultadoReconhecimento:
         motivo: str = "",
         codigo: str = "",
     ):
+        #: Preenchido depois de gravar a tentativa. E por ele que a view
+        #: anota o desfecho — "identificado" nao quer dizer ponto batido,
+        #: e quem audita precisa dessa diferenca.
+        self.tentativa_id = None
+        #: O que a segunda opiniao disse, quando rodou.
+        self.confirmacao = ""
         self.identificado = identificado
         self.colaborador = colaborador
         self.distancia = distancia
@@ -147,6 +153,7 @@ class FaceRecognitionService:
                 f"{colaborador.cpf}_{angulo}_{int(time.time())}.jpg",
             )
         registro.save()
+        self._guardar_confirmacao(registro, imagem_bytes)
 
         self._aposentar_excedentes(colaborador)
 
@@ -157,6 +164,31 @@ class FaceRecognitionService:
             qualidade,
         )
         return registro
+
+    @staticmethod
+    def _guardar_confirmacao(registro, imagem_bytes) -> None:
+        """
+        Guarda a mesma foto vista pelo segundo modelo.
+
+        Feito no cadastro, uma vez, para que a conferencia da faixa de
+        duvida custe apenas uma inferencia na hora da batida — e nao uma
+        galeria inteira recalculada.
+
+        Falha aqui nao derruba o cadastro: sem o vetor de confirmacao o
+        reconhecimento segue com um modelo so, que e o comportamento
+        anterior. Trocar um cadastro que existe por nenhum seria pior.
+        """
+        from apps.facial.providers import DeepFaceProvider
+
+        try:
+            provedor = DeepFaceProvider(modelo=settings.FACE_MODELO_CONFIRMACAO)
+            if not provedor.disponivel:
+                return
+            registro.definir_embedding_confirmacao(
+                provedor.gerar_embedding(imagem_bytes)
+            )
+        except Exception:
+            logger.info("Sem vetor de confirmacao para a amostra %s.", registro.pk)
 
     def _recusar_se_for_a_mesma_pessoa(self, colaborador, vetor) -> None:
         """
@@ -428,8 +460,14 @@ class FaceRecognitionService:
         inicio = time.perf_counter()
         empresa_principal = totem.empresa if totem else _primeira(empresas)
 
+        # O que a conferencia disse, para chegar ao registro. Vive num
+        # dicionario porque `concluir` e um fechamento e precisa ler o
+        # valor definido depois dele.
+        conferencia = {"veredito": ""}
+
         def concluir(resultado: ResultadoReconhecimento, frame: bytes = None):
             resultado.tempo_ms = int((time.perf_counter() - inicio) * 1000)
+            resultado.confirmacao = conferencia["veredito"]
             if registrar_tentativa and empresa_principal is not None:
                 self._registrar_tentativa(
                     resultado,
@@ -475,6 +513,33 @@ class FaceRecognitionService:
 
         pontos = self._pontuar(vetor, candidatos)
         melhor_id, melhor_distancia = pontos[0]
+
+        # -- segunda opiniao na faixa de duvida --------------------
+        #
+        # Abaixo de FACE_ACEITE_DIRETO o reconhecimento e folgado e nao
+        # precisa de conferencia. Acima do limiar, recusa. Entre os dois
+        # esta a faixa onde moram tanto o acerto dificil quanto o rosto
+        # parecido — e onde um modelo so decide no escuro.
+        #
+        # Ali um segundo modelo, de arquitetura diferente, diz se aponta
+        # a mesma pessoa. Dois modelos parecidos erram junto; treinados
+        # de formas diferentes, a coincidencia fica improvavel.
+        if settings.FACE_ACEITE_DIRETO <= melhor_distancia < self.threshold:
+            confirmacao = self._segunda_opiniao(frame, melhor_id, candidatos)
+            conferencia["veredito"] = {
+                True: "confirmou", False: "discordou", None: "não rodou",
+            }[confirmacao]
+            if confirmacao is False:
+                return concluir(
+                    ResultadoReconhecimento(
+                        identificado=False,
+                        distancia=round(melhor_distancia, 4),
+                        candidatos=len(candidatos),
+                        motivo="Não deu para confirmar. Tente de novo.",
+                        codigo="sem_confirmacao",
+                    ),
+                    frame,
+                )
 
         if melhor_distancia >= self.threshold:
             return concluir(
@@ -727,6 +792,71 @@ class FaceRecognitionService:
         }
         return cls._sem_amostras_ambiguas(galeria)
 
+    def _segunda_opiniao(self, frame, escolhido_id, candidatos: dict):
+        """
+        Um segundo modelo aponta a mesma pessoa?
+
+        Devolve `True` (confirma), `False` (aponta outra) ou `None`
+        quando nao ha como perguntar — sem galeria do segundo modelo, ou
+        motor indisponivel. `None` nao bloqueia: a conferencia e uma
+        camada a mais, e derrubar o ponto porque ela nao pode rodar
+        trocaria uma melhora por uma falha.
+
+        A pergunta e **relativa**: "voce tambem coloca esta pessoa em
+        primeiro, com folga?". Exigir uma distancia maxima obrigaria a
+        calibrar um limiar novo — e limiar mal calibrado foi exatamente o
+        que produziu os falsos positivos que isto veio corrigir.
+        """
+        from apps.facial.providers import DeepFaceProvider
+
+        try:
+            galeria = self._galeria_de_confirmacao(candidatos.keys())
+            if len(galeria) < 2 or escolhido_id not in galeria:
+                return None
+
+            provedor = DeepFaceProvider(modelo=settings.FACE_MODELO_CONFIRMACAO)
+            if not provedor.disponivel:
+                return None
+
+            pontos = self._pontuar(provedor.gerar_embedding(frame), galeria)
+            if not pontos:
+                return None
+
+            primeiro, distancia = pontos[0]
+            if primeiro != escolhido_id:
+                logger.info(
+                    "Segunda opiniao discordou: %s x %s", escolhido_id, primeiro
+                )
+                return False
+
+            if len(pontos) > 1:
+                folga = pontos[1][1] - distancia
+                if folga < settings.FACE_MARGEM_CONFIRMACAO:
+                    logger.info("Segunda opiniao sem folga: %.3f", folga)
+                    return False
+            return True
+        except Exception:
+            logger.exception("Falha na segunda opiniao — ignorada.")
+            return None
+
+    @staticmethod
+    def _galeria_de_confirmacao(ids) -> dict:
+        """Embeddings do segundo modelo, por colaborador."""
+        from apps.facial.models import FaceRegistro
+
+        galeria = {}
+        linhas = (
+            FaceRegistro.objects.filter(colaborador_id__in=list(ids), ativo=True)
+            .exclude(embedding_confirmacao__isnull=True)
+            .values_list("colaborador_id", "embedding_confirmacao")
+        )
+        for pk, dados in linhas:
+            if dados:
+                galeria.setdefault(pk, []).append(
+                    np.frombuffer(bytes(dados), dtype=np.float32)
+                )
+        return galeria
+
     @classmethod
     def _sem_amostras_ambiguas(cls, galeria: dict) -> dict:
         """
@@ -818,6 +948,12 @@ class FaceRecognitionService:
                 confianca=resultado.confianca,
                 tempo_processamento_ms=resultado.tempo_ms,
                 candidatos_avaliados=resultado.candidatos,
+                # Quem decidiu, e o que a conferencia disse. Sem isso, o
+                # painel mostra uma distancia sem dizer de qual modelo ela
+                # veio — e depois de uma troca de modelo esse numero nao
+                # significa mais a mesma coisa.
+                modelo=settings.DEEPFACE_MODEL,
+                confirmacao=getattr(resultado, "confirmacao", "") or "",
                 ip=ip,
             )
             if frame:
@@ -825,6 +961,10 @@ class FaceRecognitionService:
                     frame, f"tentativa_{int(time.time() * 1000)}.jpg"
                 )
             tentativa.save()
+            # A view usa este id para anotar o desfecho: "identificado"
+            # nao quer dizer ponto batido, e a diferenca e o que separa
+            # uma consulta de uma batida no nome errado.
+            resultado.tentativa_id = tentativa.pk
         except Exception:
             logger.exception("Falha ao registrar tentativa de reconhecimento")
 

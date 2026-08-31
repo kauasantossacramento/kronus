@@ -50,6 +50,7 @@ from apps.core.versao import versao_dos_estaticos
 from apps.facial.services import FaceRecognitionService, identificar_por_cpf
 from apps.ponto import validators
 from apps.ponto.services import RegistroPontoService
+from apps.facial.models import TentativaReconhecimento
 from apps.totem.models import EventoTotem
 
 logger = logging.getLogger("kronus.totem")
@@ -84,6 +85,28 @@ def _registrar_evento(totem, tipo, detalhes="", metadados=None):
         )
     except Exception:
         logger.exception("Falha ao registrar evento do totem %s", totem.pk)
+
+
+def _anotar_desfecho(resultado, desfecho) -> None:
+    """
+    Registra o que de fato aconteceu com a tentativa.
+
+    "Identificado" nao quer dizer ponto batido. O primeiro quadro da
+    dupla confirmacao identifica e nao grava nada; uma consulta
+    identifica e nao grava nada; uma batida repetida identifica e e
+    recusada pelo intervalo minimo.
+
+    Sem esta anotacao, quem audita ve tres linhas iguais para tres
+    desfechos diferentes — e foi exatamente essa confusao que levou a
+    pergunta "estes retornaram sucesso?".
+    """
+    pk = getattr(resultado, "tentativa_id", None)
+    if not pk:
+        return
+    try:
+        TentativaReconhecimento.objects.filter(pk=pk).update(desfecho=desfecho)
+    except Exception:  # pragma: no cover - auditoria nao derruba o ponto
+        logger.exception("Falha ao anotar o desfecho da tentativa %s", pk)
 
 
 def _conferir_segunda_opiniao(totem, colaborador):
@@ -281,6 +304,9 @@ def recognize(request):
     )
 
     if not resultado.identificado:
+        _anotar_desfecho(
+            resultado, TentativaReconhecimento.Desfecho.RECUSADO
+        )
         _registrar_evento(
             totem,
             EventoTotem.Tipo.RECONHECIMENTO_FALHA,
@@ -308,9 +334,15 @@ def recognize(request):
     ):
         confirmado, resposta = _conferir_segunda_opiniao(totem, colaborador)
         if not confirmado:
+            _anotar_desfecho(
+                resultado, TentativaReconhecimento.Desfecho.AGUARDANDO
+            )
             return resposta
 
     if not serializer.validated_data.get("registrar_ponto", True):
+        _anotar_desfecho(
+            resultado, TentativaReconhecimento.Desfecho.SO_CONSULTA
+        )
         return Response(
             {
                 "ok": True,
@@ -345,6 +377,14 @@ def recognize(request):
         except Exception:
             logger.exception("Aprendizado facial falhou — ignorado.")
     if erro is not None:
+        # Reconheceu, e nao gravou: batida repetida dentro do intervalo
+        # minimo, quase sempre. A tela mostra o aviso, e nao o sucesso.
+        _anotar_desfecho(
+            resultado,
+            TentativaReconhecimento.Desfecho.DUPLICADO
+            if erro.codigo == "intervalo_minimo"
+            else TentativaReconhecimento.Desfecho.RECUSADO,
+        )
         return _resposta_erro(
             erro.codigo,
             erro.mensagem,
@@ -352,6 +392,9 @@ def recognize(request):
             colaborador=ColaboradorTotemSerializer(colaborador).data,
             **erro.detalhes,
         )
+
+    # Aqui, e so aqui, a tela mostra sucesso e o ponto existe.
+    _anotar_desfecho(resultado, TentativaReconhecimento.Desfecho.PONTO)
 
     _registrar_evento(
         totem,

@@ -526,6 +526,36 @@ FACE_ESPALHAMENTO_ACEITAVEL = config(
 #: lado do incomodo, e nao para o lado da fraude.
 FACE_MARGEM_MINIMA = config("FACE_MARGEM_MINIMA", default=0.10, cast=float)
 
+#: Abaixo disto, aceita na hora — sem segunda opiniao.
+#:
+#: A faixa onde o reconhecimento legitimo se concentra: medido em
+#: producao, os acertos ficam entre 0,11 e 0,40, e a maioria abaixo de
+#: 0,30. Quem cai aqui nao precisa de conferencia, e pagar por ela
+#: tornaria lento o caso comum.
+FACE_ACEITE_DIRETO = config("FACE_ACEITE_DIRETO", default=0.30, cast=float)
+
+#: Modelo que da a segunda opiniao na faixa de duvida.
+#:
+#: Arquitetura diferente da principal de proposito. Dois modelos
+#: parecidos erram junto — o que se quer aqui e um erro nao
+#: correlacionado: se dois modelos treinados de formas diferentes
+#: apontam a mesma pessoa, a chance de ser semelhanca fisica cai muito.
+#:
+#: So roda entre FACE_ACEITE_DIRETO e o limiar. Abaixo, aceita direto;
+#: acima, recusa direto. A faixa de duvida e estreita, entao o custo em
+#: tempo aparece em poucas batidas.
+FACE_MODELO_CONFIRMACAO = config("FACE_MODELO_CONFIRMACAO", default="ArcFace")
+
+#: Folga que o segundo modelo precisa dar ao primeiro colocado.
+#:
+#: Relativa, e nao absoluta: exigir uma distancia maxima do segundo
+#: modelo obrigaria a calibrar um limiar novo, e limiar mal calibrado foi
+#: exatamente o que produziu os falsos positivos. Perguntar "voce
+#: tambem aponta esta pessoa, com folga?" nao precisa de calibracao.
+FACE_MARGEM_CONFIRMACAO = config(
+    "FACE_MARGEM_CONFIRMACAO", default=0.06, cast=float
+)
+
 #: Exigir que dois quadros seguidos apontem a MESMA pessoa.
 #:
 #: A defesa mais forte contra a confusao entre pessoas parecidas. Um

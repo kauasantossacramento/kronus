@@ -45,6 +45,28 @@
   <div class="flex min-w-0 flex-1 flex-col lg:pl-64">
     {% include "components/topbar.html" %}
 
+    {% comment %}
+      Faixa de suporte: o master esta vendo o ambiente de um cliente.
+
+      Ele ja tinha acesso a todas as empresas; o que faltava era o aviso.
+      Navegar no ambiente de um cliente sem saber disso e como se
+      descobre, depois de meia hora, que a alteracao foi feita na
+      empresa errada. Por isso a faixa e fixa e nao se fecha — some
+      quando ele sai do ambiente, e nao antes.
+    {% endcomment %}
+    {% if user.tipo == "master" and empresa_atual %}
+      <div class="flex flex-wrap items-center justify-between gap-2 bg-[var(--kronus-gold-500)] px-4 py-2 text-sm text-[var(--kronus-gray-900)]">
+        <span>
+          Você está no ambiente de <strong>{{ empresa_atual.nome_exibicao }}</strong>
+          — as ações aqui valem para este cliente.
+        </span>
+        <a href="{% url 'master:sair_do_ambiente' %}"
+           class="rounded-lg bg-[var(--kronus-gray-900)] px-3 py-1 text-xs font-medium text-white">
+          Sair do ambiente
+        </a>
+      </div>
+    {% endif %}
+
     <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
       {% block breadcrumb %}{% endblock %}
 

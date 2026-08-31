@@ -62,6 +62,14 @@ class FaceRegistro(BaseModel):
     #: marcada com o antigo, e o reconhecimento — que filtra pelo modelo
     #: em uso — a ignorava em silencio. Sem erro, sem aviso, so um
     #: cadastro que nao reconhece.
+    #: A mesma foto, vista por um segundo modelo.
+    #:
+    #: Guardada no cadastro para que a conferencia da faixa de duvida
+    #: custe apenas uma inferencia no reconhecimento, e nao uma galeria
+    #: inteira recalculada a cada batida.
+    embedding_confirmacao = models.BinaryField(
+        "Embedding de confirmação", null=True, blank=True, editable=False
+    )
     modelo = models.CharField("Modelo", max_length=30, default=_modelo_em_uso)
     detector = models.CharField("Detector", max_length=30, default=_detector_em_uso)
     qualidade = models.FloatField(
@@ -93,6 +101,16 @@ class FaceRegistro(BaseModel):
             return None
         return np.frombuffer(bytes(self.embedding), dtype=np.float32)
 
+    def obter_embedding_confirmacao(self):
+        if not self.embedding_confirmacao:
+            return None
+        return np.frombuffer(bytes(self.embedding_confirmacao), dtype=np.float32)
+
+    def definir_embedding_confirmacao(self, vetor, salvar: bool = True):
+        self.embedding_confirmacao = vetor.tobytes()
+        if salvar:
+            self.save(update_fields=["embedding_confirmacao", "updated_at"])
+
     def definir_embedding(self, vetor, salvar: bool = True):
         vetor = np.asarray(vetor, dtype=np.float32)
         self.embedding = vetor.tobytes()
@@ -115,6 +133,39 @@ class TentativaReconhecimento(BaseModel):
         MULTIPLOS_ROSTOS = "multiplos_rostos", "Múltiplos rostos"
         ERRO = "erro", "Erro no processamento"
         LIVENESS_FALHA = "liveness_falha", "Falha na prova de vida"
+
+    class Desfecho(models.TextChoices):
+        """
+        O que a pessoa viu, e o que ficou gravado.
+
+        "Identificado" nao quer dizer ponto batido: o primeiro quadro da
+        dupla confirmacao identifica e nao grava nada. Quem audita
+        precisa dessa diferenca — foi exatamente ela que separou o caso
+        da Michele (identificada, sem ponto) do caso do Kaua
+        (identificado, com ponto no nome errado).
+        """
+
+        PENDENTE = "pendente", "Sem desfecho registrado"
+        AGUARDANDO = "aguardando", "Aguardando o segundo quadro"
+        PONTO = "ponto", "Sucesso exibido e ponto registrado"
+        SO_CONSULTA = "so_consulta", "Identificado sem registrar (consulta)"
+        RECUSADO = "recusado", "Recusado — nada foi gravado"
+        DUPLICADO = "duplicado", "Recusado pelo intervalo mínimo"
+
+    desfecho = models.CharField(
+        "Desfecho",
+        max_length=12,
+        choices=Desfecho.choices,
+        default=Desfecho.PENDENTE,
+        db_index=True,
+    )
+    #: Qual modelo produziu a distancia registrada.
+    modelo = models.CharField("Modelo", max_length=30, blank=True)
+    #: O que a segunda opiniao disse, quando ela rodou.
+    confirmacao = models.CharField(
+        "Segunda opinião", max_length=12, blank=True,
+        help_text="Vazio quando a distância dispensou a conferência.",
+    )
 
     totem = models.ForeignKey(
         "totem.Totem",

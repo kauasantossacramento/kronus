@@ -55,6 +55,12 @@
               <span class="rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {% if empresa.ativo %}bg-emerald-50 text-emerald-700 ring-emerald-600/20{% else %}bg-slate-100 text-slate-600 ring-slate-500/20{% endif %}">{% if empresa.ativo %}Ativa{% else %}Inativa{% endif %}</span>
             </td>
             <td data-rotulo="" class="px-5 py-3 text-right"><div class="flex justify-end gap-3">
+                {% comment %}
+                  Entrar no ambiente do cliente para dar suporte. Fica ao
+                  lado de "Personalizar" porque as duas perguntas são a
+                  mesma: "como está ficando para ele?".
+                {% endcomment %}
+                <a href="{% url 'master:entrar_como' empresa.pk %}" class="text-xs text-[var(--kronus-gray-500)] hover:text-[var(--kronus-primary-600)]">Entrar</a>
                 <a href="{% url 'master:empresa_personalizacao' empresa.pk %}" class="text-xs text-[var(--kronus-gray-500)] hover:text-[var(--kronus-primary-600)]">Personalizar</a>
                 <a href="{% url 'master:empresa_editar' empresa.pk %}" class="text-xs text-[var(--kronus-gray-500)] hover:text-[var(--kronus-primary-600)]">Editar</a>
               </div></td>

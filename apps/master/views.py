@@ -568,3 +568,50 @@ def reconhecimentos(request):
             "titulo": "Reconhecimento facial",
         },
     )
+
+
+@master_required
+def entrar_como(request, pk):
+    """
+    Abre o ambiente do cliente com os olhos dele.
+
+    O master ja enxerga todas as empresas — o que faltava era a porta e,
+    sobretudo, o aviso. Navegar no ambiente de um cliente sem saber
+    disso e como se descobre, depois de meia hora, que a alteracao foi
+    feita na empresa errada.
+
+    Nao troca de usuario: continua sendo o master, com as permissoes
+    dele. O que muda e a empresa ativa da sessao — e a faixa no topo,
+    que nao deixa esquecer.
+
+    Fica na auditoria porque entrar no ambiente de um cliente e acesso a
+    dado de terceiro, e quem responde por LGPD precisa saber quando
+    aconteceu.
+    """
+    from apps.clientes.models import Empresa
+    from apps.core.middleware import CHAVE_SESSAO_EMPRESA
+
+    empresa = get_object_or_404(Empresa, pk=pk)
+    request.session[CHAVE_SESSAO_EMPRESA] = empresa.pk
+
+    _log_master(
+        request,
+        LogAcessoMaster.Acao.CLIENTE_EDITADO,
+        empresa.cliente,
+        f"Entrou no ambiente de {empresa.nome_exibicao} para suporte",
+    )
+    messages.info(
+        request,
+        f"Você está vendo o ambiente de {empresa.nome_exibicao}. "
+        f"Use “Sair do ambiente” quando terminar.",
+    )
+    return redirect("rh:dashboard")
+
+
+@master_required
+def sair_do_ambiente(request):
+    """Volta para o painel da KS TEC."""
+    from apps.core.middleware import CHAVE_SESSAO_EMPRESA
+
+    request.session.pop(CHAVE_SESSAO_EMPRESA, None)
+    return redirect("master:dashboard")
