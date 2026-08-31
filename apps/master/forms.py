@@ -108,6 +108,22 @@ class TotemForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Campo novo com padrao no modelo nao pode virar obrigatorio no
+        # formulario: quem ja montava este form sem ele passaria a
+        # falhar, e a falha aparece longe daqui — no cadastro de totem
+        # que deixa de salvar.
+        if "inicio_do_ponto" in self.fields:
+            self.fields["inicio_do_ponto"].required = False
+
+    def clean_inicio_do_ponto(self):
+        # Vazio vira o padrao explicito. Deixar a string vazia gravada
+        # faria `comeca_por_toque` cair no `else` sem que ninguem tenha
+        # escolhido "seguir a empresa".
+        from apps.totem.models import Totem
+
+        return self.cleaned_data.get("inicio_do_ponto") or Totem.Inicio.EMPRESA
+
         for campo in self.fields.values():
             if isinstance(campo.widget, forms.CheckboxInput):
                 campo.widget.attrs.setdefault("class", CLASSES_CHECK)
