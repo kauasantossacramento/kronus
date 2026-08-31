@@ -239,8 +239,24 @@ class Cliente(BaseModel):
 
         return Totem.objects.filter(empresa__cliente=self, ativo=True).count()
 
+    @property
+    def limite_de_empresas(self) -> int:
+        """
+        Empresas incluidas no plano mais as contratadas a parte.
+
+        Mesma razao do `limite_de_totens`: um grupo com varios CNPJs e
+        uma negociacao caso a caso, e ler `plano.max_empresas` direto
+        barraria uma empresa ja acordada — ou obrigaria a inventar um
+        plano novo para cada cliente com uma filial a mais.
+        """
+        base = self.plano.max_empresas or 0
+        assinatura = getattr(self, "assinatura", None)
+        if assinatura is None:
+            return base
+        return base + (assinatura.empresas_contratadas or 0)
+
     def pode_adicionar_empresa(self) -> bool:
-        return self.total_empresas < self.plano.max_empresas
+        return self.total_empresas < self.limite_de_empresas
 
     def pode_adicionar_colaborador(self) -> bool:
         return self.total_colaboradores < self.plano.max_colaboradores

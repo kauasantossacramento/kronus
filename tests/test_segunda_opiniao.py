@@ -312,3 +312,62 @@ class CustoDaConferenciaTests(TestCase):
             self.assertIsNone(servico._segunda_opiniao(b"quadro", 1, galeria))
         finally:
             provedores.obter_provedor_confirmacao = original
+
+
+class MargemEscalonadaTests(TestCase):
+    """
+    Reconhecimento fraco cobra folga extra.
+
+    Medido na base real: a mesma pessoa fica em media a 0,2254 e pessoas
+    diferentes chegam a 0,2630. As faixas se sobrepoem — nao existe
+    limiar unico que aceite todo titular e recuse todo sosia.
+
+    Simulado contra a galeria de producao (90 amostras, 17 pessoas):
+    87 acertos e **zero** confusoes, contra 87 acertos e uma confusao
+    antes — Samira era aceita como Adriana a 0,3667. O custo foi uma
+    recusa a mais, que vira nova tentativa.
+
+    Piso e fator sairam da calibracao, nao da intuicao: valores abaixo
+    de 0,32 recusavam o caso legitimo de 0,30 com segundo a 0,38, que
+    tem teste proprio em `tests/test_falso_positivo.py`.
+    """
+
+    def _exigida(self, melhor):
+        from django.conf import settings
+
+        if melhor < settings.FACE_PISO_DE_RISCO:
+            return None  # abaixo do piso esta regra nao opina
+        return 0.10 + (
+            melhor - settings.FACE_PISO_DE_RISCO
+        ) * settings.FACE_FATOR_DE_RISCO
+
+    def test_abaixo_do_piso_a_regra_nao_opina(self):
+        self.assertIsNone(self._exigida(0.20))
+        self.assertIsNone(self._exigida(0.30))
+
+    def test_reconhecimento_fraco_exige_muito_mais(self):
+        # 0,44 esta na sobreposicao entre titular e sosia. Aceitar sem
+        # folga grande e onde nasce a batida pela outra pessoa.
+        self.assertAlmostEqual(self._exigida(0.44), 0.10 + 0.20, places=4)
+
+    def test_a_exigencia_cresce_com_a_fraqueza(self):
+        anterior = 0
+        for d in (0.34, 0.36, 0.40, 0.44):
+            atual = self._exigida(d)
+            self.assertGreaterEqual(atual, anterior)
+            anterior = atual
+
+    def test_o_caso_real_da_samira_seria_recusado(self):
+        """
+        O par que a simulacao pegou: aceita como outra pessoa a 0,3667,
+        com a segunda colocada a 0,45. A folga era 0,0833.
+
+        Passava porque a segunda estava FORA do limiar e a regra antiga
+        nem chegava a olhar. Agora olha.
+        """
+        melhor, segunda = 0.3667, 0.45
+        self.assertLess(segunda - melhor, self._exigida(melhor))
+
+    def test_o_caso_legitimo_protegido_continua_passando(self):
+        """0,30 com segundo a 0,38 nao pode ser recusado."""
+        self.assertIsNone(self._exigida(0.30))

@@ -52,6 +52,18 @@ class Plano(BaseModel):
         default=60,
         help_text="Cobrado por totem além do incluído no plano.",
     )
+    #: Empresa alem das que o plano inclui.
+    #:
+    #: Nasce em zero de proposito: hoje a empresa adicional e concedida
+    #: numa negociacao, e cobrar por ela sem que alguem tenha decidido o
+    #: preco seria uma cobranca surpresa na fatura de quem ja tem.
+    preco_por_empresa = models.DecimalField(
+        "Preço por empresa adicional (R$)",
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Cobrado por empresa além da incluída no plano.",
+    )
 
     # -- Funcionalidades ---------------------------------------
     tem_api = models.BooleanField("API REST", default=False)

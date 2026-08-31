@@ -316,10 +316,16 @@ class AssinaturaService:
                 "Desative colaboradores antes de reduzir o plano."
             )
 
+        # O limite do plano de destino mais o que ja esta contratado a
+        # parte: quem pagou por uma empresa adicional nao pode perde-la
+        # ao mudar de plano.
         empresas = assinatura.cliente.empresas.filter(ativo=True).count()
-        if plano.max_empresas and empresas > plano.max_empresas:
+        permitidas = (plano.max_empresas or 0) + (
+            assinatura.empresas_contratadas or 0
+        )
+        if plano.max_empresas and empresas > permitidas:
             raise ValueError(
-                f"O plano {plano.nome} permite {plano.max_empresas} empresa(s) "
+                f"O plano {plano.nome} permite {permitidas} empresa(s) "
                 f"e a conta tem {empresas} ativa(s)."
             )
 

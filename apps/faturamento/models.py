@@ -233,6 +233,16 @@ class Assinatura(BaseModel):
         "Totens adicionais", default=0,
         help_text="Acima do incluído no plano, cobrados por `preco_por_totem`.",
     )
+    #: Empresas alem das que o plano inclui.
+    #:
+    #: Fica na assinatura, e nao no plano, porque um grupo com varios
+    #: CNPJs e uma negociacao caso a caso: criar um plano novo para cada
+    #: cliente que tem uma filial a mais transformaria a tabela de planos
+    #: numa lista de excecoes.
+    empresas_contratadas = models.PositiveIntegerField(
+        "Empresas adicionais", default=0,
+        help_text="Acima do incluído no plano, cobradas por `preco_por_empresa`.",
+    )
 
     data_inicio = models.DateField("Início", default=timezone.localdate)
     data_fim_teste = models.DateField("Fim do período de teste", null=True, blank=True)
@@ -344,12 +354,18 @@ class Assinatura(BaseModel):
             self.plano.preco_por_colaborador or 0
         ) * self.colaboradores_contratados
         totens = (self.plano.preco_por_totem or 0) * self.totens_contratados
-        return colaboradores + totens
+        empresas = (self.plano.preco_por_empresa or 0) * self.empresas_contratadas
+        return colaboradores + totens + empresas
 
     @property
     def totens_permitidos(self) -> int:
         """Incluidos no plano mais os contratados a parte."""
         return (self.plano.max_totems or 0) + self.totens_contratados
+
+    @property
+    def empresas_permitidas(self) -> int:
+        """Incluidas no plano mais as contratadas a parte."""
+        return (self.plano.max_empresas or 0) + self.empresas_contratadas
 
 
 class Cobranca(BaseModel):

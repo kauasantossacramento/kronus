@@ -582,6 +582,44 @@ class FaceRecognitionService:
                     frame,
                 )
 
+        # -- reconhecimento fraco cobra folga extra ----------------
+        #
+        # A regra acima tem um buraco: ela so cobra margem quando o
+        # segundo colocado TAMBEM passaria no limiar. Se o titular
+        # estiver com cadastro ruim e cair fora do limiar, o sosia entra
+        # sozinho e e aceito sem ninguem para contesta-lo — que e
+        # literalmente bater o ponto pela outra pessoa.
+        #
+        # Medido nesta base: a mesma pessoa fica em media a 0,2254 e
+        # pessoas diferentes chegam a 0,2630. As faixas se sobrepoem;
+        # nenhum limiar unico aceita todo titular e recusa todo sosia.
+        # Entao acima do piso a exigencia cresce com a fraqueza do
+        # reconhecimento: a 0,20 nao se cobra nada aqui, a 0,44 se cobra
+        # que o segundo colocado tenha ficado bem para tras.
+        #
+        # Piso e fator foram calibrados contra a galeria real, e nao
+        # escolhidos a mao: na simulacao das 90 amostras, 0,34 e 2,0
+        # zeram os aceites errados (era um: Samira aceita como Adriana a
+        # 0,3667) sem perder nenhum acerto — 87 antes, 87 depois — e sem
+        # recusar o caso legitimo de 0,30 com segundo a 0,38, que ja
+        # tinha teste proprio.
+        if len(pontos) > 1 and melhor_distancia >= settings.FACE_PISO_DE_RISCO:
+            _, segunda = pontos[1]
+            exigida = self.margem_minima + (
+                melhor_distancia - settings.FACE_PISO_DE_RISCO
+            ) * settings.FACE_FATOR_DE_RISCO
+            if segunda - melhor_distancia < exigida:
+                return concluir(
+                    ResultadoReconhecimento(
+                        identificado=False,
+                        distancia=round(melhor_distancia, 4),
+                        candidatos=len(candidatos),
+                        motivo="Quase lá — fique parado e tente de novo.",
+                        codigo="ambiguo",
+                    ),
+                    frame,
+                )
+
         from apps.rh.models import Colaborador
 
         colaborador = (

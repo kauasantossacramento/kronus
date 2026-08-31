@@ -556,6 +556,21 @@ FACE_MARGEM_CONFIRMACAO = config(
     "FACE_MARGEM_CONFIRMACAO", default=0.06, cast=float
 )
 
+#: Acima desta distancia, o reconhecimento e "fraco" e cobra folga extra.
+#:
+#: Abaixo do piso vale so a margem fixa. Acima, a exigencia cresce com a
+#: fraqueza: um reconhecimento a 0,20 se basta; um a 0,44 esta na
+#: sobreposicao entre titular e sosia e precisa provar que o segundo
+#: colocado ficou para tras.
+#:
+#: Calibrado contra a galeria real, nao escolhido a mao: 0,34 com fator
+#: 2,0 zerou os aceites errados (era um, a 0,3667) mantendo os 87
+#: acertos, e sem recusar o caso legitimo de 0,30 com segundo a 0,38.
+FACE_PISO_DE_RISCO = config("FACE_PISO_DE_RISCO", default=0.34, cast=float)
+
+#: Quanto a exigencia cresce por ponto de distancia acima do piso.
+FACE_FATOR_DE_RISCO = config("FACE_FATOR_DE_RISCO", default=2.0, cast=float)
+
 #: Exigir que dois quadros seguidos apontem a MESMA pessoa.
 #:
 #: A defesa mais forte contra a confusao entre pessoas parecidas. Um

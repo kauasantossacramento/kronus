@@ -152,10 +152,13 @@ def planos_disponiveis(request):
                 f"você tem {em_uso} colaboradores ativos e este plano permite "
                 f"{plano.max_colaboradores}"
             )
-        if plano.max_empresas and empresas > plano.max_empresas:
+        permitidas = (plano.max_empresas or 0) + (
+            assinatura.empresas_contratadas if assinatura else 0
+        )
+        if plano.max_empresas and empresas > permitidas:
             impedimentos.append(
                 f"você tem {empresas} empresa(s) e este plano permite "
-                f"{plano.max_empresas}"
+                f"{permitidas}"
             )
         planos.append({
             "plano": plano,

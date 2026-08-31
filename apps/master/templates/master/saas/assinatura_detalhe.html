@@ -81,8 +81,9 @@
     <div class="card p-5">
       <h2 class="font-display text-base font-semibold text-[var(--kronus-gray-900)]">Adicionais</h2>
       <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
-        Totens além dos {{ assinatura.plano.max_totems }} incluídos no plano
-        {{ assinatura.plano.nome }}.
+        Além do que o plano {{ assinatura.plano.nome }} inclui:
+        {{ assinatura.plano.max_totems }} totem(ns) e
+        {{ assinatura.plano.max_empresas }} empresa(s).
       </p>
 
       <form method="post" class="mt-4">
@@ -95,11 +96,44 @@
           <input type="number" id="totens_contratados" name="totens_contratados"
                  min="0" max="50" value="{{ assinatura.totens_contratados }}"
                  class="block w-24 rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
-          <button type="submit" class="btn btn-primary flex-1 text-xs">Atualizar</button>
+          <span class="flex-1 self-center text-xs text-[var(--kronus-gray-500)]">
+            Limite atual: {{ assinatura.cliente.limite_de_totens }}
+            &middot; em uso: {{ assinatura.cliente.total_totens }}
+          </span>
         </div>
         <p class="mt-1.5 text-xs text-[var(--kronus-gray-500)]">
           R$ {{ assinatura.plano.preco_por_totem }} cada, por ciclo.
         </p>
+
+        {% comment %}
+          Empresa adicional no mesmo formulario dos totens: as duas sao
+          capacidade contratada a parte, e separa-las em dois botoes faria
+          o master salvar uma e esquecer a outra.
+        {% endcomment %}
+        <label for="empresas_contratadas"
+               class="mt-4 block text-xs font-medium text-[var(--kronus-gray-700)]">
+          Empresas adicionais
+        </label>
+        <div class="mt-1.5 flex gap-2">
+          <input type="number" id="empresas_contratadas" name="empresas_contratadas"
+                 min="0" max="50" value="{{ assinatura.empresas_contratadas }}"
+                 class="block w-24 rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          <span class="flex-1 self-center text-xs text-[var(--kronus-gray-500)]">
+            Limite atual: {{ assinatura.cliente.limite_de_empresas }}
+            &middot; em uso: {{ assinatura.cliente.total_empresas }}
+          </span>
+        </div>
+        <p class="mt-1.5 text-xs text-[var(--kronus-gray-500)]">
+          {% if assinatura.plano.preco_por_empresa %}
+            R$ {{ assinatura.plano.preco_por_empresa }} cada, por ciclo.
+          {% else %}
+            Sem cobrança adicional neste plano.
+          {% endif %}
+        </p>
+
+        <button type="submit" class="btn btn-primary mt-4 w-full text-xs">
+          Atualizar adicionais
+        </button>
       </form>
 
       {% comment %}

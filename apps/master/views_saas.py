@@ -246,9 +246,30 @@ def assinatura_detalhe(request, pk):
                 _aplicar_desconto(request, assinatura)
             elif acao == "adicionais":
                 totens = max(0, min(50, int(request.POST.get("totens_contratados", 0))))
+                empresas = max(
+                    0, min(50, int(request.POST.get("empresas_contratadas", 0)))
+                )
                 anterior = assinatura.totens_contratados
+                anterior_emp = assinatura.empresas_contratadas
                 assinatura.totens_contratados = totens
-                assinatura.save(update_fields=["totens_contratados", "updated_at"])
+                assinatura.empresas_contratadas = empresas
+                assinatura.save(update_fields=[
+                    "totens_contratados", "empresas_contratadas", "updated_at",
+                ])
+
+                # Mesmo cuidado dos totens: reduzir o adicional abaixo do
+                # que ja esta vinculado nao desativa empresa nenhuma. Uma
+                # empresa desativada leva junto os colaboradores e o
+                # ponto do dia — estrago grande demais para um efeito
+                # colateral de mudanca de contrato.
+                emp_em_uso = assinatura.cliente.total_empresas
+                if emp_em_uso > assinatura.cliente.limite_de_empresas:
+                    messages.warning(
+                        request,
+                        f"O cliente tem {emp_em_uso} empresa(s), acima do novo "
+                        f"limite de {assinatura.cliente.limite_de_empresas}. "
+                        "Nenhuma foi desativada — ajuste manualmente.",
+                    )
 
                 # Reduzir o adicional abaixo do que ja esta instalado
                 # deixaria totens ativos alem do contratado. Avisar em vez
@@ -270,7 +291,10 @@ def assinatura_detalhe(request, pk):
                 _log(
                     request, LogAcessoMaster.Acao.PLANO_ALTERADO,
                     cliente=assinatura.cliente,
-                    detalhes=f"Totens adicionais: {anterior} -> {totens}",
+                    detalhes=(
+                        f"Totens adicionais: {anterior} -> {totens}; "
+                        f"Empresas adicionais: {anterior_emp} -> {empresas}"
+                    ),
                 )
                 messages.success(
                     request,

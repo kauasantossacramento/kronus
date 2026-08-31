@@ -137,7 +137,7 @@ class ClienteDetailView(MasterRequiredMixin, DetailView):
         )
         contexto["logs"] = cliente.logs_master.select_related("usuario")[:20]
         contexto["uso"] = {
-            "empresas": (cliente.total_empresas, cliente.plano.max_empresas),
+            "empresas": (cliente.total_empresas, cliente.limite_de_empresas),
             "colaboradores": (
                 cliente.total_colaboradores,
                 cliente.plano.max_colaboradores,
@@ -298,7 +298,8 @@ class EmpresaCreateView(MasterRequiredMixin, SucessoMensagemMixin, CreateView):
             form.add_error(
                 "cliente",
                 f"O plano {cliente.plano} permite no máximo "
-                f"{cliente.plano.max_empresas} empresa(s).",
+                f"{cliente.limite_de_empresas} empresa(s). Para liberar "
+                f"mais, ajuste “Empresas adicionais” na assinatura.",
             )
             return self.form_invalid(form)
         resposta = super().form_valid(form)
