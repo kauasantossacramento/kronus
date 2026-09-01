@@ -138,6 +138,20 @@ class ImagemAmbiente(BaseModel):
         "ID na origem", max_length=40, blank=True, db_index=True
     )
 
+    #: A imagem e clara o bastante para engolir uma logo branca?
+    #:
+    #: Medido uma vez, na entrada, e nao a cada quadro no tablet: a
+    #: conta e a mesma, mas fazer no aparelho custaria a cada troca de
+    #: slide, num equipamento que ja divide CPU com o reconhecimento.
+    #:
+    #: Guardado como booleano, e nao como o valor da luminancia: o totem
+    #: nao tem o que fazer com 0,63 — ele so precisa saber se troca a
+    #: cor da marca.
+    clara = models.BooleanField(
+        "Imagem clara", default=False,
+        help_text="Quando marcada, o totem escurece a logo para não sumir.",
+    )
+
     ativo = models.BooleanField("Ativa", default=True, db_index=True)
     ordem = models.PositiveSmallIntegerField("Ordem", default=0)
 
@@ -187,3 +201,46 @@ class ImagemOcultaPelaEmpresa(BaseModel):
 
     def __str__(self):
         return f"{self.empresa} oculta {self.imagem}"
+
+
+#: Acima disto, a imagem e clara o bastante para apagar uma logo branca.
+#:
+#: Luminancia relativa media, de 0 a 1. Medido no topo da imagem, e nao
+#: na foto inteira: e la que a marca fica, e uma paisagem de ceu claro
+#: com terra escura embaixo tem media enganosa — a logo sumiria mesmo
+#: com a media dando "escura".
+LIMITE_DE_CLARIDADE = 0.58
+
+
+def medir_claridade(dados: bytes) -> bool:
+    """
+    A parte de cima desta imagem apaga uma logo branca?
+
+    Usa a formula de luminancia relativa (a mesma do WCAG), e nao a
+    media dos canais: o olho enxerga verde muito mais que azul, e tratar
+    os tres igual erra justamente em ceu e vegetacao — que e quase tudo
+    o que ha no acervo.
+
+    Na duvida devolve `False`: manter a logo branca e o comportamento de
+    sempre, e errar para o lado do que ja funcionava e mais barato do
+    que escurecer uma marca sobre foto escura.
+    """
+    try:
+        import io
+
+        from PIL import Image
+
+        imagem = Image.open(io.BytesIO(dados)).convert("RGB")
+        largura, altura = imagem.size
+        # So a faixa de cima: e onde a marca fica.
+        topo = imagem.crop((0, 0, largura, max(1, altura // 3)))
+        # Reduzir antes de somar: a media de 3 milhoes de pixels e a
+        # mesma da versao pequena, e custa muito menos.
+        topo = topo.resize((32, 32))
+
+        total = 0.0
+        for r, g, b in topo.getdata():
+            total += (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+        return (total / 1024) > LIMITE_DE_CLARIDADE
+    except Exception:
+        return False

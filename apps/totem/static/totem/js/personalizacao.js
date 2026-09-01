@@ -178,11 +178,15 @@
       // decide tocar.
       var ambiente = (empresa.ambiente && empresa.ambiente.imagens) || [];
       var frases = (empresa.ambiente && empresa.ambiente.frases) || [];
-      var doAcervo = ambiente.map(function (img, i) {
-        return {
-          url: img.url,
-          legenda: frases.length ? frases[i % frases.length] : ''
-        };
+      // A frase nao vai mais como legenda do slide.
+      //
+      // Como legenda ela vivia no topo da tela, longe da marca e do
+      // relogio, e trocava junto com a imagem. Agora ela mora no bloco
+      // de conteudo, abaixo do aviso de toque — e o JS a troca no mesmo
+      // ritmo dos slides.
+      this._frases = frases;
+      var doAcervo = ambiente.map(function (img) {
+        return { url: img.url, legenda: '', clara: !!img.clara };
       });
 
       var proprios = empresa.slides || [];
@@ -209,7 +213,12 @@
 
       this._slides.forEach(function (slide, indice) {
         var figura = document.createElement('figure');
-        figura.className = 'totem-slide' + (indice === 0 ? ' ativo' : '');
+        figura.className = 'totem-slide'
+          + (indice === 0 ? ' ativo' : '')
+          // Foto clara apaga logo branca. A marca escurece enquanto ela
+          // estiver na tela — a claridade foi medida na entrada da
+          // imagem, entao aqui e so ler.
+          + (slide.clara ? ' totem-slide--clara' : '');
         figura.style.backgroundImage = 'url("' + slide.url + '")';
         if (slide.legenda) {
           var legenda = document.createElement('figcaption');
@@ -226,12 +235,58 @@
 
       var self = this;
       this._parar_slides();
+      this._marcar_claridade(alvo);
+      this._mostrar_frase(0);
       this._timerSlides = setInterval(function () {
         var figuras = alvo.querySelectorAll('.totem-slide');
         figuras[self._indice].classList.remove('ativo');
         self._indice = (self._indice + 1) % figuras.length;
         figuras[self._indice].classList.add('ativo');
+        self._marcar_claridade(alvo);
+        self._mostrar_frase(self._indice);
       }, segundos * 1000);
+    },
+
+    /**
+     * A frase do periodo, trocando junto com a imagem.
+     *
+     * Reinicia a animacao de entrada a cada troca: sem isso a frase
+     * nova aparecia no lugar da anterior sem transicao, e a troca lia
+     * como falha de renderizacao.
+     */
+    _mostrar_frase: function (indice) {
+      var alvo = document.querySelector('[data-frase-ambiente]');
+      if (!alvo) return;
+      var frases = this._frases || [];
+      if (!frases.length) {
+        alvo.hidden = true;
+        return;
+      }
+      var texto = frases[indice % frases.length];
+      alvo.textContent = texto;
+      alvo.hidden = false;
+      // Forca o reinicio da animacao: sem o reflow o navegador entende
+      // que a classe nao mudou e nao reanima.
+      alvo.classList.remove('totem-frase--entra');
+      void alvo.offsetWidth;
+      alvo.classList.add('totem-frase--entra');
+    },
+
+    /**
+     * Avisa a tela que o slide atual e claro.
+     *
+     * A marca da empresa costuma ser branca, e sobre foto de ceu ou
+     * neve ela desaparece. A alternativa seria uma sombra permanente
+     * atras da logo, que sujaria a marca nas fotos escuras — que sao a
+     * maioria.
+     *
+     * A classe vai no `<body>`, e nao na figura: quem precisa reagir e
+     * a logo, que fica fora do contêiner dos slides.
+     */
+    _marcar_claridade: function (alvo) {
+      var atual = alvo.querySelector('.totem-slide.ativo');
+      var clara = !!(atual && atual.classList.contains('totem-slide--clara'));
+      document.body.classList.toggle('totem-fundo-claro', clara);
     },
 
     _parar_slides: function () {

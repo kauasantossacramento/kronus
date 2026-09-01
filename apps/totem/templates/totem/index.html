@@ -96,15 +96,29 @@
       abertura da pagina ainda mostraria o aniversario de anteontem.
     {% endcomment %}
     <p class="totem-aniversario" data-aniversario hidden></p>
-  {% comment %}
-    Como se começa. "Aproxime-se" e "Toque na tela" são instruções
-    opostas, e a errada deixa a pessoa esperando em frente a uma tela
-    que não vai reagir.
-  {% endcomment %}
-  <p class="totem-comecar" data-comecar>
-    {% if totem.comeca_por_toque %}Toque na tela para registrar o ponto
-    {% else %}Aproxime-se para registrar o ponto{% endif %}
-  </p>
+
+    {% comment %}
+      Como se começa, quando NÃO é por toque.
+
+      Quando é por toque, quem diz isso é o selo acima — os dois juntos
+      repetiam a mesma frase em dois lugares da mesma tela, e uma
+      instrução dita duas vezes lê como erro, não como ênfase.
+    {% endcomment %}
+    {% if not totem.comeca_por_toque %}
+      <p class="totem-comecar" data-comecar>Aproxime-se para registrar o ponto</p>
+    {% endif %}
+
+    {% comment %}
+      A frase do período fica aqui, junto da marca e do relógio.
+
+      Antes ela vivia como legenda de cada slide, no topo da tela — longe
+      de tudo, e trocando junto com a imagem. Aqui ela entra no mesmo
+      bloco que o resto do conteúdo, abaixo do aviso de toque, e o
+      gradiente que sustenta as logos e o relógio sustenta ela também.
+
+      Preenchida pelo JS a cada troca de imagem.
+    {% endcomment %}
+    <p class="totem-frase" data-frase-ambiente hidden></p>
   </div>
 
   <div class="totem-relogio"

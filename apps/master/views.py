@@ -713,9 +713,18 @@ def tela_ociosa(request):
                     "não dá para conferir o uso depois.",
                 )
             else:
+                # Mesma medicao do importador: uma imagem subida a mao
+                # nao pode ficar sem a informacao que decide a cor da
+                # marca.
+                from apps.clientes.ambiente import medir_claridade
+
+                arquivo.seek(0)
+                clara = medir_claridade(arquivo.read())
+                arquivo.seek(0)
                 ImagemAmbiente.objects.create(
                     periodo=request.POST.get("periodo") or Periodo.MANHA,
                     imagem=arquivo,
+                    clara=clara,
                     titulo=(request.POST.get("titulo") or "").strip()[:120],
                     autor=(request.POST.get("autor") or "").strip()[:120],
                     fonte=fonte[:500],

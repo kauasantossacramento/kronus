@@ -853,15 +853,33 @@ class IniciarPorToqueTests(BaseTotemTestCase):
         self.assertIn("iniciarPorToque: true", self._pagina())
 
     def test_a_tela_diz_como_comecar(self):
-        # Instrucoes opostas: a errada deixa a pessoa esperando em frente
-        # a uma tela que nao vai reagir.
+        """
+        Instrucoes opostas: a errada deixa a pessoa esperando em frente a
+        uma tela que nao vai reagir.
+
+        Por toque quem diz e o selo; por presenca, o texto. Antes os dois
+        apareciam juntos no modo toque — a mesma frase em dois lugares da
+        mesma tela, que le como erro e nao como enfase.
+        """
         from apps.totem.models import Totem
 
-        self.assertIn("Toque na tela para registrar", self._pagina())
+        pagina = self._pagina()
+        self.assertIn("Toque para registrar o seu ponto", pagina)
+        self.assertNotIn("Aproxime-se para registrar", pagina)
 
         self.totem.inicio_do_ponto = Totem.Inicio.PRESENCA
         self.totem.save(update_fields=["inicio_do_ponto"])
-        self.assertIn("Aproxime-se para registrar", self._pagina())
+        pagina = self._pagina()
+        self.assertIn("Aproxime-se para registrar", pagina)
+        self.assertNotIn("Toque para registrar o seu ponto", pagina)
+
+    def test_a_instrucao_aparece_uma_vez_so(self):
+        """
+        O selo novo foi acrescentado sem tirar o texto antigo, e o totem
+        passou a dizer duas vezes como comecar.
+        """
+        pagina = self._pagina()
+        self.assertEqual(pagina.count("registrar o seu ponto"), 1)
 
     def test_o_selo_de_toque_vem_depois_do_slogan(self):
         """
@@ -1127,7 +1145,7 @@ class InicioPorTotemTests(BaseTotemTestCase):
         pagina = self.client.get(
             f"/totem/{self.totem.token_acesso}/"
         ).content.decode()
-        self.assertIn("Toque na tela para registrar", pagina)
+        self.assertIn("Toque para registrar o seu ponto", pagina)
         self.assertIn("iniciarPorToque: true", pagina)
 
 

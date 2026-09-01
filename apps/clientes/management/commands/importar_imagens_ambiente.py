@@ -45,7 +45,11 @@ class Command(BaseCommand):
         from django.conf import settings
         from django.core.files.base import ContentFile
 
-        from apps.clientes.ambiente import ImagemAmbiente, Periodo
+        from apps.clientes.ambiente import (
+            ImagemAmbiente,
+            Periodo,
+            medir_claridade,
+        )
         from apps.clientes.ambiente_servico import esquecer
         from apps.clientes import pexels
 
@@ -110,6 +114,9 @@ class Command(BaseCommand):
                     # credito, mas "de onde veio?" precisa ter resposta.
                     licenca="Pexels License",
                     id_externo=c["id_externo"],
+                    # Medido aqui, uma vez: o tablet nao precisa refazer
+                    # essa conta a cada troca de slide.
+                    clara=medir_claridade(dados),
                 )
                 imagem.imagem.save(
                     f"pexels_{c['id_externo']}.jpg", ContentFile(dados), save=True

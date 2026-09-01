@@ -708,9 +708,15 @@ class Empresa(BaseModel):
         choices=TransicaoSlide.choices,
         default=TransicaoSlide.FADE,
     )
+    #: 14 s, e nao 8.
+    #:
+    #: Oito bastavam quando o slide era so uma imagem institucional, que
+    #: se ve de relance. Com a frase do periodo em cima, o tempo tem de
+    #: cobrir ler a frase **e** olhar a foto — e a troca a cada oito
+    #: segundos ficava agitada numa tela que deveria transmitir calma.
     slides_segundos = models.PositiveSmallIntegerField(
         "Segundos por imagem",
-        default=8,
+        default=14,
         validators=[MinValueValidator(3), MaxValueValidator(120)],
     )
 

@@ -90,7 +90,9 @@ def conteudo_para(empresa, *, hora: int) -> dict:
         # e um rodape de credito numa tela vista de longe so tira espaco
         # do que a pessoa precisa ler. A procedencia continua guardada no
         # acervo, para quem precisar conferir.
-        "imagens": [{"url": img.imagem.url} for img in sorteadas],
+        "imagens": [
+            {"url": img.imagem.url, "clara": img.clara} for img in sorteadas
+        ],
         # O totem precisa saber se pode misturar com os slides da
         # empresa ou se o acervo e o unico conteudo.
         "exclusivo": empresa.modo_slides == empresa.ModoDosSlides.SOMENTE_ACERVO,

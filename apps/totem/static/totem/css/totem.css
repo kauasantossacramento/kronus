@@ -569,6 +569,8 @@ html, body {
 }
 .totem-slide.ativo { opacity: 1; visibility: visible; }
 
+/* Legenda de slide da empresa — a frase do período não vem mais por
+   aqui, ela vive no bloco de conteúdo junto da marca e do relógio. */
 .totem-slide figcaption {
   position: absolute;
   left: 0; right: 0; bottom: 0;
@@ -577,6 +579,7 @@ html, body {
   color: #fff;
   font-size: clamp(1rem, 3.5vw, 1.6rem);
   line-height: 1.35;
+}
 }
 
 /* Transições. A escolha é do administrador; cada uma tem um custo
@@ -1074,4 +1077,90 @@ html, body {
    comum, porque ela é o conteúdo — não o rótulo dele. */
 .totem-slide figcaption {
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Marca sobre fundo claro ────────────────────────────────────
+   A logo da empresa costuma ser branca, e sobre foto de céu, neve ou
+   névoa ela simplesmente desaparece.
+
+   A alternativa seria uma sombra permanente atrás da marca — mas isso
+   sujaria a logo nas fotos escuras, que são a maioria. Trocar a cor só
+   quando precisa mantém a marca limpa no caso comum.
+
+   O azul escuro, e não preto: preto sobre foto clara fica duro e
+   parece erro de renderização; o azul da identidade do Kronus lê como
+   escolha. */
+body.totem-fundo-claro .totem-logo-img {
+  filter: brightness(0) saturate(100%)
+          invert(13%) sepia(35%) saturate(2200%) hue-rotate(200deg);
+  transition: filter .6s ease;
+}
+
+/* O texto acompanha: slogan e mensagem brancos somem junto com a logo. */
+body.totem-fundo-claro .totem-idle__mensagem,
+body.totem-fundo-claro .totem-idle__tagline,
+body.totem-fundo-claro .totem-aniversario {
+  color: #16233d;
+  text-shadow: 0 1px 6px rgba(255, 255, 255, .55);
+  transition: color .6s ease;
+}
+
+/* O selo de toque inverte: escuro sobre claro vira claro sobre escuro
+   suave, para continuar legível sem virar um bloco preto na tela. */
+body.totem-fundo-claro .totem-selo-toque {
+  background: rgba(255, 255, 255, .62);
+  border-color: rgba(22, 35, 61, .18);
+  color: #16233d;
+  transition: background .6s ease, color .6s ease;
+}
+
+/* A transição existe para a troca não piscar: o slide leva mais de um
+   segundo para trocar, e a marca mudando de cor num salto chamaria
+   mais atenção que a imagem. */
+.totem-logo-img,
+.totem-idle__mensagem,
+.totem-idle__tagline {
+  transition: filter .6s ease, color .6s ease;
+}
+
+/* ── Frase do período ───────────────────────────────────────────
+   Fica no mesmo bloco da marca, do slogan e do aviso de toque — e o
+   gradiente que sustenta as logos e o relógio sustenta ela também.
+
+   Grande de propósito: é o conteúdo da tela ociosa, não um rodapé.
+   Cerca de três vezes o slogan, que é o texto de referência ao lado.
+
+   Tipografia diferente do resto: o slogan e a marca são da empresa; a
+   frase é do Kronus. Serifada e em itálico, ela se lê como voz
+   separada em vez de mais uma linha do mesmo bloco. */
+.totem-frase {
+  margin: clamp(1.25rem, 4vh, 2.5rem) auto 0;
+  max-width: 26ch;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.9rem, 6.4vw, 4.4rem);
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  color: #fff;
+  text-align: center;
+  text-wrap: balance;
+  /* Sombra generosa: a frase fica sobre foto, e sem ela some no céu
+     claro tanto quanto a logo somia. */
+  text-shadow: 0 2px 18px rgba(0, 0, 0, .55), 0 1px 3px rgba(0, 0, 0, .4);
+}
+
+.totem-frase--entra {
+  animation: totem-frase-entra 1.2s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+@keyframes totem-frase-entra {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Sobre foto clara a frase escurece junto com a marca. */
+body.totem-fundo-claro .totem-frase {
+  color: #16233d;
+  text-shadow: 0 1px 10px rgba(255, 255, 255, .6);
 }
