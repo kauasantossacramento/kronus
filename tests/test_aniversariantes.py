@@ -188,3 +188,68 @@ class CacheDosAniversariantesTests(TestCase):
 
         fonte = inspect.getsource(views_totem._aniversariantes_de_hoje)
         self.assertIn("ate_meia_noite if nomes else", fonte)
+
+
+class PaginaDoCalendarioTests(TestCase):
+    """
+    A pagina precisa abrir.
+
+    Ela quebrou em producao com FieldError: `select_related("cargo")`,
+    sendo que `cargo` e texto livre e a relacao chama `cargo_ref`. Um
+    erro de nome de campo derrubou a tela inteira, e nenhum teste pegou
+    porque nenhum chamava `do_mes` contra o banco de verdade.
+    """
+
+    def setUp(self):
+        from datetime import date
+        from decimal import Decimal
+
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+        from apps.rh.models import Colaborador
+
+        plano = Plano.objects.create(
+            nome="P", slug="p", max_empresas=5, max_colaboradores=50,
+            preco_mensal=Decimal("100"),
+        )
+        cliente = Cliente.objects.create(
+            razao_social="C LTDA", nome_fantasia="C", cnpj="11222333000181",
+            email_contato="c@t.com", plano=plano,
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="E LTDA", cnpj="60746948000112",
+        )
+        self.pessoa = Colaborador.objects.create(
+            empresa=self.empresa, nome_completo="Fulano de Tal",
+            cpf="52998224725", data_nascimento=date(1990, 9, 15),
+            data_admissao=date(2020, 1, 10), cargo="Analista",
+        )
+
+    def test_monta_a_lista_sem_estourar(self):
+        from apps.rh.aniversariantes import do_mes
+
+        lista = do_mes([self.empresa], 2026, 9)
+        self.assertEqual(len(lista), 1)
+        self.assertEqual(lista[0]["dia"], 15)
+        self.assertEqual(lista[0]["idade"], 36)
+
+    def test_usa_o_cargo_de_texto_livre_quando_nao_ha_cadastro(self):
+        from apps.rh.aniversariantes import do_mes
+
+        self.assertEqual(do_mes([self.empresa], 2026, 9)[0]["cargo"], "Analista")
+
+    def test_o_cargo_cadastrado_vence_o_texto_livre(self):
+        from apps.rh.models import Cargo
+
+        cargo = Cargo.objects.create(empresa=self.empresa, nome="Gerente")
+        self.pessoa.cargo_ref = cargo
+        self.pessoa.save(update_fields=["cargo_ref"])
+
+        from apps.rh.aniversariantes import do_mes
+
+        self.assertEqual(do_mes([self.empresa], 2026, 9)[0]["cargo"], "Gerente")
+
+    def test_mes_sem_aniversariante_devolve_vazio(self):
+        from apps.rh.aniversariantes import do_mes
+
+        self.assertEqual(do_mes([self.empresa], 2026, 3), [])

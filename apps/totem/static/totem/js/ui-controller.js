@@ -263,7 +263,9 @@
       } else {
         lista = nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1];
       }
-      var verbo = nomes.length === 1 ? ' e aniversario de ' : ' sao aniversarios de ';
+      var verbo = nomes.length === 1
+        ? ' é aniversário de '
+        : ' são aniversários de ';
       el.textContent = EMOJI_FESTA + ' Hoje' + verbo + lista + '!';
       el.hidden = false;
     },

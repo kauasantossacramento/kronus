@@ -33,7 +33,10 @@ def do_mes(empresas, ano: int, mes: int) -> list[dict]:
         Colaborador.objects.filter(
             empresa__in=empresas, ativo=True, data_nascimento__month=mes
         )
-        .select_related("empresa", "cargo")
+        # `cargo_ref` e a relacao; `cargo` e texto livre no proprio
+        # registro. Pedir select_related no texto livre e erro de campo,
+        # e derrubava a pagina inteira.
+        .select_related("empresa", "cargo_ref")
         .order_by("data_nascimento__day", "nome_completo")
     )
 
@@ -49,7 +52,9 @@ def do_mes(empresas, ano: int, mes: int) -> list[dict]:
             "nome": p.nome_exibicao,
             "dia": nascimento.day,
             "idade": idade if idade > 0 else None,
-            "cargo": p.cargo.nome if p.cargo_id else "",
+            # O cargo cadastrado vence; o texto livre atende quem nunca
+            # criou a tabela de cargos.
+            "cargo": (p.cargo_ref.nome if p.cargo_ref_id else "") or p.cargo or "",
             "empresa": p.empresa.nome_exibicao,
             "email": p.email or "",
             "hoje": (nascimento.day, nascimento.month) == (hoje.day, hoje.month)
