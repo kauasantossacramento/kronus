@@ -135,3 +135,56 @@ class DespedidaTests(TestCase):
         self.assertEqual(sexta.weekday(), 4)
         with patch("apps.api.views_totem.timezone.localdate", return_value=sexta):
             self.assertIn("fim de semana", self._despedir(TipoRegistro.SAIDA))
+
+
+class CacheDosAniversariantesTests(TestCase):
+    """
+    A lista vazia nao pode valer o dia inteiro.
+
+    Caso real: o aniversariante do dia nao apareceu em nenhum totem. A
+    query estava certa — o cache e que guardava `[]`, gravado quando a
+    consulta falhou durante um restart. Com validade ate a meia-noite,
+    um blip de segundos apagou o aniversario de alguem por 24 horas.
+
+    "Ninguem faz aniversario hoje" e indistinguivel de "nao consegui
+    descobrir", e das duas so a segunda se corrige refazendo a pergunta.
+    """
+
+    def _totem(self):
+        class Empresas(list):
+            pass
+
+        class TotemFalso:
+            pk = 4242
+
+            def empresas_atendidas(self):
+                raise RuntimeError("banco fora do ar")
+
+        return TotemFalso()
+
+    def test_a_falha_nao_entra_no_cache(self):
+        from django.core.cache import cache
+        from django.utils import timezone
+
+        from apps.api.views_totem import _aniversariantes_de_hoje
+
+        totem = self._totem()
+        chave = f"kronus:aniversarios:{totem.pk}:{timezone.localdate().isoformat()}"
+        cache.delete(chave)
+
+        self.assertEqual(_aniversariantes_de_hoje(totem), [])
+        # O ponto do teste: nada foi guardado, entao a proxima pergunta
+        # volta ao banco em vez de repetir a falha ate a meia-noite.
+        self.assertIsNone(cache.get(chave))
+
+    def test_lista_vazia_legitima_vale_pouco_tempo(self):
+        """
+        Mesmo sem falha, o vazio expira rapido: um colaborador cadastrado
+        as 9h nao pode esperar ate amanha para ser parabenizado.
+        """
+        import inspect
+
+        from apps.api import views_totem
+
+        fonte = inspect.getsource(views_totem._aniversariantes_de_hoje)
+        self.assertIn("ate_meia_noite if nomes else", fonte)

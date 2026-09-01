@@ -145,16 +145,30 @@ def _aniversariantes_de_hoje(totem) -> list:
             if (p.nome_exibicao or "").strip()
         ]
     except Exception:
+        # Falha **nao** entra no cache.
+        #
+        # Guardar a falha era pior do que a falha: um blip no banco
+        # durante um restart gravava lista vazia com validade ate a
+        # meia-noite, e o aniversariante do dia passava o dia inteiro sem
+        # aparecer — foi exatamente o que aconteceu.
         logger.exception("Falha ao levantar aniversariantes do totem %s", totem.pk)
-        nomes = []
+        return []
 
     # Ate a virada do dia: a lista de amanha e outra, e um cache longo
     # deixaria o parabens atrasado.
     amanha = timezone.localtime().replace(
         hour=0, minute=0, second=0, microsecond=0
     ) + timedelta(days=1)
-    segundos = max(60, int((amanha - timezone.localtime()).total_seconds()))
-    cache.set(chave, nomes, segundos)
+    ate_meia_noite = max(60, int((amanha - timezone.localtime()).total_seconds()))
+
+    # Lista vazia vale por pouco tempo; lista com gente vale o dia.
+    #
+    # "Ninguem faz aniversario hoje" e indistinguivel de "nao consegui
+    # descobrir", e das duas a segunda se corrige sozinha se a pergunta
+    # for refeita. O custo de refazer e uma consulta barata a cada cinco
+    # minutos; o custo de nao refazer e o aniversario de alguem passar em
+    # branco.
+    cache.set(chave, nomes, ate_meia_noite if nomes else 300)
     return nomes
 
 
