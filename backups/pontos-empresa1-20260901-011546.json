@@ -1,0 +1,29 @@
+{
+  "empresa": "Alfa Matriz",
+  "empresa_id": 1,
+  "gerado_em": "2026-09-01T01:15:46.952643-03:00",
+  "registros": [
+    {
+      "nsr": 1,
+      "colaborador": "Ana",
+      "cpf": "52998224725",
+      "data_hora": "2026-09-01T02:15:46.926111+00:00",
+      "tipo": "entrada",
+      "metodo": "web",
+      "hash_registro": "abde88257dca9912bcdb3823b6ed6b8bc5eaf684b282958af6e0d7866435e212",
+      "hash_anterior": "",
+      "confianca_face": null
+    },
+    {
+      "nsr": 2,
+      "colaborador": "Ana",
+      "cpf": "52998224725",
+      "data_hora": "2026-09-01T03:15:46.926111+00:00",
+      "tipo": "entrada",
+      "metodo": "web",
+      "hash_registro": "f5f48783710df43a57918993a5a33e48c41da5b5b81c5222e65de5e6d7a4c7b8",
+      "hash_anterior": "abde88257dca9912bcdb3823b6ed6b8bc5eaf684b282958af6e0d7866435e212",
+      "confianca_face": null
+    }
+  ]
+}

@@ -561,7 +561,25 @@
           {% for slide in slides %}
             {"url": "{{ slide.imagem.url|escapejs }}", "legenda": "{{ slide.legenda|escapejs }}"}{% if not forloop.last %},{% endif %}
           {% endfor %}
-        ]
+        ],
+        {% comment %}
+          Conteúdo ambiente já na abertura da página.
+
+          A resposta da API também traz, mas ela só chega na primeira
+          atualização de configuração — e até lá a tela ociosa ficaria
+          sem nada, que foi exatamente o que aconteceu: o dado existia
+          na API e não aparecia no totem.
+        {% endcomment %}
+        ambiente: {
+          periodo: '{{ ambiente.periodo|default:""|escapejs }}',
+          exclusivo: {{ ambiente.exclusivo|yesno:"true,false" }},
+          frases: [
+            {% for f in ambiente.frases %}'{{ f|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}
+          ],
+          imagens: [
+            {% for img in ambiente.imagens %}{"url": "{{ img.url|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}
+          ]
+        }
       },
       urls: {
         recognize: '{% url "api:totem:totem_recognize" %}',

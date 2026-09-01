@@ -210,3 +210,75 @@ class ProcedenciaTests(TestCase):
         self.assertIn(
             "id_externo", {f.name for f in ImagemAmbiente._meta.get_fields()}
         )
+
+
+class ChegaNaPaginaTests(TestCase):
+    """
+    O conteudo precisa chegar na PAGINA, e nao so na API.
+
+    Bug real: a API entregava tudo certo e o totem nao mostrava nada. O
+    JS le a configuracao renderizada no proprio HTML — a resposta da API
+    so chega na primeira atualizacao de configuracao, e ate la a tela
+    ficava vazia.
+
+    Nenhum teste pegou porque todos olhavam o servico e a API, que eram
+    justamente as duas partes que funcionavam.
+    """
+
+    def setUp(self):
+        from decimal import Decimal
+
+        from apps.clientes.ambiente import FraseAmbiente, Periodo
+        from apps.clientes.ambiente_servico import esquecer
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+        from apps.totem.models import Totem
+
+        plano = Plano.objects.create(
+            nome="P", slug="p", max_empresas=3, max_colaboradores=50,
+            preco_mensal=Decimal("100"),
+        )
+        cliente = Cliente.objects.create(
+            razao_social="C LTDA", cnpj="11222333000181",
+            email_contato="c@t.com", plano=plano,
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="E LTDA", cnpj="60746948000112",
+        )
+        self.totem = Totem.objects.create(empresa=self.empresa, apelido="T")
+        for periodo in Periodo.values:
+            FraseAmbiente.objects.create(
+                periodo=periodo, texto=f"Frase de {periodo}",
+                tipo=FraseAmbiente.Tipo.SAUDACAO,
+            )
+        esquecer()
+
+    def _pagina(self):
+        return self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+
+    def test_a_pagina_carrega_o_bloco_ambiente(self):
+        pagina = self._pagina()
+        self.assertIn("ambiente:", pagina)
+        self.assertIn("Frase de", pagina)
+
+    def test_desligado_a_pagina_nao_traz_frase(self):
+        from apps.clientes.ambiente_servico import esquecer
+
+        self.empresa.telas_ambiente = False
+        self.empresa.save(update_fields=["telas_ambiente"])
+        esquecer()
+        self.assertNotIn("Frase de", self._pagina())
+
+    def test_a_pagina_continua_de_pe_sem_acervo(self):
+        """
+        Sem frase e sem imagem o totem tem de abrir igual: enfeite que
+        derruba o quiosque troca o essencial pelo acessorio.
+        """
+        from apps.clientes.ambiente import FraseAmbiente
+        from apps.clientes.ambiente_servico import esquecer
+
+        FraseAmbiente.objects.all().delete()
+        esquecer()
+        self.assertIn("ambiente:", self._pagina())

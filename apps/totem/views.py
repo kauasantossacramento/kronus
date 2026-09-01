@@ -36,6 +36,25 @@ logger = logging.getLogger("kronus.totem")
 VERSAO_APP = settings.KRONUS["VERSAO"]
 
 
+def _ambiente_da_pagina(empresa) -> dict:
+    """
+    O conteudo ambiente da hora, no fuso da empresa.
+
+    Devolve `{}` quando desligado — e o template, recebendo vazio, nao
+    monta nada. Falha aqui nao pode derrubar o quiosque: sem enfeite o
+    totem bate ponto, sem pagina nao.
+    """
+    from django.utils import timezone
+
+    from apps.clientes.ambiente_servico import conteudo_para
+
+    try:
+        return conteudo_para(empresa, hora=timezone.localtime().hour) or {}
+    except Exception:
+        logger.exception("Falha ao montar o conteúdo ambiente do quiosque.")
+        return {}
+
+
 @never_cache
 @xframe_options_exempt
 def kiosk(request, token):
@@ -75,6 +94,13 @@ def kiosk(request, token):
                 for slide in totem.empresa.slides.order_by("ordem", "created_at")
                 if slide.vigente
             ],
+            # Conteudo ambiente do periodo, ja na abertura da pagina.
+            #
+            # A API tambem entrega, mas so na primeira atualizacao de
+            # configuracao — e ate la a tela ociosa ficaria sem nada.
+            # Foi o que aconteceu: o dado existia na API e nao aparecia
+            # no totem, porque o JS le a configuracao renderizada aqui.
+            "ambiente": _ambiente_da_pagina(totem.empresa),
             "versao_app": VERSAO_APP,
             "versao_estaticos": versao_dos_estaticos(),
             # O gesto de manutencao so e ligado quando a porta existe:

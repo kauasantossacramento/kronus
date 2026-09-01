@@ -1,0 +1,18 @@
+{
+  "empresa": "Alfa Matriz",
+  "empresa_id": 1,
+  "gerado_em": "2026-09-01T00:03:25.990762-03:00",
+  "registros": [
+    {
+      "nsr": 1,
+      "colaborador": "Ana",
+      "cpf": "52998224725",
+      "data_hora": "2026-09-01T02:03:25.956073+00:00",
+      "tipo": "entrada",
+      "metodo": "web",
+      "hash_registro": "1de0f7209a0b0a17004d401a699e789c06ba9afc6db3679dcca43c3a1f5e8644",
+      "hash_anterior": "",
+      "confianca_face": null
+    }
+  ]
+}
