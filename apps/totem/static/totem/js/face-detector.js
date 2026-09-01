@@ -151,7 +151,14 @@
     carregar: function (caminhoModelos) {
       var self = this;
 
-      return this._esperarFaceApi(15000).then(function (chegou) {
+      // 45 s, e nao 15.
+      //
+      // Sao 1,3 MB. Numa rede de galpao, ou logo apos um deploy — que
+      // ate agora invalidava a copia guardada —, 15 s nao bastavam, e o
+      // totem desistia com o arquivo ainda descendo. Desistir cedo custa
+      // o reconhecimento do dia inteiro; esperar mais custa alguns
+      // segundos na primeira abertura.
+      return this._esperarFaceApi(45000).then(function (chegou) {
         if (!chegou) {
           console.error('[Kronus] face-api.js nao carregou — o totem NAO vai '
             + 'reconhecer rostos. Verifique /diagnostico/.');

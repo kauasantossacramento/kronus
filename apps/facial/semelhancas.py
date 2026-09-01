@@ -30,16 +30,44 @@ SEGUNDOS_EM_CACHE = 1800
 
 
 class Gravidade:
-    """Quao perto e perto demais."""
+    """
+    O que a proximidade **causa** — nao o quanto ela assusta.
+
+    Os nomes mudaram depois de a tela ser lida por quem nao escreveu o
+    codigo. "Crítica" foi entendida como "risco de uma pessoa bater pela
+    outra", e nao e isso: nessa faixa o totem **recusa** e pede nova
+    tentativa, em vez de escolher entre os dois. O custo e tempo na
+    fila, nao ponto no nome errado.
+
+    Rotular pelo susto, e nao pela consequencia, produziu a pergunta
+    certa pelo motivo errado — e um painel que assusta sem informar
+    acaba ignorado.
+    """
 
     CRITICA = "critica"
     ATENCAO = "atencao"
     OBSERVAR = "observar"
 
     ROTULOS = {
-        CRITICA: "Crítica",
-        ATENCAO: "Atenção",
+        CRITICA: "Vai exigir repetição",
+        ATENCAO: "Margem estreita",
         OBSERVAR: "Observar",
+    }
+
+    #: O que acontece na pratica, para a tela explicar sem rodeio.
+    EXPLICACOES = {
+        CRITICA: (
+            "Os dois cadastros estão próximos o bastante para o totem "
+            "recusar e pedir nova tentativa em vez de escolher. Ninguém "
+            "bate pelo outro — mas os dois perdem tempo na fila."
+        ),
+        ATENCAO: (
+            "Funciona, com pouca folga. Um dia de luz ruim pode levar "
+            "este par para a faixa de repetição."
+        ),
+        OBSERVAR: (
+            "Distância confortável hoje. Aparece aqui só para acompanhamento."
+        ),
     }
 
 
@@ -49,16 +77,18 @@ def _gravidade(distancia: float, limiar: float, margem: float) -> str | None:
 
     Os cortes saem das regras que ja decidem no reconhecimento, e nao de
     numeros escolhidos para o painel: abaixo do limiar as duas pessoas
-    disputam a mesma batida; abaixo de `limiar - margem` a disputa vira
-    recusa frequente. Um painel com escala propria diria uma coisa e o
+    disputam a mesma batida e o totem recusa; ate uma margem acima dele,
+    a folga e pequena. Um painel com escala propria diria uma coisa e o
     totem faria outra.
+
+    A terceira faixa saiu. Ela ia ate duas margens acima do limiar e
+    sinalizava mais da metade de todos os pares — e um aviso que aparece
+    em 52% dos casos deixa de ser aviso.
     """
     if distancia < limiar:
         return Gravidade.CRITICA
     if distancia < limiar + margem:
         return Gravidade.ATENCAO
-    if distancia < limiar + margem * 2:
-        return Gravidade.OBSERVAR
     return None
 
 
@@ -158,6 +188,7 @@ def levantar(empresa, *, usar_cache: bool = True) -> dict:
             "distancia": round(distancia, 4),
             "gravidade": gravidade,
             "rotulo": Gravidade.ROTULOS[gravidade],
+            "explicacao": Gravidade.EXPLICACOES[gravidade],
             "acoes": _acoes(gravidade, a, b),
         })
 

@@ -582,6 +582,15 @@
       this.ui.mostrar('sucesso');
 
       var segundos = dados.segundos_exibicao || this.config.segundosSucesso || 5;
+      // Aniversario ganha tempo de tela.
+      //
+      // As palmas duram cerca de 3,5 s e a mensagem e mais longa que a
+      // frase de sucesso comum. Com os 5 s de sempre, a animacao ainda
+      // estava subindo quando a tela trocava — a comemoracao aparecia
+      // pela metade, que e pior do que nao existir.
+      if (dados.aniversario) {
+        segundos = Math.max(segundos, 9);
+      }
       var self = this;
       var restante = segundos;
 

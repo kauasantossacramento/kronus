@@ -168,23 +168,44 @@
         // toque na tela ja aconteceu antes da batida.
         if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
 
-        var notas = festivo ? [523.25, 659.25, 783.99, 1046.5] : [587.33, 880.0];
-        var agora = ctx.currentTime;
-        notas.forEach(function (hz, i) {
-          var osc = ctx.createOscillator();
-          var vol = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = hz;
-          var inicio = agora + i * 0.11;
-          var fim = inicio + 0.18;
-          // Rampa em vez de liga/desliga: corte seco vira estalo.
-          vol.gain.setValueAtTime(0.0001, inicio);
-          vol.gain.exponentialRampToValueAtTime(0.22, inicio + 0.02);
-          vol.gain.exponentialRampToValueAtTime(0.0001, fim);
-          osc.connect(vol);
-          vol.connect(ctx.destination);
-          osc.start(inicio);
-          osc.stop(fim + 0.02);
+        // Notas com harmonico e envelope de sino.
+        //
+        // A versao anterior eram senoides puras com corte rapido: soava
+        // a bipe de eletrodomestico, que e o oposto do que uma
+        // confirmacao deve transmitir. Um sino tem o fundamental mais um
+        // harmonico acima e uma cauda longa — e o que faz o som parecer
+        // "acabado" em vez de interrompido.
+        var notas = festivo
+          ? [{ hz: 523.25, t: 0.00 }, { hz: 659.25, t: 0.13 },
+             { hz: 783.99, t: 0.26 }, { hz: 1046.50, t: 0.39 }]
+          : [{ hz: 659.25, t: 0.00 }, { hz: 987.77, t: 0.10 }];
+        var agora = ctx.currentTime + 0.02;
+        var cauda = festivo ? 1.1 : 0.75;
+
+        var mestre = ctx.createGain();
+        mestre.gain.value = festivo ? 0.20 : 0.16;
+        mestre.connect(ctx.destination);
+
+        notas.forEach(function (nota) {
+          [1, 2.01].forEach(function (mult, camada) {
+            var osc = ctx.createOscillator();
+            var vol = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = nota.hz * mult;
+            var inicio = agora + nota.t;
+            var fim = inicio + cauda;
+            // O harmonico entra bem mais baixo: ele da o timbre, nao o
+            // volume. Igualados, viram dissonancia.
+            var pico = camada === 0 ? 1.0 : 0.22;
+            vol.gain.setValueAtTime(0.0001, inicio);
+            vol.gain.exponentialRampToValueAtTime(pico, inicio + 0.012);
+            // Decaimento longo e suave: e a cauda que soa como sino.
+            vol.gain.exponentialRampToValueAtTime(0.0001, fim);
+            osc.connect(vol);
+            vol.connect(mestre);
+            osc.start(inicio);
+            osc.stop(fim + 0.03);
+          });
         });
       } catch (e) {
         // Som e confirmacao extra, nunca requisito.

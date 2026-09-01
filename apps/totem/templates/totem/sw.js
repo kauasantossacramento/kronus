@@ -173,8 +173,30 @@ self.addEventListener('fetch', function (evento) {
   }
 
   // Estáticos: cache primeiro, com revalidação em segundo plano.
+  //
+  // A biblioteca de detecção e os modelos ignoram a query string.
+  //
+  // Eles são artefatos de terceiros, com versão própria, presos ao
+  // arquivo: não mudam porque o Kronus mudou. Mas a página os pede com
+  // `?v=<versão dos estáticos>`, e `caches.match` compara a URL
+  // inteira — então **todo deploy invalidava 1,3 MB de biblioteca**.
+  //
+  // O efeito era o totem baixar tudo de novo pela rede do local. Onde
+  // ela é fraca isso passa do tempo que o detector espera, e o totem
+  // entra em modo degradado dizendo "face-api.js não carregou" — foi
+  // exatamente o que aconteceu depois de uma atualização, com o
+  // reconhecimento parando num equipamento que estava funcionando.
+  //
+  // Ignorando a query, a cópia guardada responde na hora e a nova
+  // desce em segundo plano. Se algum dia a biblioteca for trocada, o
+  // arquivo novo entra no cache no primeiro carregamento e passa a
+  // valer no seguinte — uma volta de atraso numa dependência que muda
+  // uma vez por ano, contra o totem cego depois de cada deploy.
+  const pesadoEImutavel = /\/(vendor\/face-api\.min\.js|js\/models\/)/.test(url.pathname);
+  const opcoesBusca = pesadoEImutavel ? { ignoreSearch: true } : undefined;
+
   evento.respondWith(
-    caches.match(requisicao).then(function (cacheada) {
+    caches.match(requisicao, opcoesBusca).then(function (cacheada) {
       const daRede = fetch(requisicao)
         .then(function (resposta) {
           if (resposta && resposta.status === 200) {

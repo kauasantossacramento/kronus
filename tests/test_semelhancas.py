@@ -28,12 +28,29 @@ class GravidadeTests(TestCase):
     def test_dentro_da_margem_e_atencao(self):
         self.assertEqual(_gravidade(0.50, 0.45, 0.10), Gravidade.ATENCAO)
 
-    def test_o_dobro_da_margem_ainda_se_observa(self):
-        self.assertEqual(_gravidade(0.60, 0.45, 0.10), Gravidade.OBSERVAR)
+    def test_acima_da_margem_nao_entra_no_painel(self):
+        """
+        A terceira faixa saiu.
 
-    def test_longe_nao_entra_no_painel(self):
-        # Sinalizar todo mundo e o mesmo que nao sinalizar ninguem.
+        Ia ate duas margens acima do limiar e sinalizava 62 dos 120 pares
+        de uma empresa real — mais da metade. Um aviso que aparece em 52%
+        dos casos deixa de ser aviso, e o efeito medido foi o oposto do
+        pretendido: quem abriu a tela concluiu que havia gente batendo
+        ponto pelos outros.
+        """
+        self.assertIsNone(_gravidade(0.60, 0.45, 0.10))
         self.assertIsNone(_gravidade(0.90, 0.45, 0.10))
+
+    def test_o_rotulo_fala_da_consequencia_e_nao_do_susto(self):
+        """
+        "Crítica" foi lido como "alguem bate pelo outro" — o oposto do
+        que acontece: nessa faixa o totem recusa e pede de novo.
+        """
+        rotulo = Gravidade.ROTULOS[Gravidade.CRITICA]
+        self.assertNotIn("rítica", rotulo)
+        self.assertIn("repetição", rotulo)
+        explicacao = Gravidade.EXPLICACOES[Gravidade.CRITICA]
+        self.assertIn("Ninguém bate pelo outro", explicacao)
 
 
 class AcoesTests(TestCase):
