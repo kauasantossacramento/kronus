@@ -211,3 +211,69 @@ class CaixaSomeDepoisDeUsadaTests(BaseCredenciais):
                 "ativo": "on",
             },
         )
+
+
+class SincroniaDoEmailTests(BaseCredenciais):
+    """
+    O e-mail da ficha tem de alcancar o login.
+
+    So era copiado na criacao. Quem tinha acesso criado sem e-mail e
+    recebia o endereco depois ficava com o login sem e-mail para sempre
+    — e a recuperacao de senha procura o usuario **por e-mail**: a
+    pessoa pedia, a tela dizia "enviado", e nada saia.
+    """
+
+    def test_email_cadastrado_depois_alcanca_o_login(self):
+        self.pessoa.email = ""
+        self.pessoa.save(update_fields=["email"])
+        self.pessoa.garantir_usuario()
+        self.pessoa.refresh_from_db()
+        self.assertFalse(self.pessoa.user.email)
+
+        self.pessoa.email = "novo@empresa.test"
+        self.pessoa.save()
+
+        self.pessoa.user.refresh_from_db()
+        self.assertEqual(self.pessoa.user.email, "novo@empresa.test")
+
+    def test_email_trocado_na_ficha_troca_no_login(self):
+        self.pessoa.garantir_usuario()
+        self.pessoa.email = "outro@empresa.test"
+        self.pessoa.save()
+        self.pessoa.user.refresh_from_db()
+        self.assertEqual(self.pessoa.user.email, "outro@empresa.test")
+
+    def test_ficha_sem_email_nao_apaga_o_do_login(self):
+        """
+        Um campo esvaziado por engano tiraria o unico caminho de
+        recuperacao que a pessoa tinha.
+        """
+        self.pessoa.garantir_usuario()
+        self.pessoa.refresh_from_db()
+        self.assertTrue(self.pessoa.user.email)
+
+        self.pessoa.email = ""
+        self.pessoa.save()
+
+        self.pessoa.user.refresh_from_db()
+        self.assertTrue(self.pessoa.user.email)
+
+    def test_a_recuperacao_encontra_quem_tem_email(self):
+        from django.contrib.auth.forms import PasswordResetForm
+
+        self.pessoa.garantir_usuario()
+        f = PasswordResetForm({"email": self.pessoa.email})
+        self.assertTrue(f.is_valid())
+        self.assertTrue(list(f.get_users(self.pessoa.email)))
+
+    def test_sem_login_a_recuperacao_nao_encontra_ninguem(self):
+        """
+        E a tela diz "enviado" mesmo assim — comportamento deliberado do
+        Django, para nao revelar quais enderecos tem conta. Documentado
+        aqui porque parece falha de envio para quem esta olhando.
+        """
+        from django.contrib.auth.forms import PasswordResetForm
+
+        f = PasswordResetForm({"email": self.pessoa.email})
+        self.assertTrue(f.is_valid())
+        self.assertEqual(list(f.get_users(self.pessoa.email)), [])

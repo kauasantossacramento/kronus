@@ -63,6 +63,7 @@
           <th class="px-4 py-3 font-medium">Data/hora</th>
           <th class="px-4 py-3 font-medium">Tipo</th>
           <th class="px-4 py-3 font-medium">Método</th>
+          <th class="px-4 py-3 font-medium">Onde</th>
           <th class="px-4 py-3 font-medium">Evidências</th>
           <th class="px-4 py-3 font-medium">Verificação</th>
           <th class="px-4 py-3"></th>
@@ -78,6 +79,38 @@
             <td class="px-4 py-2.5 font-mono text-xs tabular-nums">{{ registro.hora_local|date:"d/m/Y H:i:s" }}</td>
             <td class="px-4 py-2.5">{{ registro.get_tipo_display }}</td>
             <td class="px-4 py-2.5 text-[var(--kronus-gray-600)]">{{ registro.get_metodo_display }}</td>
+            {% comment %}
+              Onde a batida aconteceu.
+
+              O ícone de local já existia, e dizia apenas que havia
+              coordenada — não onde. Para quem confere ponto, "tem GPS"
+              e "estava na empresa" são perguntas diferentes, e só a
+              segunda importa.
+
+              O endereço chega em segundo plano; até lá aparece a
+              coordenada, que já permite abrir o mapa.
+            {% endcomment %}
+            <td class="px-4 py-2.5 text-xs" data-rotulo="Onde">
+              {% if registro.tem_geolocalizacao %}
+                <a href="{{ registro.link_do_mapa }}" target="_blank" rel="noopener"
+                   class="text-[var(--kronus-primary-600)] hover:underline"
+                   title="Abrir no mapa">
+                  {{ registro.local_legivel|truncatechars:38 }}
+                </a>
+                {% if registro.precisao_gps %}
+                  <span class="block text-[10px] text-[var(--kronus-gray-400)]">
+                    precisão {{ registro.precisao_gps|floatformat:0 }} m
+                  </span>
+                {% endif %}
+              {% elif registro.totem %}
+                <span class="text-[var(--kronus-gray-500)]">{{ registro.totem }}</span>
+              {% else %}
+                <span class="text-[var(--kronus-gray-300)]" title="A pessoa não autorizou o GPS">sem local</span>
+              {% endif %}
+              {% if registro.ip_address %}
+                <span class="block font-mono text-[10px] text-[var(--kronus-gray-400)]">{{ registro.ip_address }}</span>
+              {% endif %}
+            </td>
             <td class="px-4 py-2.5">
               <span class="flex items-center gap-1.5">
                 {% if registro.tem_geolocalizacao %}

@@ -26,6 +26,7 @@ from apps.ponto.models import BancoHoras, EscalaTrabalho, RegistroPonto
 from apps.ponto.services import AjustePontoService, ConsolidacaoService
 from apps.rh.models import Colaborador
 from apps.rh.views import BaseRHFormView, BaseRHView
+from apps.core.utils import meses_do_ano, nome_do_mes
 
 
 def _periodo_do_request(request):
@@ -358,9 +359,9 @@ def espelho_lista(request):
             "menu_ativo": "espelho",
             "ano": ano,
             "mes": mes,
-            "nome_mes": calendar.month_name[mes],
+            "nome_mes": nome_do_mes(mes),
             "resumos": resumos,
-            "meses": [(i, calendar.month_name[i]) for i in range(1, 13)],
+            "meses": meses_do_ano(),
             "anos": range(hoje.year - 3, hoje.year + 1),
         },
     )

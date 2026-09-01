@@ -509,6 +509,25 @@ class Empresa(BaseModel):
         default=False,
         help_text="Marque se a tela de login tiver fundo escuro.",
     )
+    #: O menu lateral, que e onde a logo aparece o dia inteiro.
+    #:
+    #: A barra lateral do sistema tem fundo escuro fixo, e e onde a logo
+    #: fica mais tempo na frente de quem usa — o RH passa o expediente
+    #: com ela no canto da tela. Faltava a opcao justamente ali: logo
+    #: escura no menu escuro vira um borrao no topo, e o cliente ve a
+    #: propria marca sumida em todas as telas do sistema.
+    #:
+    #: Separada das outras porque o fundo do menu nao muda com a
+    #: personalizacao: quem precisa dela precisa sempre, e nao conforme
+    #: a tela.
+    logo_branca_menu = models.BooleanField(
+        "Logo branca nos menus",
+        default=False,
+        help_text=(
+            "Marque se a logo some no menu lateral. Vale para o "
+            "administrador, o RH e o acesso do colaborador."
+        ),
+    )
     logo_css = models.TextField(
         "CSS adicional da logo",
         blank=True,
@@ -864,7 +883,10 @@ class Empresa(BaseModel):
 
     def css_da_logo(self, tela: str = "") -> str:
         """
-        Regras CSS da logo para a tela indicada (`totem` ou `login`).
+        Regras CSS da logo para a tela indicada.
+
+        `totem`, `login` ou `menu` — a barra lateral do sistema, onde a
+        logo fica o dia inteiro na frente de quem usa.
 
         Devolve string vazia quando nao ha nada a aplicar, para que o
         template possa omitir a tag `<style>` inteira.
@@ -873,6 +895,8 @@ class Empresa(BaseModel):
         if tela == "totem" and self.logo_branca_totem:
             regras.append(self.CSS_LOGO_BRANCA)
         elif tela == "login" and self.logo_branca_login:
+            regras.append(self.CSS_LOGO_BRANCA)
+        elif tela == "menu" and self.logo_branca_menu:
             regras.append(self.CSS_LOGO_BRANCA)
         if self.logo_css:
             regras.append(self.logo_css.strip().rstrip(";") + ";")

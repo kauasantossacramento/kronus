@@ -197,3 +197,36 @@ def verificar_relogio():
             nivel=nivel,
         )
     return estado
+
+
+@shared_task(name="apps.ponto.tasks.resolver_endereco")
+def resolver_endereco(registro_id: int) -> str:
+    """
+    Preenche o endereco de uma batida, depois de ela ja estar gravada.
+
+    Fora do caminho da batida de proposito: a consulta ao servico de
+    mapas depende de uma rede que nao e nossa, e ninguem deve esperar
+    por ela para registrar ponto.
+
+    Grava com `update` direto, sem passar pelo `save` do modelo: o
+    registro de ponto e imutavel por determinacao legal, e o endereco e
+    dado acessorio — resolve-lo nao pode disparar recalculo, hash novo
+    nem sinal de alteracao.
+    """
+    from apps.ponto.geocodificacao import endereco_de
+    from apps.ponto.models import RegistroPonto
+
+    try:
+        registro = RegistroPonto.objects.filter(pk=registro_id).first()
+        if registro is None or registro.endereco:
+            return ""
+        if not registro.tem_geolocalizacao:
+            return ""
+
+        endereco = endereco_de(registro.latitude, registro.longitude)
+        if endereco:
+            RegistroPonto.objects.filter(pk=registro_id).update(endereco=endereco)
+        return endereco
+    except Exception:
+        logger.exception("Falha ao resolver o endereço do registro %s", registro_id)
+        return ""

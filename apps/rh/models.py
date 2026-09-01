@@ -346,11 +346,58 @@ class Colaborador(TenantBaseModel):
             usuario.cliente = self.empresa.cliente
             usuario.save(update_fields=["cliente"])
 
+        # O e-mail da ficha vale mais que o do login.
+        #
+        # So era copiado na criacao. Quem tinha acesso criado sem e-mail
+        # e recebia o endereco depois ficava com o login sem e-mail para
+        # sempre — e a recuperacao de senha procura o usuario **por
+        # e-mail**: a pessoa pedia, a tela dizia "enviado", e nada saia.
+        #
+        # A ficha e onde o RH mantem o cadastro; o login e consequencia.
+        # Por isso a ficha manda.
+        if self.email and usuario.email != self.email:
+            usuario.email = self.email
+            usuario.save(update_fields=["email"])
+
         if self.user_id != usuario.pk:
             self.user = usuario
             self.save(update_fields=["user", "updated_at"])
 
         return usuario, senha
+
+    def sincronizar_email_do_login(self) -> bool:
+        """
+        Leva o e-mail da ficha para o login, quando ele mudar.
+
+        Devolve `True` quando mexeu. Chamado no `save`: sem isso, editar
+        o e-mail na ficha nao alcancava o login, e a recuperacao de
+        senha — que procura por e-mail — continuava sem encontrar a
+        pessoa.
+
+        Nunca apaga: e-mail em branco na ficha nao remove o do login. Um
+        campo esvaziado por engano tirava o unico caminho de recuperacao
+        que a pessoa tinha.
+        """
+        if not self.user_id or not self.email:
+            return False
+        if self.user.email == self.email:
+            return False
+        self.user.email = self.email
+        self.user.save(update_fields=["email"])
+        return True
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        try:
+            self.sincronizar_email_do_login()
+        except Exception:
+            # Falha aqui nao pode impedir de salvar o colaborador: o
+            # cadastro e o essencial, a sincronia e consequencia.
+            import logging
+
+            logging.getLogger("kronus.rh").exception(
+                "Falha ao sincronizar o e-mail do login de %s", self.pk
+            )
 
     # -- apresentacao ------------------------------------------
     @property

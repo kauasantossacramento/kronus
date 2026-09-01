@@ -50,6 +50,14 @@ def tenant(request):
     return {
         "notificacoes_nao_lidas": nao_lidas,
         **pendencias,
+        # A regra CSS da logo no menu, ja resolvida.
+        #
+        # O template nao decide: ele recebe pronto. A alternativa era
+        # chamar `css_da_logo("menu")` no proprio HTML, e metodo com
+        # argumento nao se chama de dentro de template Django.
+        "css_logo_menu": (
+            empresa.css_da_logo("menu") if empresa is not None else ""
+        ),
         "cliente_atual": getattr(request, "cliente", None),
         "empresa_atual": empresa,
         "empresas_disponiveis": escopo_empresas(user),

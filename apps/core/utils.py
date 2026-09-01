@@ -379,3 +379,40 @@ def validar_cnpj_ou_cpf(valor: str) -> str:
 def formatar_cnpj_ou_cpf(valor: str) -> str:
     digitos = apenas_digitos(valor)
     return formatar_cpf(digitos) if len(digitos) == 11 else formatar_cnpj(digitos)
+
+
+#: Nomes dos meses, em portugues, sem depender do sistema operacional.
+#:
+#: `calendar.month_name` devolve o que o locale do SO disser — e o
+#: servidor de producao roda em ingles. O resultado era "August De 2026"
+#: na tela do colaborador: metade traduzida pelo template, metade vinda
+#: do sistema.
+#:
+#: Poderia vir da traducao do Django, mas ai dependeria de os catalogos
+#: estarem compilados no servidor. Uma lista de doze palavras que nunca
+#: mudam nao precisa desse risco.
+MESES_PT = (
+    "",  # indice 0 nao existe: os meses vao de 1 a 12
+    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+)
+
+
+def nome_do_mes(mes: int, capitalizar: bool = True) -> str:
+    """
+    O nome do mes em portugues.
+
+    `capitalizar` porque o mesmo nome serve a "Agosto de 2026" no titulo
+    e a "agosto" no meio de uma frase — e capitalizar no template
+    obrigaria cada tela a lembrar disso.
+    """
+    try:
+        nome = MESES_PT[int(mes)]
+    except (IndexError, TypeError, ValueError):
+        return ""
+    return nome.capitalize() if capitalizar else nome
+
+
+def meses_do_ano(capitalizar: bool = True) -> list[tuple[int, str]]:
+    """Os doze meses como `(numero, nome)`, para montar um select."""
+    return [(i, nome_do_mes(i, capitalizar)) for i in range(1, 13)]

@@ -23,7 +23,7 @@ from django.views.decorators.http import require_POST
 from apps.core.decorators import colaborador_required
 from apps.core.models import LogAcesso
 from apps.core.services import registrar_log
-from apps.core.utils import gerar_hash_documento, obter_ip
+from apps.core.utils import gerar_hash_documento, obter_ip, meses_do_ano, nome_do_mes
 from apps.ponto.models import FechamentoMensal
 
 logger = logging.getLogger("kronus.ponto")
@@ -58,7 +58,7 @@ def meus_espelhos(request):
             "colaborador": colaborador,
             "espelhos": espelhos,
             "pendentes": [e for e in espelhos if not e.assinado],
-            "meses": {i: calendar.month_name[i] for i in range(1, 13)},
+            "meses": dict(meses_do_ano()),
         },
     )
 
@@ -99,7 +99,7 @@ def conferir_espelho(request, pk):
             "resumo": contexto["resumo"],
             "codigo_verificacao": contexto["codigo_verificacao"],
             "divergente": divergente,
-            "nome_mes": calendar.month_name[espelho.mes],
+            "nome_mes": nome_do_mes(espelho.mes),
         },
     )
 

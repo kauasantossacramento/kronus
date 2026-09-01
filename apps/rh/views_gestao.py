@@ -36,6 +36,7 @@ from apps.rh.forms_rh import (
 )
 from apps.rh.models import Afastamento, Atestado, Colaborador, Justificativa
 from apps.rh.views import BaseRHFormView, BaseRHView
+from apps.core.utils import meses_do_ano, nome_do_mes
 
 logger = logging.getLogger("kronus.rh")
 
@@ -413,11 +414,11 @@ def fechamento(request):
             "menu_ativo": "fechamento",
             "ano": ano,
             "mes": mes,
-            "nome_mes": calendar.month_name[mes],
+            "nome_mes": nome_do_mes(mes),
             "inicio": inicio,
             "fim": fim,
             "linhas": linhas,
-            "meses": [(i, calendar.month_name[i]) for i in range(1, 13)],
+            "meses": meses_do_ano(),
             "anos": range(hoje.year - 3, hoje.year + 1),
             "total_fechados": sum(1 for l in linhas if l["fechado"]),
             "total_pendencias": sum(l["pendencias"] for l in linhas),

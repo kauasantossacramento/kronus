@@ -8,13 +8,36 @@
   {# ── Empresa ativa ────────────────────────────────────── #}
   <div class="min-w-0 flex-1">
     {% if empresa_atual %}
-      <div class="flex items-center gap-2">
-        <span class="truncate text-sm font-semibold text-[var(--kronus-gray-800)]">{{ empresa_atual.nome_exibicao }}</span>
-        <span class="hidden font-mono text-xs text-[var(--kronus-gray-400)] sm:inline">{{ empresa_atual.cnpj_formatado }}</span>
-        {% if empresas_disponiveis.count > 1 or eh_master %}
-          <a href="{% url 'core:selecionar_empresa' %}"
-             class="rounded border border-[var(--kronus-gray-300)] px-2 py-0.5 text-[11px] text-[var(--kronus-gray-600)] hover:bg-[var(--kronus-gray-100)]">trocar</a>
+      {% comment %}
+        A logo em cima, a razão social embaixo.
+
+        No celular o menu lateral fica fechado, e a logo do menu — a
+        única marca da empresa na tela — desaparece junto. Quem abre o
+        sistema pelo telefone via só o nome truncado no topo: "Invicta
+        Assessoria e Cons…", sem marca nenhuma.
+
+        A logo entra aqui porque é o único lugar sempre visível, e o
+        nome vai abaixo porque logo sozinha não identifica o CNPJ certo
+        num grupo com quatro empresas — que é exatamente o caso da
+        INVICTA.
+      {% endcomment %}
+      <div class="flex items-center gap-3">
+        {% if empresa_atual.logo %}
+          <img src="{{ empresa_atual.logo.url }}" alt="{{ empresa_atual.nome_exibicao }}"
+               class="h-8 w-auto max-w-[6.5rem] shrink-0 object-contain">
         {% endif %}
+        <div class="min-w-0">
+          <p class="truncate text-sm font-semibold leading-tight text-[var(--kronus-gray-800)]">
+            {{ empresa_atual.razao_social }}
+          </p>
+          <p class="flex items-center gap-2 text-[11px] leading-tight text-[var(--kronus-gray-400)]">
+            <span class="font-mono">{{ empresa_atual.cnpj_formatado }}</span>
+            {% if empresas_disponiveis.count > 1 or eh_master %}
+              <a href="{% url 'core:selecionar_empresa' %}"
+                 class="rounded border border-[var(--kronus-gray-300)] px-1.5 text-[10px] text-[var(--kronus-gray-600)] hover:bg-[var(--kronus-gray-100)]">trocar</a>
+            {% endif %}
+          </p>
+        </div>
       </div>
     {% elif eh_master %}
       <span class="text-sm font-semibold text-[var(--kronus-gray-800)]">Painel Master · KS TEC</span>

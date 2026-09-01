@@ -207,6 +207,20 @@ class RegistroPonto(TenantBaseModel):
         "Longitude", max_digits=10, decimal_places=7, null=True, blank=True
     )
     precisao_gps = models.FloatField("Precisão do GPS (m)", null=True, blank=True)
+    #: O endereco legivel das coordenadas.
+    #:
+    #: Coordenada nao e informacao para quem confere ponto: "-12.2664,
+    #: -38.9663" nao diz se a pessoa estava na empresa ou em casa. O
+    #: endereco diz.
+    #:
+    #: Resolvido depois de gravar, em segundo plano: a consulta ao
+    #: servico de mapas leva de centesimos a segundos, e ninguem deve
+    #: esperar por ela para bater o ponto. Fica vazio ate a resposta
+    #: chegar, e vazio para sempre se o servico nao responder — a
+    #: coordenada continua la, e a tela mostra o mapa mesmo assim.
+    endereco = models.CharField(
+        "Endereço aproximado", max_length=255, blank=True
+    )
     fora_area = models.BooleanField("Fora da área autorizada", default=False)
     suspeita_fraude = models.BooleanField("Suspeita de GPS fictício", default=False)
 
@@ -348,6 +362,37 @@ class RegistroPonto(TenantBaseModel):
     @property
     def tem_geolocalizacao(self) -> bool:
         return self.latitude is not None and self.longitude is not None
+
+    @property
+    def link_do_mapa(self) -> str:
+        """
+        Endereco do mapa para conferir onde foi.
+
+        OpenStreetMap, e nao Google: abre sem conta, sem cookie de
+        rastreio, e nao manda o RH para uma pagina que pede login.
+        """
+        if not self.tem_geolocalizacao:
+            return ""
+        return (
+            "https://www.openstreetmap.org/?mlat="
+            f"{self.latitude}&mlon={self.longitude}#map=17/"
+            f"{self.latitude}/{self.longitude}"
+        )
+
+    @property
+    def local_legivel(self) -> str:
+        """
+        O melhor que se tem sobre onde a batida aconteceu.
+
+        Endereco quando ja resolvido; coordenada quando ainda nao;
+        vazio quando a pessoa nao autorizou o GPS — e esse vazio
+        tambem informa quem confere.
+        """
+        if self.endereco:
+            return self.endereco
+        if self.tem_geolocalizacao:
+            return f"{self.latitude}, {self.longitude}"
+        return ""
 
     @property
     def codigo_verificacao(self) -> str:

@@ -188,7 +188,14 @@
         this.enviando = true;
         this.erro = '';
 
-        const posicao = this.exigeGeo ? await this.obterPosicao() : null;
+        // Tenta sempre, exige só quando a empresa manda.
+        //
+        // Antes só pedia com o geofencing ligado, e o resultado foi 321
+        // batidas web sem uma única coordenada: o RH não tinha como
+        // saber de onde ninguém bateu. Quem recusa a permissão continua
+        // batendo normalmente — o registro fica sem local, e isso já
+        // diz alguma coisa a quem confere.
+        const posicao = await this.obterPosicao();
         if (this.exigeGeo && this.bloqueiaFora && !posicao) {
           this.erro = 'Não foi possível obter sua localização. Autorize o acesso ao GPS e tente novamente.';
           this.enviando = false;

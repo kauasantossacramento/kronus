@@ -11,8 +11,17 @@
   {# ── Marca ───────────────────────────────────────────── #}
   <div class="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5">
     {% if empresa_atual and empresa_atual.logo %}
+      {% comment %}
+        O fundo do menu é escuro fixo, e uma logo escura vira um borrão
+        no topo — a marca do cliente sumida em todas as telas do
+        sistema, o dia inteiro, para quem trabalha nele.
+
+        A regra vem pronta da empresa em vez de ser escrita aqui: quem
+        configura marca a caixa no painel e não precisa saber CSS.
+      {% endcomment %}
       <img src="{{ empresa_atual.logo.url }}" alt="{{ empresa_atual.nome_exibicao }}"
-           class="h-8 w-auto max-w-[7rem] object-contain">
+           class="h-8 w-auto max-w-[7rem] object-contain"
+           style="{{ css_logo_menu }}">
     {% else %}
       <span class="kronus-marca-painel inline-flex items-center"
             style="--kronus-marca-px: {{ LOGO_KRONUS_PX }}px">

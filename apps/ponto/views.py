@@ -25,6 +25,7 @@ from apps.core.services import registrar_log
 from apps.ponto import validators
 from apps.ponto.models import RegistroPonto
 from apps.ponto.services import ConsolidacaoService, RegistroPontoService
+from apps.core.utils import meses_do_ano, nome_do_mes
 from apps.relatorios.generators import (
     ComprovanteGenerator,
     EspelhoPontoGenerator,
@@ -214,12 +215,12 @@ def meus_pontos(request):
         "colaborador": colaborador,
         "ano": ano,
         "mes": mes,
-        "nome_mes": calendar.month_name[mes],
+        "nome_mes": nome_do_mes(mes),
         "linhas": contexto_espelho["linhas"],
         "resumo": contexto_espelho["resumo"],
         "totais": contexto_espelho["totais"],
         "codigo_verificacao": contexto_espelho["codigo_verificacao"],
-        "meses": [(i, calendar.month_name[i]) for i in range(1, 13)],
+        "meses": meses_do_ano(),
         "anos": range(hoje.year - 3, hoje.year + 1),
     }
     return render(request, "ponto/meus_pontos.html", contexto)

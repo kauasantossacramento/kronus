@@ -196,6 +196,17 @@ class RegistroPontoService:
             lambda: ConsolidacaoService.consolidar_dia(colaborador, dia)
         )
         transaction.on_commit(lambda: _publicar_no_painel(registro))
+
+        # O endereco vem depois, e nunca segura a batida.
+        #
+        # A consulta ao servico de mapas depende de rede que nao e
+        # nossa, e a batida ja esta gravada e valida sem ela. Se a fila
+        # estiver parada ou o servico fora do ar, o registro fica com a
+        # coordenada — que a tela mostra no mapa do mesmo jeito.
+        if latitude is not None and longitude is not None:
+            transaction.on_commit(
+                lambda: _resolver_endereco_em_segundo_plano(registro.pk)
+            )
         # Webhook `ponto.registrado` (Secao 8.8). `disparar` ja usa
         # on_commit internamente para o envio; o que roda aqui e so a
         # gravacao da entrega pendente.
@@ -574,3 +585,22 @@ class ConsolidacaoService:
                 1 for b in registros if b.status == StatusDia.INCOMPLETO
             ),
         }
+
+
+def _resolver_endereco_em_segundo_plano(registro_id: int) -> None:
+    """
+    Manda resolver o endereco, e desiste em silencio se nao der.
+
+    Sem fila disponivel — ambiente de teste, worker parado — o registro
+    simplesmente fica sem endereco. Levantar aqui derrubaria uma batida
+    ja gravada por causa de um dado acessorio.
+    """
+    try:
+        from apps.ponto.tasks import resolver_endereco
+
+        resolver_endereco.delay(registro_id)
+    except Exception:
+        logger.info(
+            "Endereço do registro %s não foi agendado; fica só a coordenada.",
+            registro_id,
+        )

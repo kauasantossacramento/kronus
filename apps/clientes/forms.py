@@ -166,6 +166,7 @@ class PersonalizacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
             "logo_deslocamento_px",
             "logo_branca_totem",
             "logo_branca_login",
+            "logo_branca_menu",
             "logo_css",
             "cor_primaria",
             "cor_secundaria",
