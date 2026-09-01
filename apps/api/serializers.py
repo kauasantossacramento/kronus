@@ -66,6 +66,11 @@ class HeartbeatSerializer(serializers.Serializer):
     """Sinal de vida do equipamento, a cada 30 segundos."""
 
     versao = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    #: Carimbo dos estaticos que o totem carregou — e por ele que se
+    #: confere se a atualizacao chegou de fato.
+    estaticos = serializers.CharField(
+        required=False, allow_blank=True, max_length=40
+    )
     bateria = serializers.IntegerField(required=False, min_value=0, max_value=100)
     registros_pendentes = serializers.IntegerField(required=False, min_value=0)
 

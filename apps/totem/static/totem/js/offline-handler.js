@@ -75,6 +75,14 @@
       var self = this;
       var carga = { versao: this.versao };
 
+      // Qual codigo este totem carregou.
+      //
+      // Sem isto o painel so sabia a versao fixa do app ("1.0"), que
+      // nao muda nunca — e a pergunta "todos os totens receberam a
+      // atualizacao?" nao tinha resposta: dava para PEDIR a recarga e
+      // nao dava para CONFERIR se ela aconteceu.
+      if (this._versaoEstaticos) carga.estaticos = String(this._versaoEstaticos);
+
       // Se o reconhecimento facial caiu, o heartbeat leva o motivo: e o
       // unico canal que ja existe e que o suporte le do painel.
       var motivo = this.motivoDegradado && this.motivoDegradado();

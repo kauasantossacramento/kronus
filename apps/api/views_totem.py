@@ -665,6 +665,13 @@ def heartbeat(request):
         totem.modo_exibicao = modo[:20]
         totem.save(update_fields=["modo_exibicao"])
 
+    # Qual codigo o totem carregou. Grava so quando muda: o heartbeat
+    # bate a cada 30 s, e um UPDATE por batida seria escrita a toa.
+    carregado = (serializer.validated_data.get("estaticos") or "").strip()
+    if carregado and carregado != totem.versao_estaticos:
+        totem.versao_estaticos = carregado[:40]
+        totem.save(update_fields=["versao_estaticos"])
+
     degradado = (serializer.validated_data.get("degradado") or "").strip()
     if degradado:
         _registrar_degradacao(totem, degradado)

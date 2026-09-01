@@ -97,6 +97,22 @@
               {% if totem.bateria_percentual != None %}
                 <p class="mt-0.5 font-mono text-xs {% if totem.bateria_percentual < 20 %}text-red-600{% else %}text-[var(--kronus-gray-400)]{% endif %}">bat. {{ totem.bateria_percentual }}%</p>
               {% endif %}
+              {% comment %}
+                Se a atualização chegou de fato — não se ela foi pedida.
+
+                Antes só dava para pedir a recarga e torcer: o totem
+                informava uma versão fixa que nunca mudava, e "todos
+                receberam?" não tinha resposta.
+              {% endcomment %}
+              {% if totem.ativo %}
+                {% if totem.esta_atualizado %}
+                  <p class="mt-0.5 text-xs text-emerald-600">versão em dia</p>
+                {% elif totem.versao_estaticos %}
+                  <p class="mt-0.5 text-xs text-amber-600">versão antiga — recarrega ao ficar ocioso</p>
+                {% else %}
+                  <p class="mt-0.5 text-xs text-[var(--kronus-gray-400)]">versão desconhecida</p>
+                {% endif %}
+              {% endif %}
             </td>
             <td data-rotulo="Comodato" class="px-4 py-3 text-xs">
               {% if totem.em_comodato %}

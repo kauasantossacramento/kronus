@@ -234,6 +234,15 @@ class Totem(BaseModel):
     recarga_total_em = models.DateTimeField(
         "Recarga total pedida em", null=True, blank=True
     )
+    #: Versao do codigo que o totem esta rodando agora.
+    #:
+    #: Diferente de `versao_firmware`, que e fixa e nunca muda: esta e o
+    #: carimbo dos estaticos, e comparar com o do servidor responde se a
+    #: atualizacao chegou — em vez de so dizer que foi pedida.
+    versao_estaticos = models.CharField(
+        "Versão carregada", max_length=40, blank=True
+    )
+
     recarga_solicitada_em = models.DateTimeField(
         "Recarga solicitada em", null=True, blank=True
     )
@@ -375,6 +384,21 @@ class Totem(BaseModel):
         self.save(update_fields=[
             "recarga_total_em", "recarga_solicitada_em", "updated_at",
         ])
+
+    @property
+    def esta_atualizado(self) -> bool:
+        """
+        O codigo que este totem carregou e o que esta no servidor?
+
+        `recebeu_a_atualizacao` responde outra coisa — se ele entende
+        pedidos de recarga. Um totem pode entender o pedido e ainda
+        assim estar rodando codigo de tres deploys atras.
+        """
+        from apps.core.versao import versao_dos_estaticos
+
+        if not self.versao_estaticos:
+            return False
+        return self.versao_estaticos == versao_dos_estaticos()
 
     @property
     def recebeu_a_atualizacao(self) -> bool:
