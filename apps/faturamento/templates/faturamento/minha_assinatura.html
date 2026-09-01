@@ -201,8 +201,13 @@
                 <td class="px-5 py-2.5 text-right">
                   {% if c.paga and c.url_nota %}
                     <a href="{{ c.url_nota }}" target="_blank" rel="noopener" class="text-xs text-[var(--kronus-primary-600)] hover:underline">comprovante</a>
-                  {% elif c.link_pagamento %}
-                    <a href="{{ c.link_pagamento }}" target="_blank" rel="noopener" class="btn btn-primary text-xs">Pagar</a>
+                  {% else %}
+                    {% comment %}
+                      Para a nossa página, e não direto para o gateway: o
+                      cliente continua no sistema que contratou, e o Pix
+                      fica a um clique em vez de dois.
+                    {% endcomment %}
+                    <a href="{% url 'faturamento:fatura' c.uuid %}" class="btn btn-primary text-xs">Pagar</a>
                   {% endif %}
                 </td>
               </tr>

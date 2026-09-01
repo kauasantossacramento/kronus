@@ -1,0 +1,112 @@
+{% comment %}
+  Lembrete de vencimento — e aviso de atraso.
+
+  O mesmo template para os dois, porque a diferença entre eles é de
+  tom, não de conteúdo: mesma fatura, mesmo valor, mesmo botão. Dois
+  arquivos divergiriam com o tempo e um deles ficaria desatualizado.
+
+  Sem tom de cobrança nos dois casos. Quem paga em dia não precisa de
+  cobrança, precisa de aviso; e quem atrasou quase sempre esqueceu — o
+  texto duro ofende essa maioria e não convence a minoria restante.
+
+  O botão aponta para kronus.online. Um e-mail sobre dinheiro que manda
+  o cliente para um domínio que ele não reconhece é indistinguível de
+  golpe para quem foi treinado a desconfiar disso.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Fatura Kronus</title></head>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+               style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;
+                      box-shadow:0 1px 3px rgba(16,24,40,0.08);">
+
+          <tr>
+            <td align="center" style="background:#101828;padding:22px 24px;">
+              <p style="margin:0;color:#ffffff;font-size:17px;font-weight:bold;letter-spacing:0.02em;">
+                Kronus
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:30px 32px 8px;">
+              {% if atrasada %}
+                <h1 style="margin:0 0 12px;font-size:20px;color:#101828;font-weight:bold;">
+                  Uma fatura ficou em aberto
+                </h1>
+                <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#475467;">
+                  A fatura com vencimento em
+                  <strong>{{ cobranca.vencimento|date:"d/m/Y" }}</strong> ainda consta
+                  como não paga aqui{% if dias_de_atraso %} — são {{ dias_de_atraso }}
+                  dia{{ dias_de_atraso|pluralize }} desde o vencimento{% endif %}.
+                </p>
+                <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#475467;">
+                  Se o pagamento já foi feito, pode desconsiderar: a confirmação
+                  costuma levar até um dia útil para chegar até nós.
+                </p>
+              {% else %}
+                <h1 style="margin:0 0 12px;font-size:20px;color:#101828;font-weight:bold;">
+                  Sua próxima fatura vence em breve
+                </h1>
+                <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#475467;">
+                  Só para você não ser pego de surpresa: a fatura do
+                  {{ cobranca.assinatura.plano.nome }} vence em
+                  <strong>{{ cobranca.vencimento|date:"d/m/Y" }}</strong>.
+                </p>
+              {% endif %}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                     style="background:#f9fafb;border-radius:8px;">
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <p style="margin:0;font-size:12px;color:#667085;text-transform:uppercase;letter-spacing:0.04em;">Valor</p>
+                    <p style="margin:4px 0 0;font-size:26px;font-weight:bold;color:#101828;">
+                      R$ {{ cobranca.valor|floatformat:2 }}
+                    </p>
+                    <p style="margin:10px 0 0;font-size:13px;color:#667085;">
+                      Vencimento: {{ cobranca.vencimento|date:"d/m/Y" }}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:22px 32px 6px;">
+              <a href="{{ url_fatura }}"
+                 style="display:inline-block;background:#101828;color:#ffffff;
+                        text-decoration:none;padding:13px 30px;border-radius:8px;
+                        font-size:15px;font-weight:bold;">
+                Ver a fatura e pagar
+              </a>
+              <p style="margin:12px 0 0;font-size:12px;color:#98a2b3;">
+                Pix, boleto e cartão na mesma página, em kronus.online.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:20px 32px 28px;">
+              <div style="height:1px;background:#eaecf0;"></div>
+              <p style="margin:16px 0 0;font-size:11px;color:#b0b7c3;line-height:1.5;">
+                {{ cliente.razao_social }}<br>
+                Você recebe este aviso por administrar a conta no Kronus.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

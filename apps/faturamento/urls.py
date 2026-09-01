@@ -14,4 +14,6 @@ urlpatterns = [
     path("checkout/<slug:slug>/", views.checkout, name="checkout"),
     path("adicionais/totens/", views.contratar_totens, name="contratar_totens"),
     path("cancelar/", views.cancelar_assinatura, name="cancelar"),
+    # A fatura no proprio dominio. Ver views.fatura.
+    path("fatura/<uuid:uuid>/", views.fatura, name="fatura"),
 ]

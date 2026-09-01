@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">
+    Fatura de {{ cobranca.vencimento|date:"d/m/Y" }}
+  </h1>
+  <p class="mt-2 text-sm text-[var(--kronus-gray-500)]">
+    {{ assinatura.plano.nome }} — {% firstof cliente.nome_fantasia cliente.razao_social %}
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="mx-auto max-w-2xl">
+
+  {% if cobranca.paga %}
+    <div class="card mb-5 border-l-4 border-emerald-500 p-5">
+      <p class="font-medium text-emerald-800">Esta fatura já está paga.</p>
+      {% if cobranca.pago_em %}
+        <p class="mt-1 text-sm text-[var(--kronus-gray-500)]">
+          Pagamento confirmado em {{ cobranca.pago_em|date:"d/m/Y" }}.
+        </p>
+      {% endif %}
+      {% if cobranca.url_nota %}
+        <a href="{{ cobranca.url_nota }}" target="_blank" rel="noopener"
+           class="btn btn-secondary mt-3 text-xs">Ver comprovante</a>
+      {% endif %}
+    </div>
+  {% elif cobranca.dias_de_atraso %}
+    {% comment %}
+      Aviso de atraso, sem tom de cobrança.
+
+      O cliente que atrasou quase sempre esqueceu — não decidiu não
+      pagar. Um aviso ríspido trata os dois do mesmo jeito e ofende o
+      primeiro, que é a maioria.
+    {% endcomment %}
+    <div class="card mb-5 border-l-4 border-amber-500 p-5">
+      <p class="font-medium text-amber-900">
+        Esta fatura venceu há {{ cobranca.dias_de_atraso }} dia{{ cobranca.dias_de_atraso|pluralize }}.
+      </p>
+      <p class="mt-1 text-sm text-[var(--kronus-gray-600)]">
+        Se já pagou, pode ignorar — a confirmação leva até um dia útil para chegar.
+      </p>
+    </div>
+  {% endif %}
+
+  <div class="card p-6">
+    <dl class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Valor</dt>
+        <dd class="mt-1 font-display text-3xl font-semibold">R$ {{ cobranca.valor|floatformat:2 }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">Vencimento</dt>
+        <dd class="mt-1 font-mono text-lg">{{ cobranca.vencimento|date:"d/m/Y" }}</dd>
+      </div>
+    </dl>
+
+    {% if not cobranca.paga %}
+      <div class="mt-6 space-y-4 border-t border-[var(--kronus-gray-200)] pt-5">
+
+        {% if cobranca.pix_copia_cola %}
+          <div>
+            <p class="text-sm font-medium text-[var(--kronus-gray-800)]">Pix — copia e cola</p>
+            <p class="mt-0.5 text-xs text-[var(--kronus-gray-500)]">
+              Compensação imediata. É a forma mais rápida de a confirmação chegar.
+            </p>
+            <div class="mt-2 flex gap-2">
+              <input type="text" readonly value="{{ cobranca.pix_copia_cola }}"
+                     id="pix-codigo"
+                     class="block w-full rounded-lg border-0 bg-[var(--kronus-gray-50)] py-2 px-3 font-mono text-xs shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+              <button type="button" id="pix-copiar" class="btn btn-primary shrink-0 text-xs">Copiar</button>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if cobranca.linha_digitavel %}
+          <div>
+            <p class="text-sm font-medium text-[var(--kronus-gray-800)]">Boleto — linha digitável</p>
+            <div class="mt-2 flex gap-2">
+              <input type="text" readonly value="{{ cobranca.linha_digitavel }}"
+                     id="boleto-codigo"
+                     class="block w-full rounded-lg border-0 bg-[var(--kronus-gray-50)] py-2 px-3 font-mono text-xs shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+              <button type="button" id="boleto-copiar" class="btn btn-secondary shrink-0 text-xs">Copiar</button>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if cobranca.link_pagamento %}
+          {% comment %}
+            Cartão sai daqui para o gateway, e só o cartão: dado de
+            cartão não passa pelo Kronus em nenhum momento — é o que
+            mantém a responsabilidade de PCI onde ela deve ficar.
+          {% endcomment %}
+          <div class="border-t border-[var(--kronus-gray-200)] pt-4">
+            <a href="{{ cobranca.link_pagamento }}" target="_blank" rel="noopener"
+               class="btn btn-secondary w-full text-sm">Pagar com cartão</a>
+            <p class="mt-1.5 text-center text-xs text-[var(--kronus-gray-400)]">
+              Abre o ambiente seguro do processador de pagamentos.
+            </p>
+          </div>
+        {% endif %}
+
+      </div>
+    {% endif %}
+  </div>
+
+  <p class="mt-4 text-center text-xs text-[var(--kronus-gray-400)]">
+    Dúvidas sobre esta fatura? Fale com o suporte pelo canal de sempre.
+  </p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // Copiar sem depender de permissão: a área de transferência moderna
+  // exige contexto seguro e pode ser recusada. O caminho antigo com
+  // select()+execCommand funciona nos dois casos.
+  function ligar(idCampo, idBotao) {
+    var campo = document.getElementById(idCampo);
+    var botao = document.getElementById(idBotao);
+    if (!campo || !botao) return;
+    botao.addEventListener('click', function () {
+      var original = botao.textContent;
+      try {
+        campo.select();
+        campo.setSelectionRange(0, campo.value.length);
+        document.execCommand('copy');
+        botao.textContent = 'Copiado';
+      } catch (e) {
+        botao.textContent = 'Selecione e copie';
+      }
+      setTimeout(function () { botao.textContent = original; }, 2000);
+    });
+  }
+  ligar('pix-codigo', 'pix-copiar');
+  ligar('boleto-codigo', 'boleto-copiar');
+})();
+</script>
+
+{% endblock %}

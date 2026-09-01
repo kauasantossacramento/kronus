@@ -72,6 +72,15 @@ app.conf.beat_schedule = {
         "task": "apps.rh.tasks.parabenizar_aniversariantes",
         "schedule": crontab(hour=8, minute=5),
     },
+    # Lembrete de vencimento e aviso de atraso.
+    #
+    # 9h: horario em que o financeiro esta na mesa. Uma vez por dia — a
+    # tarefa ja controla quem ja foi avisado, entao rodar mais vezes so
+    # gastaria consulta.
+    "lembrar-vencimentos": {
+        "task": "apps.faturamento.tasks.lembrar_vencimentos",
+        "schedule": crontab(hour=9, minute=0),
+    },
     # Secao 14, regra 5 — expurgo de dados biometricos apos desligamento
     "expurgar-dados-faciais": {
         "task": "apps.facial.tasks.expurgar_embeddings_desligados",

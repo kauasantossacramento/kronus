@@ -15,7 +15,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -427,3 +427,50 @@ def _converter_demonstracao(cliente, plano) -> None:
             nivel=Notificacao.Nivel.SUCESSO,
             url_acao="/master/assinaturas/",
         )
+
+
+@login_required
+def fatura(request, uuid):
+    """
+    A fatura, no dominio do Kronus.
+
+    O botao "Pagar" mandava direto para a pagina do gateway. Funciona,
+    mas o cliente sai do sistema que ele contratou e cai numa marca que
+    ele nao reconhece — e o e-mail de lembrete, apontando para outro
+    dominio, e indistinguivel de phishing para quem foi treinado a
+    desconfiar disso.
+
+    Aqui a tela e nossa: valor, vencimento, Pix e boleto na propria
+    pagina. O dinheiro continua indo para o gateway — o que muda e de
+    onde o cliente parte, e o que ele ve enquanto decide.
+
+    Sem `_cliente_do_usuario`: o master tambem precisa abrir a fatura de
+    um cliente para dar suporte, e aquele ajudante devolve `None` para
+    ele de proposito.
+    """
+    from apps.faturamento.models import Cobranca
+
+    cobranca = get_object_or_404(
+        Cobranca.objects.select_related("assinatura", "assinatura__cliente",
+                                        "assinatura__plano"),
+        uuid=uuid,
+    )
+    cliente = cobranca.assinatura.cliente
+
+    # Quem pode ver: o dono da conta e o master. Uma fatura carrega
+    # valor, CNPJ e vencimento — nao e dado que se mostra por ter o
+    # link.
+    usuario = request.user
+    if usuario.tipo != "master" and getattr(usuario, "cliente_id", None) != cliente.pk:
+        raise Http404
+
+    return render(
+        request,
+        "faturamento/fatura.html",
+        {
+            "cobranca": cobranca,
+            "cliente": cliente,
+            "assinatura": cobranca.assinatura,
+            "titulo": f"Fatura de {cobranca.vencimento.strftime('%d/%m/%Y')}",
+        },
+    )
