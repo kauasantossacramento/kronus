@@ -1097,19 +1097,37 @@ html, body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0;
   transition: opacity .8s ease;
+  /* Sempre presente, e não só nas fotos claras.
+
+     A medida de claridade acerta a média, mas erra o caso que importa:
+     uma foto de floresta escura com um facho de sol atrás da logo é
+     "escura" na conta e apaga a marca do mesmo jeito. O véu leve custa
+     nada nas fotos que já estavam legíveis e salva as que têm um ponto
+     claro no lugar errado. */
+  opacity: 1;
   background: linear-gradient(
     to top,
-    rgba(6, 14, 26, .78) 0%,
-    rgba(6, 14, 26, .62) 30%,
-    rgba(6, 14, 26, .34) 58%,
-    rgba(6, 14, 26, .10) 82%,
+    rgba(6, 14, 26, .62) 0%,
+    rgba(6, 14, 26, .46) 32%,
+    rgba(6, 14, 26, .24) 60%,
+    rgba(6, 14, 26, .06) 84%,
     transparent 100%
   );
 }
 
-body.totem-fundo-claro .totem-slides::after { opacity: 1; }
+/* Nas medidas como claras o véu fecha mais: céu aberto e neve apagam
+   texto branco que qualquer outra foto sustenta. */
+body.totem-fundo-claro .totem-slides::after {
+  background: linear-gradient(
+    to top,
+    rgba(6, 14, 26, .82) 0%,
+    rgba(6, 14, 26, .68) 32%,
+    rgba(6, 14, 26, .44) 60%,
+    rgba(6, 14, 26, .16) 84%,
+    transparent 100%
+  );
+}
 
 /* ── Frase do período ───────────────────────────────────────────
    Fica no mesmo bloco da marca, do slogan e do aviso de toque — e o
