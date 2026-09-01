@@ -371,26 +371,46 @@ class ColaboradorCreateView(BaseRHFormView, CreateView):
 
     def _criar_usuario(self, colaborador):
         """
-        Cria as credenciais do colaborador.
+        Cria as credenciais do colaborador e as entrega.
 
         Delega a `garantir_usuario`, que **vincula a empresa** ao
         usuario. A versao anterior criava o login sem esse vinculo: a
         pessoa entrava e nao enxergava nada, porque todo o sistema e
         escopado por empresa. O sintoma relatado era "não consigo acessar
         como colaborador".
+
+        A senha vai por e-mail **e** na tela. Só por e-mail deixaria quem
+        cadastrou sem nada para entregar se o envio falhasse; só na tela
+        obriga a copiar antes de recarregar a página — e a mensagem some
+        na primeira navegação.
         """
+        from apps.rh.credenciais import enviar_credenciais
+
         _, senha = colaborador.garantir_usuario()
-        if senha:
-            messages.info(
-                self.request,
-                f"Acesso criado para {colaborador.nome_exibicao}. "
-                f"Senha provisória: {senha} (será trocada no primeiro login).",
-            )
-        else:
+        if not senha:
             messages.info(
                 self.request,
                 f"{colaborador.nome_exibicao} já tinha acesso; a empresa foi "
                 "vinculada ao login existente.",
+            )
+            return
+
+        enviado = enviar_credenciais(colaborador, senha)
+        if enviado:
+            messages.success(
+                self.request,
+                f"Acesso criado para {colaborador.nome_exibicao} e enviado "
+                f"para {colaborador.email}. Senha provisória: {senha} "
+                "(será trocada no primeiro login).",
+            )
+        else:
+            # Sem e-mail, ou envio falhou: quem cadastrou precisa saber
+            # que a entrega ficou com ele.
+            messages.warning(
+                self.request,
+                f"Acesso criado para {colaborador.nome_exibicao}, mas o "
+                f"e-mail não foi enviado. Senha provisória: {senha} — "
+                "entregue você mesmo, ela não aparece de novo.",
             )
 
     def get_success_url(self):
@@ -419,6 +439,25 @@ class ColaboradorUpdateView(BaseRHFormView, UpdateView):
         if self.request.POST.get("ir_para_biometria"):
             return reverse("facial:cadastro", args=[self.object.pk])
         return reverse("rh:colaborador_detalhe", args=[self.object.pk])
+
+    def form_valid(self, form):
+        """
+        Marcar "criar credenciais" na edicao passa a funcionar.
+
+        A caixa vive no formulario, que e o mesmo das duas telas — mas o
+        gatilho existia so na criacao. Quem editava um colaborador,
+        marcava a caixa e salvava recebia a tela de sucesso e **nada
+        acontecia**: sem erro, sem aviso, sem acesso criado.
+
+        A caixa nao guarda estado por isso mesmo: ela e uma acao, nao um
+        campo. Quem quer saber se a pessoa tem acesso olha o bloco
+        "Credenciais de acesso" na ficha, que mostra o login de verdade.
+        """
+        resposta = super().form_valid(form)
+        if form.cleaned_data.get("criar_acesso"):
+            ColaboradorCreateView._criar_usuario(self, self.object)
+        return resposta
+
 
 
 @rh_required
@@ -557,12 +596,24 @@ def colaborador_gerar_acesso(request, pk):
     usuario, senha = colaborador.garantir_usuario()
 
     if senha:
-        messages.success(
-            request,
-            f"Acesso criado para {colaborador.nome_exibicao}. Senha "
-            f"provisória: {senha} — anote agora, ela não será exibida de "
-            f"novo. Será trocada no primeiro login.",
-        )
+        from apps.rh.credenciais import enviar_credenciais
+
+        if enviar_credenciais(colaborador, senha):
+            messages.success(
+                request,
+                f"Acesso criado para {colaborador.nome_exibicao} e enviado "
+                f"para {colaborador.email}. Senha provisória: {senha} — "
+                "será trocada no primeiro login.",
+            )
+        else:
+            # Sem e-mail no cadastro, ou envio falhou. Quem clicou
+            # precisa saber que a entrega ficou com ele.
+            messages.warning(
+                request,
+                f"Acesso criado para {colaborador.nome_exibicao}, mas o "
+                f"e-mail não foi enviado. Senha provisória: {senha} — anote "
+                "agora, ela não será exibida de novo.",
+            )
     else:
         messages.info(
             request,

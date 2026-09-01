@@ -61,11 +61,24 @@ class ColaboradorForm(FormEscopadoPorEmpresa):
     cpf = CPFFormField()
     pis_pasep = PISFormField()
 
+    #: Acao, e nao estado.
+    #:
+    #: Nao existe no banco: marcar dispara a criacao do acesso e a caixa
+    #: volta desmarcada na proxima abertura. Quem quer saber se a pessoa
+    #: TEM acesso olha o bloco "Credenciais de acesso" na ficha, que
+    #: mostra o login de verdade.
+    #:
+    #: O texto de ajuda diz isso porque a caixa desmarcada foi lida como
+    #: "esta pessoa nao tem acesso", que nao e o que ela significa.
     criar_acesso = forms.BooleanField(
         label="Criar credenciais de acesso web",
         required=False,
         initial=False,
-        help_text="Gera um usuário para o colaborador bater ponto pelo navegador.",
+        help_text=(
+            "Gera o usuário e envia a senha provisória para o e-mail do "
+            "colaborador. Esta caixa é uma ação: ela volta desmarcada "
+            "depois de salvar — quem já tem acesso aparece na ficha."
+        ),
     )
 
     class Meta:
