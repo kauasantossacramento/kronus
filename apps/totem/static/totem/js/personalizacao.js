@@ -169,7 +169,29 @@
         this._timerSlides = null;
       }
 
-      this._slides = empresa.slides || [];
+      // O acervo entra junto dos slides da empresa, ou sozinho, ou
+      // nao entra — conforme o que ela escolheu no painel.
+      //
+      // As imagens do acervo levam a frase do periodo como legenda: a
+      // frase sozinha numa tela vazia fica solta, e a imagem sozinha
+      // nao diz nada. Juntas viram o cartao que a pessoa le enquanto
+      // decide tocar.
+      var ambiente = (empresa.ambiente && empresa.ambiente.imagens) || [];
+      var frases = (empresa.ambiente && empresa.ambiente.frases) || [];
+      var doAcervo = ambiente.map(function (img, i) {
+        return {
+          url: img.url,
+          legenda: frases.length ? frases[i % frases.length] : '',
+          credito: img.credito || ''
+        };
+      });
+
+      var proprios = empresa.slides || [];
+      if (empresa.ambiente && empresa.ambiente.exclusivo) {
+        this._slides = doAcervo;
+      } else {
+        this._slides = proprios.concat(doAcervo);
+      }
       this._indice = 0;
 
       // Sem slides, limpa o que havia. Sair antes deixava a imagem
@@ -194,6 +216,14 @@
           var legenda = document.createElement('figcaption');
           legenda.textContent = slide.legenda;
           figura.appendChild(legenda);
+        }
+        // Credito da imagem, quando a licenca pede. Pequeno e discreto:
+        // creditar e obrigacao, competir com o conteudo nao e.
+        if (slide.credito) {
+          var credito = document.createElement('span');
+          credito.className = 'totem-slide__credito';
+          credito.textContent = slide.credito;
+          figura.appendChild(credito);
         }
         alvo.appendChild(figura);
       });

@@ -19,6 +19,8 @@ urlpatterns = [
     path("sair-do-ambiente/", views.sair_do_ambiente, name="sair_do_ambiente"),
     # Painel de semelhancas entre cadastros faciais. Ver views.semelhancas.
     path("semelhancas/", views.semelhancas, name="semelhancas"),
+    # Acervo da tela ociosa. Ver views.tela_ociosa.
+    path("tela-ociosa/", views.tela_ociosa, name="tela_ociosa"),
     path(
         "clientes/<int:pk>/editar/",
         views.ClienteUpdateView.as_view(),

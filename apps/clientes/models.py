@@ -672,6 +672,36 @@ class Empresa(BaseModel):
         ZOOM = "zoom", "Zoom suave"
         NENHUMA = "nenhuma", "Troca seca"
 
+    #: A tela ociosa mostra conteudo do acervo do Kronus.
+    #:
+    #: Desligavel pelo cliente e pelo master. Nao remove nada: o selo de
+    #: toque, o relogio e as logos continuam por cima — o conteudo
+    #: ambiente e fundo, e fundo que empurra o essencial para fora deixa
+    #: de ser enfeite e vira problema.
+    telas_ambiente = models.BooleanField(
+        "Mostrar conteúdo do acervo", default=True,
+        help_text=(
+            "Saudações, dicas de saúde e imagens conforme a hora do dia. "
+            "Desmarque para deixar a tela ociosa só com o que você configurou."
+        ),
+    )
+
+    class ModoDosSlides(models.TextChoices):
+        AMBOS = "ambos", "Meus slides e o acervo do Kronus"
+        SOMENTE_MEUS = "meus", "Somente os meus slides"
+        SOMENTE_ACERVO = "acervo", "Somente o acervo do Kronus"
+
+    #: Quem manda na tela quando a empresa tem slides proprios.
+    #:
+    #: Uma empresa que subiu um comunicado interno quer ele na tela, e
+    #: nao competindo com foto de paisagem. Mas quem nunca subiu nada
+    #: fica com a tela vazia se o acervo nao entrar — por isso o padrao
+    #: soma os dois e a escolha existe.
+    modo_slides = models.CharField(
+        "O que mostrar na tela ociosa", max_length=10,
+        choices=ModoDosSlides.choices, default=ModoDosSlides.AMBOS,
+    )
+
     slides_transicao = models.CharField(
         "Transição entre as imagens",
         max_length=10,
@@ -1218,3 +1248,15 @@ class SlideTotem(BaseModel):
         if self.fim_exibicao and hoje > self.fim_exibicao:
             return False
         return True
+
+
+# Modelos do conteudo ambiente da tela ociosa. Importados aqui para que
+# o Django os descubra sem que `models.py` — que ja e grande — precise
+# crescer mais.
+from apps.clientes.ambiente import (  # noqa: E402,F401
+    FraseAmbiente,
+    ImagemAmbiente,
+    ImagemOcultaPelaEmpresa,
+    Periodo,
+    periodo_de,
+)

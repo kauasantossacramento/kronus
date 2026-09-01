@@ -400,7 +400,21 @@ def slides_totem(request):
                 )
             except ValueError:
                 pass
-            empresa.save(update_fields=["slides_transicao", "slides_segundos", "updated_at"])
+            # Conteudo do acervo: ligar/desligar e escolher quem manda
+            # na tela quando a empresa tem slides proprios.
+            empresa.telas_ambiente = bool(request.POST.get("telas_ambiente"))
+            modo = request.POST.get("modo_slides")
+            if modo in dict(empresa.ModoDosSlides.choices):
+                empresa.modo_slides = modo
+            empresa.save(update_fields=[
+                "slides_transicao", "slides_segundos",
+                "telas_ambiente", "modo_slides", "updated_at",
+            ])
+            # O conteudo montado fica em cache: sem descartar, a
+            # escolha so valeria no proximo vencimento.
+            from apps.clientes.ambiente_servico import esquecer
+
+            esquecer(empresa.pk)
             _avisar_totens(empresa)
             messages.success(request, "Exibição atualizada.")
             return redirect("rh:slides_totem")

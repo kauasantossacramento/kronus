@@ -1052,3 +1052,26 @@ html, body {
   .totem-palmas span { animation: none; }
   .totem-palmas { display: none; }
 }
+
+/* ── Crédito da imagem do acervo ────────────────────────────────
+   Creditar é obrigação da licença; competir com o conteúdo não é.
+   Fica no rodapé do slide, pequeno e translúcido — legível de perto
+   para quem for conferir, invisível de longe para quem só passa. */
+.totem-slide__credito {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.5rem;
+  max-width: 60%;
+  font-size: clamp(0.55rem, 1.1vw, 0.7rem);
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: right;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* A legenda do acervo é a frase do período: maior que uma legenda
+   comum, porque ela é o conteúdo — não o rótulo dele. */
+.totem-slide figcaption {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}

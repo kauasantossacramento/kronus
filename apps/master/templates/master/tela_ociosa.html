@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Tela ociosa do totem</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    Frases e imagens que o totem mostra enquanto ninguém está batendo ponto.
+    Elas ficam <strong>atrás</strong> do que importa — o aviso de toque, o relógio
+    e as logos continuam por cima.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+{% comment %}
+  A licença aparece em cada imagem, e é obrigatória no formulário.
+
+  Não é burocracia: o totem fica na parede do cliente, com a marca
+  dele. Imagem de terceiro sem licença conferida é risco jurídico de
+  quem instalou o equipamento — e quem responde por isso não é quem
+  subiu o arquivo aqui.
+{% endcomment %}
+<div class="mb-5 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+  Use apenas imagens de licença livre (CC0, Unsplash, Pexels e semelhantes).
+  A origem e a licença ficam registradas para conferência.
+</div>
+
+<div class="mb-6 flex flex-wrap items-center gap-2">
+  {% for valor, rotulo in periodos %}
+    <a href="?periodo={{ valor }}"
+       class="btn {% if periodo == valor %}btn-primary{% else %}btn-secondary{% endif %} text-xs">{{ rotulo }}</a>
+  {% endfor %}
+  <span class="ml-auto text-xs text-[var(--kronus-gray-500)]">
+    {{ total_imagens }} imagem(ns) e {{ total_frases }} frase(s) no acervo
+  </span>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-2">
+
+  <div class="card p-5">
+    <h2 class="font-display text-base font-semibold">Imagens</h2>
+
+    <form method="post" enctype="multipart/form-data" class="mt-4 space-y-2 border-b border-[var(--kronus-gray-200)] pb-5">
+      {% csrf_token %}
+      <input type="hidden" name="acao" value="adicionar_imagem">
+      <input type="hidden" name="periodo" value="{{ periodo }}">
+      <input type="file" name="imagem" accept="image/*" required
+             class="block w-full text-xs">
+      <div class="grid gap-2 sm:grid-cols-2">
+        <input type="text" name="titulo" placeholder="Título (opcional)"
+               class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+        <input type="text" name="autor" placeholder="Autor (se a licença pedir)"
+               class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      </div>
+      <input type="url" name="fonte" required placeholder="Origem — endereço da página *"
+             class="block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <input type="text" name="licenca" required placeholder="Licença — ex.: CC0 *"
+             class="block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <button type="submit" class="btn btn-primary w-full text-xs">Adicionar ao acervo</button>
+    </form>
+
+    {% if imagens %}
+      <ul class="mt-4 space-y-3">
+        {% for img in imagens %}
+          <li class="flex gap-3 {% if not img.ativo %}opacity-50{% endif %}">
+            <img src="{{ img.imagem.url }}" alt="{{ img.titulo }}"
+                 class="h-16 w-24 shrink-0 rounded object-cover">
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium">{% firstof img.titulo "sem título" %}</p>
+              <p class="truncate text-xs text-[var(--kronus-gray-500)]">{{ img.credito }}</p>
+              <a href="{{ img.fonte }}" target="_blank" rel="noopener"
+                 class="block truncate text-xs text-[var(--kronus-primary-600)] hover:underline">origem</a>
+            </div>
+            <div class="flex shrink-0 flex-col gap-1">
+              <form method="post">{% csrf_token %}
+                <input type="hidden" name="acao" value="alternar_imagem">
+                <input type="hidden" name="id" value="{{ img.pk }}">
+                <button class="text-xs text-[var(--kronus-gray-600)] hover:underline">
+                  {% if img.ativo %}desativar{% else %}ativar{% endif %}
+                </button>
+              </form>
+              <form method="post" onsubmit="return confirm('Remover esta imagem do acervo?')">{% csrf_token %}
+                <input type="hidden" name="acao" value="remover_imagem">
+                <input type="hidden" name="id" value="{{ img.pk }}">
+                <button class="text-xs text-rose-600 hover:underline">remover</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mt-4 text-sm text-[var(--kronus-gray-500)]">
+        Nenhuma imagem neste período. A tela mostra só as frases até você adicionar.
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="card p-5">
+    <h2 class="font-display text-base font-semibold">Frases</h2>
+
+    <form method="post" class="mt-4 space-y-2 border-b border-[var(--kronus-gray-200)] pb-5">
+      {% csrf_token %}
+      <input type="hidden" name="acao" value="adicionar_frase">
+      <input type="hidden" name="periodo" value="{{ periodo }}">
+      <input type="text" name="texto" required maxlength="160"
+             placeholder="A frase, curta — a tela é vista de longe e em pé"
+             class="block w-full rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      <div class="flex gap-2">
+        <select name="tipo" class="rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+          {% for valor, rotulo in tipos %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary flex-1 text-xs">Adicionar</button>
+      </div>
+    </form>
+
+    {% if frases %}
+      <ul class="mt-4 divide-y divide-[var(--kronus-gray-100)]">
+        {% for f in frases %}
+          <li class="flex items-start gap-2 py-2 {% if not f.ativo %}opacity-50{% endif %}">
+            <div class="min-w-0 flex-1">
+              <p class="text-sm">{{ f.texto }}</p>
+              <p class="text-xs text-[var(--kronus-gray-400)]">{{ f.get_tipo_display }}</p>
+            </div>
+            <form method="post">{% csrf_token %}
+              <input type="hidden" name="acao" value="alternar_frase">
+              <input type="hidden" name="id" value="{{ f.pk }}">
+              <button class="text-xs text-[var(--kronus-gray-600)] hover:underline">
+                {% if f.ativo %}desativar{% else %}ativar{% endif %}
+              </button>
+            </form>
+            <form method="post">{% csrf_token %}
+              <input type="hidden" name="acao" value="remover_frase">
+              <input type="hidden" name="id" value="{{ f.pk }}">
+              <button class="text-xs text-rose-600 hover:underline">remover</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mt-4 text-sm text-[var(--kronus-gray-500)]">Nenhuma frase neste período.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

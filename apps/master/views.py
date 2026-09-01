@@ -662,3 +662,111 @@ def semelhancas(request):
             "titulo": "Semelhanças entre cadastros",
         },
     )
+
+
+@master_required
+def tela_ociosa(request):
+    """
+    O acervo da tela ociosa: frases e imagens, com procedencia.
+
+    A fonte e a licenca aparecem em cada imagem porque e o que permite
+    conferir depois. Imagem de terceiro num totem comercial sem licenca
+    conferida e risco juridico do cliente que instalou o equipamento —
+    e o equipamento esta na parede dele, com a marca dele.
+    """
+    from apps.clientes.ambiente import FraseAmbiente, ImagemAmbiente, Periodo
+    from apps.clientes.ambiente_servico import esquecer
+
+    if request.method == "POST":
+        acao = request.POST.get("acao")
+
+        if acao == "remover_imagem":
+            alvo = ImagemAmbiente.objects.filter(
+                pk=request.POST.get("id")
+            ).first()
+            if alvo:
+                alvo.delete()
+                esquecer()
+                messages.success(request, "Imagem removida do acervo.")
+
+        elif acao == "alternar_imagem":
+            alvo = ImagemAmbiente.objects.filter(
+                pk=request.POST.get("id")
+            ).first()
+            if alvo:
+                alvo.ativo = not alvo.ativo
+                alvo.save(update_fields=["ativo", "updated_at"])
+                esquecer()
+                messages.success(
+                    request,
+                    "Imagem ativada." if alvo.ativo else "Imagem desativada.",
+                )
+
+        elif acao == "adicionar_imagem":
+            arquivo = request.FILES.get("imagem")
+            licenca = (request.POST.get("licenca") or "").strip()
+            fonte = (request.POST.get("fonte") or "").strip()
+            if not (arquivo and licenca and fonte):
+                messages.error(
+                    request,
+                    "Imagem, licença e origem são obrigatórias — sem elas "
+                    "não dá para conferir o uso depois.",
+                )
+            else:
+                ImagemAmbiente.objects.create(
+                    periodo=request.POST.get("periodo") or Periodo.MANHA,
+                    imagem=arquivo,
+                    titulo=(request.POST.get("titulo") or "").strip()[:120],
+                    autor=(request.POST.get("autor") or "").strip()[:120],
+                    fonte=fonte[:500],
+                    licenca=licenca[:80],
+                )
+                esquecer()
+                messages.success(request, "Imagem adicionada ao acervo.")
+
+        elif acao == "alternar_frase":
+            frase = FraseAmbiente.objects.filter(
+                pk=request.POST.get("id")
+            ).first()
+            if frase:
+                frase.ativo = not frase.ativo
+                frase.save(update_fields=["ativo", "updated_at"])
+                esquecer()
+
+        elif acao == "adicionar_frase":
+            texto = (request.POST.get("texto") or "").strip()
+            if texto:
+                FraseAmbiente.objects.create(
+                    periodo=request.POST.get("periodo") or Periodo.MANHA,
+                    tipo=request.POST.get("tipo") or FraseAmbiente.Tipo.SAUDACAO,
+                    texto=texto[:160],
+                )
+                esquecer()
+                messages.success(request, "Frase adicionada.")
+
+        elif acao == "remover_frase":
+            FraseAmbiente.objects.filter(pk=request.POST.get("id")).delete()
+            esquecer()
+            messages.success(request, "Frase removida.")
+
+        return redirect("master:tela_ociosa")
+
+    periodo = request.GET.get("periodo") or Periodo.MANHA
+    if periodo not in Periodo.values:
+        periodo = Periodo.MANHA
+
+    return render(
+        request,
+        "master/tela_ociosa.html",
+        {
+            "menu_ativo": "tela_ociosa",
+            "titulo": "Tela ociosa do totem",
+            "periodo": periodo,
+            "periodos": Periodo.choices,
+            "tipos": FraseAmbiente.Tipo.choices,
+            "imagens": ImagemAmbiente.objects.filter(periodo=periodo),
+            "frases": FraseAmbiente.objects.filter(periodo=periodo),
+            "total_imagens": ImagemAmbiente.objects.count(),
+            "total_frases": FraseAmbiente.objects.count(),
+        },
+    )

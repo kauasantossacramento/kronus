@@ -1,7 +1,11 @@
 """Kronus — serializers da API REST."""
+import logging
+
 from rest_framework import serializers
 
 from apps.core.utils import apenas_digitos, cpf_valido, mascarar_cpf
+
+logger = logging.getLogger("kronus.api")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -136,6 +140,27 @@ class RegistroTotemSerializer(serializers.Serializer):
         return timezone.localtime(obj.data_hora).strftime("%d/%m/%Y")
 
 
+def _ambiente_do_totem(empresa) -> dict:
+    """
+    O conteudo ambiente da hora, no fuso da empresa.
+
+    No fuso dela, e nao no do servidor: uma empresa em Rio Branco
+    receberia "boa noite" as 17h se a conta fosse feita em Brasilia.
+    """
+    from django.utils import timezone
+
+    from apps.clientes.ambiente_servico import conteudo_para
+
+    try:
+        agora = timezone.localtime(timezone=None)
+        return conteudo_para(empresa, hora=agora.hour)
+    except Exception:
+        # Enfeite nunca derruba a configuracao do totem: sem ele o
+        # equipamento funciona, sem a configuracao nao.
+        logger.exception("Falha ao montar o conteúdo ambiente.")
+        return {}
+
+
 class ConfigTotemSerializer(serializers.Serializer):
     """
     Configuração que o totem busca ao iniciar (Seção 7.3).
@@ -180,6 +205,11 @@ class ConfigTotemSerializer(serializers.Serializer):
             # atualizaram o app.
             "idle_screen": slides[0]["url"] if slides else None,
             "slides": slides,
+            # Conteudo do acervo para a hora atual. Vazio quando a
+            # empresa desligou, ou quando ela escolheu mostrar so os
+            # proprios slides — e ai o totem simplesmente nao mostra
+            # nada a mais.
+            "ambiente": _ambiente_do_totem(empresa),
             "slides_transicao": empresa.slides_transicao,
             "slides_segundos": empresa.slides_segundos,
             "mensagem_boas_vindas": empresa.msg_boas_vindas,

@@ -37,6 +37,40 @@
                value="{{ empresa.slides_segundos }}"
                class="w-28 rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
       </div>
+      <div class="w-full border-t border-[var(--kronus-gray-200)] pt-4">
+        {% comment %}
+          O acervo do Kronus na tela ociosa.
+
+          Fica junto da exibição, e não numa página à parte: quem veio
+          aqui decidir o que aparece na tela ociosa está decidindo isto
+          também. Separar obrigaria a lembrar de dois lugares.
+        {% endcomment %}
+        <label class="flex items-start gap-2">
+          <input type="checkbox" name="telas_ambiente" value="1"
+                 {% if empresa.telas_ambiente %}checked{% endif %}
+                 class="mt-0.5 rounded border-[var(--kronus-gray-300)]">
+          <span class="text-sm text-[var(--kronus-gray-800)]">
+            Mostrar saudações, dicas de saúde e imagens conforme a hora do dia
+            <span class="block text-xs text-[var(--kronus-gray-500)]">
+              Fica atrás do que já está na tela — o aviso de toque, o relógio e as
+              logos continuam por cima.
+            </span>
+          </span>
+        </label>
+
+        <div class="mt-3">
+          <label for="modo_slides" class="mb-1 block text-xs font-medium text-[var(--kronus-gray-600)]">
+            O que mostrar na tela ociosa
+          </label>
+          <select id="modo_slides" name="modo_slides"
+                  class="w-full max-w-sm rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+            {% for valor, rotulo in empresa.ModoDosSlides.choices %}
+              <option value="{{ valor }}" {% if empresa.modo_slides == valor %}selected{% endif %}>{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
       <button type="submit" class="btn btn-outline">Salvar exibição</button>
     </form>
     <p class="mt-3 text-xs text-[var(--kronus-gray-500)]">
