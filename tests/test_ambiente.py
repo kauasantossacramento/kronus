@@ -101,7 +101,7 @@ class ConteudoTests(BaseAmbiente):
         """
         esquecer()
         c = conteudo_para(self.empresa, hora=9)
-        self.assertTrue(any("água" in f for f in c["frases"]))
+        self.assertTrue(any("água" in f["texto"] for f in c["frases"]))
 
     def test_periodo_sem_frase_nao_estoura(self):
         c = conteudo_para(self.empresa, hora=22)
@@ -345,3 +345,65 @@ class ClaridadeChegaNaPaginaTests(TestCase):
         ).content.decode()
         self.assertIn('"clara": false', pagina)
         self.assertNotIn('"clara": true', pagina)
+
+
+class AutoriaDasFrasesTests(TestCase):
+    """
+    Frase assinada carrega peso que anonima nao carrega.
+
+    A mesma ideia dita por Seneca ha dois mil anos le diferente de um
+    aviso de mural — e foi a falta disso que fez as duas primeiras
+    versoes soarem a conselho de calendario.
+    """
+
+    def test_a_frase_leva_o_autor_junto(self):
+        from apps.clientes.ambiente import FraseAmbiente, Periodo
+
+        FraseAmbiente.objects.create(
+            periodo=Periodo.MANHA, tipo=FraseAmbiente.Tipo.MOTIVACAO,
+            texto="Enquanto adiamos, a vida passa.", autor="Sêneca",
+        )
+        from apps.clientes.ambiente_servico import conteudo_para, esquecer
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+        from decimal import Decimal
+
+        plano = Plano.objects.create(
+            nome="P", slug="p", max_empresas=3, max_colaboradores=50,
+            preco_mensal=Decimal("100"),
+        )
+        cliente = Cliente.objects.create(
+            razao_social="C LTDA", cnpj="11222333000181",
+            email_contato="c@t.com", plano=plano,
+        )
+        empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="E LTDA", cnpj="60746948000112",
+        )
+        esquecer()
+        frases = conteudo_para(empresa, hora=9)["frases"]
+        self.assertEqual(frases[0]["autor"], "Sêneca")
+        self.assertIn("adiamos", frases[0]["texto"])
+
+    def test_a_dica_de_saude_nao_tem_autor(self):
+        """Conselho pratico assinado por alguem soaria a citacao falsa."""
+        from apps.clientes.ambiente import FraseAmbiente
+
+        campo = FraseAmbiente._meta.get_field("autor")
+        self.assertTrue(campo.blank)
+
+    def test_o_acervo_so_cita_dominio_publico(self):
+        """
+        Citar quem morreu ontem num produto comercial e problema de
+        direito autoral, e o totem esta na parede do cliente.
+        """
+        from apps.clientes.management.commands.semear_ambiente import (
+            MANHA, NOITE, TARDE,
+        )
+
+        livres = {
+            "", "Sêneca", "Marco Aurélio", "Epicteto", "Sócrates",
+            "Lao-Tsé", "Confúcio", "Fernando Pessoa",
+        }
+        for bloco in (MANHA, TARDE, NOITE):
+            for _, _, autor in bloco:
+                self.assertIn(autor, livres, f"autor não verificado: {autor}")

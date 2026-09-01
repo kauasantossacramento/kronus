@@ -262,8 +262,26 @@
         alvo.hidden = true;
         return;
       }
-      var texto = frases[indice % frases.length];
-      alvo.textContent = texto;
+      var frase = frases[indice % frases.length];
+      // Aceita o formato antigo (string) e o novo (objeto com autor):
+      // um totem que ainda nao recarregou continua recebendo o
+      // primeiro, e quebrar a tela dele seria trocar uma melhoria por
+      // uma falha.
+      var texto = (frase && frase.texto) || frase || '';
+      var autor = (frase && frase.autor) || '';
+
+      alvo.innerHTML = '';
+      var linha = document.createElement('span');
+      linha.className = 'totem-frase__texto';
+      linha.textContent = texto;
+      alvo.appendChild(linha);
+
+      if (autor) {
+        var assinatura = document.createElement('cite');
+        assinatura.className = 'totem-frase__autor';
+        assinatura.textContent = autor;
+        alvo.appendChild(assinatura);
+      }
       alvo.hidden = false;
       // Forca o reinicio da animacao: sem o reflow o navegador entende
       // que a classe nao mudou e nao reanima.

@@ -1,109 +1,134 @@
 """
-Frases iniciais da tela ociosa.
+Frases da tela ociosa.
 
-Escritas aqui, e nao copiadas da internet: frase de terceiro tem autoria
-como qualquer outra obra, e um totem comercial exibindo texto alheio sem
-licenca e o mesmo problema das imagens — so que menos visivel.
+**O que deu errado nas duas primeiras versões.** A primeira era slogan de
+cartaz — "feito é melhor que perfeito", "um passo de cada vez". A segunda
+tentou consertar e virou conselho de calendário: "o dia acabou, vá com
+calma", "um copo de água agora faz diferença". Frase que todo mundo já
+leu não faz ninguém pensar em nada; vira ruído, e em duas semanas a tela
+deixa de ser lida.
 
-**Sobre as dicas de saude.** A primeira versao trazia coisas como "uma
-fruta e um bom lanche", e o retorno foi justo: generico demais. Conselho
-que todo mundo ja ouviu nao muda comportamento nenhum — vira ruido, e
-depois de duas semanas ninguem le mais a tela.
+**O que mudou.** Frase assinada carrega peso que anônima não carrega: a
+mesma ideia dita por Sêneca há dois mil anos lê diferente de um aviso de
+mural. Onde não há citação, a linha original precisa dizer algo
+**verdadeiro e um pouco inesperado** — e não repetir o que a pessoa já
+sabe.
 
-O que ficou tem tres coisas que a versao anterior nao tinha:
+**Só autores em domínio público.** Citar quem morreu ontem num produto
+comercial é problema de direito autoral, e o totem está na parede do
+cliente. Sêneca, Marco Aurélio, Epicteto, Sócrates, Lao-Tsé, Confúcio e
+Fernando Pessoa (1935) estão livres; contemporâneos não.
 
-  1. e **especifico** — diz o quanto, ou quando, ou quanto tempo;
-  2. da o **motivo**, porque o porque e o que faz lembrar depois;
-  3. cabe no **momento** — e algo que da para fazer ali, de pe, no
-     minuto seguinte a bater o ponto.
-
-O master edita, remove e acrescenta pelo painel. Isto e so o ponto de
-partida, para a tela nao nascer vazia.
+**Sobre as dicas de saúde.** Também refeitas. "Beba água" não muda o
+comportamento de ninguém — quem não bebe já sabe que deveria. O que muda
+é o dado que a pessoa não tinha: *por que* agora, *quanto*, ou *o que
+acontece se não*.
 
     python manage.py semear_ambiente
     python manage.py semear_ambiente --recriar
 """
 from django.core.management.base import BaseCommand
 
-#: Saudacao e reflexao, por periodo.
+#: Segundos por imagem — e por frase, que troca junto.
 #:
-#: A primeira versao era slogan — "feito e melhor que perfeito", "um
-#: passo de cada vez". Frase de cartaz motivacional envelhece em dois
-#: dias: quem passa ali todo dia ja leu, e ler de novo nao acrescenta
-#: nada.
-#:
-#: O que fica tem de dizer algo **verdadeiro e um pouco inesperado**,
-#: em vez de repetir o que todo mundo ja sabe. E curta o bastante para
-#: ser lida de passagem, em pe, a alguns metros da tela.
+#: Vinte e cinco. Catorze ainda era pouco: a frase agora tem autor e
+#: alguma densidade, e ler, entender e olhar a foto não cabe em catorze
+#: segundos. Numa tela ligada o dia inteiro o custo de demorar é zero; o
+#: de trocar cedo é a frase não ser lida por ninguém.
+SEGUNDOS_POR_IMAGEM = 25
+
+#: (tipo, texto, autor). Autor vazio = linha escrita para o Kronus.
 MANHA = [
-    ("saudacao", "Bom dia. O dia ainda não decidiu nada — você decide."),
-    ("saudacao", "Bom dia. Começar já é metade."),
-    ("saudacao", "Bom dia. Alguém aqui vai precisar de você hoje."),
-    ("motivacao", "As primeiras horas costumam decidir como o resto vai ser."),
-    ("motivacao", "Faça primeiro o que você está evitando. O resto fica leve."),
-    ("motivacao", "Nem todo dia precisa ser excepcional. Alguns só precisam ser bem feitos."),
-    ("motivacao", "O trabalho de hoje alguém vai receber amanhã."),
-    ("motivacao", "Pressa e ritmo são coisas diferentes. Escolha o ritmo."),
+    ("motivacao",
+     "Não é que temos pouco tempo — é que perdemos muito dele.", "Sêneca"),
+    ("motivacao",
+     "Você tem poder sobre a sua mente, não sobre os acontecimentos. "
+     "Perceba isso e encontrará força.", "Marco Aurélio"),
+    ("motivacao",
+     "Não importa o quão devagar você vá, desde que não pare.", "Confúcio"),
+    ("motivacao",
+     "Uma jornada de mil milhas começa com um único passo.", "Lao-Tsé"),
+    ("saudacao",
+     "Bom dia. O que você faz nas próximas horas costuma decidir o resto.", ""),
+    ("saudacao",
+     "Bom dia. Alguém vai depender do seu trabalho hoje sem que você saiba.", ""),
+    ("motivacao",
+     "Comece pelo que está evitando. É quase sempre o que mais importa.", ""),
 ]
 
 TARDE = [
-    ("saudacao", "Boa tarde. A parte difícil geralmente já passou."),
-    ("saudacao", "Boa tarde. Metade do caminho é um bom lugar para respirar."),
-    ("motivacao", "Cansaço não é falta de vontade. É pedido de pausa."),
-    ("motivacao", "Quem não para no meio do dia paga no fim dele."),
-    ("motivacao", "O que rende à tarde raramente é a pressa."),
-    ("motivacao", "Terminar uma coisa vale mais que começar três."),
-    ("saudacao", "Boa tarde. Você chegou até aqui."),
+    ("motivacao",
+     "Não são os fatos que perturbam as pessoas, mas o julgamento que "
+     "fazem deles.", "Epicteto"),
+    ("motivacao",
+     "Enquanto adiamos, a vida passa.", "Sêneca"),
+    ("motivacao",
+     "Tudo vale a pena se a alma não é pequena.", "Fernando Pessoa"),
+    ("motivacao",
+     "A qualidade da sua vida depende da qualidade dos seus pensamentos.",
+     "Marco Aurélio"),
+    ("saudacao",
+     "Boa tarde. Cansaço no meio do dia não é fraqueza — é informação.", ""),
+    ("motivacao",
+     "Terminar uma coisa rende mais do que começar três.", ""),
+    ("saudacao",
+     "Boa tarde. A parte difícil do dia costuma já ter passado.", ""),
 ]
 
 NOITE = [
-    ("descanso", "Boa noite. O que ficou hoje continua existindo amanhã."),
-    ("descanso", "Trabalho bem feito também é saber a hora de parar."),
-    ("descanso", "Boa noite. Obrigado pelo seu dia."),
-    ("descanso", "Descansar não é pausa do trabalho. Faz parte dele."),
-    ("descanso", "O dia acabou. Deixe-o acabar."),
-    ("descanso", "Durma bem. Amanhã começa outro, e não é este."),
-    ("descanso", "Boa noite. Você fez o que dava para fazer hoje."),
+    ("descanso",
+     "Uma vida não examinada não vale a pena ser vivida.", "Sócrates"),
+    ("descanso",
+     "Nada acontece a alguém que essa pessoa não seja capaz de suportar.",
+     "Marco Aurélio"),
+    ("descanso",
+     "Quem sabe o bastante já tem o suficiente.", "Lao-Tsé"),
+    ("descanso",
+     "Não é curta a vida que temos: nós é que a tornamos curta.", "Sêneca"),
+    ("descanso",
+     "Boa noite. O que ficou por fazer vai continuar existindo amanhã.", ""),
+    ("descanso",
+     "Trabalho bem feito inclui saber a hora de parar.", ""),
+    ("descanso",
+     "Boa noite. Você fez o que dava para fazer com o dia que teve.", ""),
 ]
 
-#: Dicas de saude, por periodo.
+#: Dicas de saúde, por período.
 #:
-#: Separadas por periodo de proposito: "evite cafe agora" faz sentido as
-#: 17h e nao faz as 7h, e "alongue antes de comecar" e o contrario.
-#: Repetir a mesma lista nos tres horarios era parte do que deixava tudo
-#: com cara de frase de calendario.
+#: Refeitas porque "beba água" não muda o comportamento de ninguém: quem
+#: não bebe já sabe que deveria. O que muda é o dado que a pessoa não
+#: tinha — por que agora, quanto, ou o que acontece se não.
 SAUDE_MANHA = [
-    "Beba água antes do café. Você acordou desidratado.",
-    "Dois minutos de alongamento agora evitam a dor de ombro das 15h.",
-    "Café com comida sustenta; café sozinho cobra o preço às 10h.",
-    "Se for sentar por horas, ajuste a cadeira antes. Depois você esquece.",
-    "A tela na altura dos olhos poupa seu pescoço o dia inteiro.",
-    "Tomou sol hoje? 15 minutos de manhã ajudam a dormir à noite.",
+    "Você acorda desidratado: são sete a oito horas sem beber nada.",
+    "Café em jejum acelera a queda de energia das 10h. Coma antes.",
+    "Ajuste a cadeira agora. Depois de sentar, ninguém ajusta.",
+    "Tela abaixo da linha dos olhos multiplica a carga sobre o pescoço.",
+    "Quinze minutos de sol pela manhã regulam o sono da noite seguinte.",
+    "Alongue os ombros antes de começar: eles travam sem avisar.",
 ]
 
 SAUDE_TARDE = [
-    "A cada hora sentado, levante por 2 minutos. Sua circulação agradece.",
-    "Vista cansada? Olhe 20 segundos para algo distante a cada 20 minutos.",
-    "Almoce longe da tela. A digestão e a atenção melhoram juntas.",
-    "Sono depois do almoço é normal. Caminhar 5 minutos resolve melhor que café.",
-    "Beba água antes de sentir sede — a sede já é sinal de atraso.",
-    "Um punhado de castanhas rende mais que o terceiro café.",
-    "Ombro doendo? Costuma ser a altura da mesa, não o esforço.",
-    "Levante os braços e respire fundo. Trinta segundos bastam.",
+    "A cada hora sentado, dois minutos em pé. A circulação depende disso.",
+    "Vista cansada é músculo travado: olhe vinte segundos para longe.",
+    "O sono depois do almoço é fisiológico. Caminhar resolve; café adia.",
+    "Sede já é sinal de atraso — o corpo avisa depois de começar a faltar.",
+    "Castanhas seguram a tarde melhor do que o terceiro café.",
+    "Dor de ombro no fim do dia costuma ser altura de mesa, não esforço.",
+    "Respirar fundo cinco vezes baixa a frequência cardíaca de verdade.",
 ]
 
 SAUDE_NOITE = [
-    "Café depois das 17h ainda está no seu corpo na hora de dormir.",
-    "Jantar leve dorme melhor que jantar completo.",
-    "Tela desligada 30 minutos antes de deitar melhora o sono de verdade.",
-    "Alongue as pernas antes de sair. O corpo agradece amanhã.",
-    "Dormiu mal? Acordar no mesmo horário ajuda mais que dormir até tarde.",
-    "Água à noite também conta. O corpo se recupera hidratado.",
+    "A cafeína leva cerca de seis horas para cair pela metade no corpo.",
+    "Jantar pesado atrapalha o sono mais do que dormir tarde.",
+    "Luz de tela atrasa o sono. Desligue meia hora antes de deitar.",
+    "Alongue as pernas antes de sair: quem passou o dia em pé sente amanhã.",
+    "Acordar sempre no mesmo horário ajuda mais do que dormir até tarde.",
+    "O corpo se recupera durante o sono, e recupera melhor hidratado.",
 ]
 
 
 class Command(BaseCommand):
-    help = "Cria as frases iniciais da tela ociosa."
+    help = "Cria as frases da tela ociosa."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -116,9 +141,9 @@ class Command(BaseCommand):
         from apps.clientes.ambiente_servico import esquecer
 
         if opcoes["recriar"]:
-            # `delete()` do BaseModel e soft delete e devolve um int;
-            # o do Django devolve uma tupla. Contar antes funciona nos
-            # dois casos e nao depende de qual esta em uso.
+            # `delete()` do BaseModel e soft delete e devolve um int; o
+            # do Django devolve uma tupla. Contar antes funciona nos dois
+            # casos e nao depende de qual esta em uso.
             apagadas = FraseAmbiente.objects.count()
             FraseAmbiente.objects.all().delete()
             self.stdout.write(self.style.WARNING(f"{apagadas} frase(s) apagada(s)."))
@@ -131,9 +156,10 @@ class Command(BaseCommand):
 
         criadas = 0
         for periodo, frases, saude in blocos:
-            for tipo, texto in frases:
+            for tipo, texto, autor in frases:
                 _, novo = FraseAmbiente.objects.get_or_create(
-                    periodo=periodo, texto=texto, defaults={"tipo": tipo},
+                    periodo=periodo, texto=texto,
+                    defaults={"tipo": tipo, "autor": autor},
                 )
                 criadas += 1 if novo else 0
             for texto in saude:
@@ -146,21 +172,21 @@ class Command(BaseCommand):
         # O tempo de tela das empresas que ja existiam.
         #
         # Mudar o `default` do modelo so vale para empresa nova: quem ja
-        # estava cadastrado tem 8 gravado no banco, e continuaria
-        # trocando de imagem a cada 8 segundos — que e o que estava
-        # rapido demais para ler a frase.
+        # estava cadastrado tem o valor antigo gravado e continuaria
+        # trocando rapido demais para ler a frase.
         #
-        # So mexe em quem esta no valor antigo: uma empresa que escolheu
-        # 6 ou 20 escolheu, e sobrescrever isso seria desfazer decisao
-        # de outra pessoa.
+        # So mexe em quem esta num dos valores que ja foram padrao: uma
+        # empresa que escolheu 6 ou 40 escolheu, e sobrescrever seria
+        # desfazer decisao de outra pessoa.
         from apps.clientes.models import Empresa
 
-        ajustadas = Empresa.objects.filter(slides_segundos=8).update(
-            slides_segundos=14
-        )
+        ajustadas = Empresa.objects.filter(
+            slides_segundos__in=[8, 14]
+        ).update(slides_segundos=SEGUNDOS_POR_IMAGEM)
         if ajustadas:
             self.stdout.write(self.style.SUCCESS(
-                f"{ajustadas} empresa(s) passaram de 8s para 14s por imagem."
+                f"{ajustadas} empresa(s) passaram para "
+                f"{SEGUNDOS_POR_IMAGEM}s por imagem."
             ))
 
         esquecer()
@@ -168,7 +194,3 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"{criadas} frase(s) nova(s). Total no acervo: {total}."
         ))
-        self.stdout.write(
-            "As imagens são adicionadas pelo painel do Master, com autor, "
-            "fonte e licença — ver Master, secao Tela ociosa."
-        )

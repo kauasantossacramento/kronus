@@ -1134,21 +1134,45 @@ body.totem-fundo-claro .totem-selo-toque {
    frase é do Kronus. Serifada e em itálico, ela se lê como voz
    separada em vez de mais uma linha do mesmo bloco. */
 .totem-frase {
-  margin: clamp(1.25rem, 4vh, 2.5rem) auto 0;
-  max-width: 26ch;
+  margin: clamp(1rem, 3.2vh, 2rem) auto 0;
+  max-width: 34ch;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(1.9rem, 6.4vw, 4.4rem);
-  font-weight: 700;
+  /* Menor que a primeira versão: em 6,4vw a frase ocupava a tela e
+     empurrava a marca e o relógio. O que ela precisa é destaque sobre
+     o slogan, não dominar o quadro — uma citação com autor pede mais
+     linha e menos corpo. */
+  font-size: clamp(1.25rem, 3.4vw, 2.3rem);
+  font-weight: 600;
   font-style: italic;
-  line-height: 1.18;
-  letter-spacing: -0.01em;
+  line-height: 1.32;
+  letter-spacing: -0.005em;
   color: #fff;
   text-align: center;
   text-wrap: balance;
   /* Sombra generosa: a frase fica sobre foto, e sem ela some no céu
-     claro tanto quanto a logo somia. */
+     claro tanto quanto a logo sumia. */
   text-shadow: 0 2px 18px rgba(0, 0, 0, .55), 0 1px 3px rgba(0, 0, 0, .4);
 }
+
+.totem-frase__texto { display: block; }
+
+/* A assinatura, quando há.
+
+   Menor, não itálica e com um travessão: ela precisa se separar da
+   citação sem virar outra frase. Em itálico junto com o texto as duas
+   viravam um bloco só, e o leitor não saberia onde a citação acaba. */
+.totem-frase__autor {
+  display: block;
+  margin-top: 0.55em;
+  font-family: inherit;
+  font-style: normal;
+  font-size: 0.52em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  opacity: 0.82;
+}
+
+.totem-frase__autor::before { content: "— "; }
 
 .totem-frase--entra {
   animation: totem-frase-entra 1.2s cubic-bezier(.16, 1, .3, 1) both;

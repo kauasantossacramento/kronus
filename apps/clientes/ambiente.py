@@ -84,7 +84,15 @@ class FraseAmbiente(BaseModel):
     tipo = models.CharField(
         "Tipo", max_length=10, choices=Tipo.choices, default=Tipo.SAUDACAO
     )
-    texto = models.CharField("Texto", max_length=160)
+    texto = models.CharField("Texto", max_length=200)
+    #: Quem disse, quando nao foi o Kronus.
+    #:
+    #: Uma frase assinada carrega peso que uma anonima nao carrega — e a
+    #: mesma ideia dita por Seneca ha dois mil anos le diferente de um
+    #: aviso de mural. So autores em dominio publico: citar quem morreu
+    #: ontem num produto comercial e problema de direito autoral, e o
+    #: totem esta na parede do cliente.
+    autor = models.CharField("Autor", max_length=80, blank=True)
     #: Frases longas nao cabem numa tela vista de longe e em pe.
     ativo = models.BooleanField("Ativa", default=True, db_index=True)
 

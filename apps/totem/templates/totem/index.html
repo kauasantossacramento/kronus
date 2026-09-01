@@ -588,7 +588,7 @@
           periodo: '{{ ambiente.periodo|default:""|escapejs }}',
           exclusivo: {{ ambiente.exclusivo|yesno:"true,false" }},
           frases: [
-            {% for f in ambiente.frases %}'{{ f|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}
+            {% for f in ambiente.frases %}{"texto": "{{ f.texto|escapejs }}", "autor": "{{ f.autor|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}
           ],
           imagens: [
             {% for img in ambiente.imagens %}{"url": "{{ img.url|escapejs }}", "clara": {{ img.clara|yesno:"true,false" }}}{% if not forloop.last %},{% endif %}{% endfor %}

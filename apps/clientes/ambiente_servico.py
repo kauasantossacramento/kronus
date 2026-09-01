@@ -50,11 +50,14 @@ def conteudo_para(empresa, *, hora: int) -> dict:
     # alimentar-se bem nao tem hora. Ela alterna com a saudacao do
     # periodo em vez de virar categoria propria — uma tela que so da
     # conselho de saude cansa.
-    frases = list(
-        FraseAmbiente.objects.filter(ativo=True, periodo=periodo)
+    # Texto e autor juntos: a assinatura e parte da frase, e monta-la
+    # no cliente exigiria mandar as duas coisas separadas para depois
+    # junta-las la — trabalho a mais para o mesmo resultado.
+    frases = [
+        {"texto": f.texto, "autor": f.autor}
+        for f in FraseAmbiente.objects.filter(ativo=True, periodo=periodo)
         .exclude(tipo=FraseAmbiente.Tipo.SAUDE)
-        .values_list("texto", flat=True)
-    )
+    ]
     # Filtrada pelo periodo tambem.
     #
     # Sem o filtro, um periodo sem nenhuma frase ainda recebia dicas de
@@ -62,11 +65,12 @@ def conteudo_para(empresa, *, hora: int) -> dict:
     # qualquer hora, e por isso o acervo a cadastra em todos os
     # periodos; puxar sem filtrar era resolver duas vezes a mesma coisa,
     # e errado na segunda.
-    saude = list(
-        FraseAmbiente.objects.filter(
+    saude = [
+        {"texto": f.texto, "autor": ""}
+        for f in FraseAmbiente.objects.filter(
             ativo=True, periodo=periodo, tipo=FraseAmbiente.Tipo.SAUDE
-        ).values_list("texto", flat=True)
-    )
+        )
+    ]
 
     escolhidas = random.sample(frases, min(len(frases), QUANTAS_FRASES - 2))
     escolhidas += random.sample(saude, min(len(saude), 2))
