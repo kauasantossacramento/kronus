@@ -1137,11 +1137,11 @@ body.totem-fundo-claro .totem-selo-toque {
   margin: clamp(1rem, 3.2vh, 2rem) auto 0;
   max-width: 34ch;
   font-family: Georgia, "Times New Roman", serif;
-  /* Menor que a primeira versão: em 6,4vw a frase ocupava a tela e
-     empurrava a marca e o relógio. O que ela precisa é destaque sobre
-     o slogan, não dominar o quadro — uma citação com autor pede mais
-     linha e menos corpo. */
-  font-size: clamp(1.25rem, 3.4vw, 2.3rem);
+  /* Entre os dois extremos que já testei: 6,4vw ocupava a tela e
+     empurrava a marca e o relógio; 3,4vw ficou tímido para o que é o
+     conteúdo principal da tela ociosa. Em 4,4vw a frase domina sem
+     expulsar o resto. */
+  font-size: clamp(1.5rem, 4.4vw, 3rem);
   font-weight: 600;
   font-style: italic;
   line-height: 1.32;
@@ -1158,15 +1158,20 @@ body.totem-fundo-claro .totem-selo-toque {
 
 /* A assinatura, quando há.
 
-   Menor, não itálica e com um travessão: ela precisa se separar da
-   citação sem virar outra frase. Em itálico junto com o texto as duas
-   viravam um bloco só, e o leitor não saberia onde a citação acaba. */
+   Em `em`, e não em `rem` ou `vw`: assim ela acompanha a frase em
+   qualquer tela e **nunca** passa do tamanho dela — a proporção é
+   fixa, e um ajuste no corpo da citação leva a assinatura junto sem
+   que ninguém precise lembrar de mexer nos dois lugares.
+
+   Sem itálico e com travessão: ela precisa se separar da citação sem
+   virar outra frase. Em itálico junto com o texto as duas viravam um
+   bloco só, e o leitor não saberia onde a citação acaba. */
 .totem-frase__autor {
   display: block;
-  margin-top: 0.55em;
+  margin-top: 0.6em;
   font-family: inherit;
   font-style: normal;
-  font-size: 0.52em;
+  font-size: 0.55em;
   font-weight: 500;
   letter-spacing: 0.02em;
   opacity: 0.82;
