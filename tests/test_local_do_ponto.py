@@ -181,3 +181,153 @@ class ColetaSempreTests(TestCase):
         ).read_text(encoding="utf-8")
         # O bloqueio só existe quando a empresa exige E bloqueia.
         self.assertIn("this.exigeGeo && this.bloqueiaFora && !posicao", pagina)
+
+
+class CienciaDaLocalizacaoTests(BaseLocal):
+    """
+    Ciencia, e nao consentimento.
+
+    A base legal da coleta e o contrato de trabalho e a Portaria 671,
+    que ja obrigam o controle de jornada. A distincao importa: a LGPD
+    exige consentimento livre (Art. 8, §1), e consentimento obtido sob
+    condicao de nao poder trabalhar seria coagido — logo invalido, e
+    inutil como defesa numa fiscalizacao.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from apps.accounts.models import CustomUser
+
+        self.user = CustomUser.objects.create_user(
+            email="fulano@t.com", password="x", nome_completo="Fulano de Tal",
+            tipo="colaborador", cliente=self.empresa.cliente,
+        )
+        self.user.empresas.add(self.empresa)
+        self.pessoa.user = self.user
+        self.pessoa.permite_ponto_web = True
+        self.pessoa.save()
+
+    def _logar(self):
+        from apps.core.middleware import CHAVE_SESSAO_EMPRESA
+
+        self.client.force_login(self.user)
+        s = self.client.session
+        s[CHAVE_SESSAO_EMPRESA] = self.empresa.pk
+        s.save()
+
+    def test_comeca_precisando_dar_ciencia(self):
+        self.assertTrue(self.pessoa.precisa_dar_ciencia_da_localizacao)
+
+    def test_sem_ciencia_a_batida_e_recusada(self):
+        """
+        Cobrado no servidor, e nao so no modal: a tela pode ser
+        recarregada e o aviso fechado pelo navegador.
+        """
+        self._logar()
+        r = self.client.post(
+            "/ponto/registrar/batida/", data="{}", content_type="application/json"
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.json()["codigo"], "sem_ciencia")
+
+    def test_depois_da_ciencia_a_batida_passa(self):
+        self._logar()
+        self.client.post("/ponto/registrar/ciencia-local/")
+        r = self.client.post(
+            "/ponto/registrar/batida/", data="{}", content_type="application/json"
+        )
+        self.assertNotEqual(r.status_code, 403)
+
+    def test_a_ciencia_fica_registrada_com_data_e_ip(self):
+        """
+        "A pessoa foi informada" precisa ser demonstravel, e nao apenas
+        afirmado.
+        """
+        self._logar()
+        self.client.post("/ponto/registrar/ciencia-local/")
+        self.pessoa.refresh_from_db()
+        self.assertIsNotNone(self.pessoa.ciencia_localizacao_em)
+
+    def test_dar_ciencia_duas_vezes_nao_reescreve_a_data(self):
+        """
+        A data que vale e a de quando a pessoa soube, e nao a da ultima
+        vez que abriu a tela.
+        """
+        self._logar()
+        self.client.post("/ponto/registrar/ciencia-local/")
+        self.pessoa.refresh_from_db()
+        primeira = self.pessoa.ciencia_localizacao_em
+
+        self.client.post("/ponto/registrar/ciencia-local/")
+        self.pessoa.refresh_from_db()
+        self.assertEqual(self.pessoa.ciencia_localizacao_em, primeira)
+
+    def test_o_aviso_informa_em_vez_de_pedir_permissao(self):
+        """
+        Pedir permissao e nao aceitar "nao" seria pior que nao
+        perguntar. O texto informa e pede ciencia.
+        """
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        pagina = (
+            raiz / "apps" / "ponto" / "templates" / "ponto" / "bater_ponto.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Li e estou ciente", pagina)
+        # E diz que recusar o GPS nao impede de bater ponto. Comparado
+        # sem quebras de linha: o HTML quebra a frase, e procurar o
+        # texto literal testaria a formatacao, nao o conteudo.
+        corrido = " ".join(pagina.split())
+        self.assertIn("o ponto ainda é registrado", corrido)
+        # E nao usa a palavra que implicaria escolha que a pessoa nao
+        # tem: pedir permissao e nao aceitar "nao" seria pior que nao
+        # perguntar.
+        self.assertNotIn("Autorizo", corrido)
+        self.assertNotIn("Concordo com a coleta", corrido)
+
+
+class AbaAbertaAntesDoAvisoTests(TestCase):
+    """
+    Quem estava com a pagina aberta desde antes do aviso existir.
+
+    O modal nunca apareceu para essa pessoa: ela clica em registrar, o
+    servidor recusa com 403, e sem tratamento ela ve so uma mensagem de
+    erro — precisando adivinhar que era para recarregar.
+
+    Sao 30 pessoas batendo pela web em producao, e o deploy acontece no
+    meio do expediente.
+    """
+
+    def _pagina(self):
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        return (
+            raiz / "apps" / "ponto" / "templates" / "ponto" / "bater_ponto.html"
+        ).read_text(encoding="utf-8")
+
+    def test_a_recusa_por_falta_de_ciencia_abre_o_aviso(self):
+        pagina = self._pagina()
+        self.assertIn("dados.codigo === 'sem_ciencia'", pagina)
+        self.assertIn("this.precisaCiencia = true;", pagina)
+
+    def test_a_batida_e_retomada_depois_da_ciencia(self):
+        """
+        A pessoa clicou em "registrar": a intencao dela nao pode se
+        perder por causa de um aviso no meio do caminho.
+        """
+        pagina = self._pagina()
+        self.assertIn("retomarAposCiencia", pagina)
+        self.assertIn("this.registrar();", pagina)
+
+    def test_a_falta_de_ciencia_nao_vira_mensagem_de_erro(self):
+        """
+        O tratamento vem ANTES do ramo de erro generico — senao a
+        pessoa veria "Nao foi possivel registrar o ponto" e o aviso
+        junto.
+        """
+        pagina = self._pagina()
+        pos_ciencia = pagina.index("dados.codigo === 'sem_ciencia'")
+        pos_erro = pagina.index("Não foi possível registrar o ponto.")
+        self.assertLess(pos_ciencia, pos_erro)

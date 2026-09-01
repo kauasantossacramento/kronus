@@ -10,8 +10,59 @@
         proximoRotulo: '{{ proximo_rotulo }}',
         proximoCor: '{{ proximo_cor }}',
         exigeGeo: {{ exige_geolocalizacao|yesno:'true,false' }},
-        bloqueiaFora: {{ geofencing_bloqueia|yesno:'true,false' }}
+        bloqueiaFora: {{ geofencing_bloqueia|yesno:'true,false' }},
+        precisaCiencia: {{ precisa_ciencia_local|yesno:'true,false' }},
+        urlCiencia: '{% url "ponto:ciencia_localizacao" %}'
      })">
+
+  {% comment %}
+    Aviso de coleta de localização, exigido uma vez.
+
+    **Ciência, e não consentimento.** A base legal da coleta é o
+    contrato de trabalho e a Portaria 671, que já obrigam o controle de
+    jornada. A distinção importa: a LGPD exige consentimento livre
+    (Art. 8, §1), e consentimento obtido sob condição de não poder
+    trabalhar seria coagido — logo inválido, e inútil como defesa numa
+    fiscalização.
+
+    Por isso o texto informa e pede ciência, em vez de pedir permissão.
+    Pedir permissão e não aceitar "não" seria pior que não perguntar.
+  {% endcomment %}
+  <div x-show="precisaCiencia" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+      <h2 class="font-display text-lg font-semibold text-[var(--kronus-gray-900)]">
+        Sobre o registro pelo navegador
+      </h2>
+
+      <div class="mt-4 space-y-3 text-sm leading-relaxed text-[var(--kronus-gray-700)]">
+        <p>
+          Ao registrar o ponto por aqui, o sistema guarda <strong>a sua
+          localização aproximada</strong>, o endereço de rede e o horário.
+        </p>
+        <p>
+          Isso serve para comprovar onde a jornada foi registrada — é parte
+          do controle de ponto que a empresa é obrigada a manter, e não é
+          usado para nenhuma outra finalidade.
+        </p>
+        <p class="text-[var(--kronus-gray-500)]">
+          Se você não autorizar a localização no navegador, o ponto ainda é
+          registrado: fica apenas sem o local.
+        </p>
+      </div>
+
+      <button type="button" @click="confirmarCiencia()"
+              :disabled="salvandoCiencia"
+              class="btn btn-primary mt-6 w-full">
+        <span x-show="!salvandoCiencia">Li e estou ciente</span>
+        <span x-show="salvandoCiencia" x-cloak>Registrando…</span>
+      </button>
+
+      <p class="mt-3 text-center text-[11px] text-[var(--kronus-gray-400)]">
+        Sua confirmação fica registrada com data e hora.
+      </p>
+    </div>
+  </div>
 
   {# ── Relógio e identificação ─────────────────────────────── #}
   <div class="card p-8 text-center">
@@ -153,6 +204,10 @@
       rotulo: config.proximoRotulo,
       exigeGeo: config.exigeGeo,
       bloqueiaFora: config.bloqueiaFora,
+      precisaCiencia: config.precisaCiencia,
+      urlCiencia: config.urlCiencia,
+      salvandoCiencia: false,
+      retomarAposCiencia: false,
       enviando: false,
       sucesso: false,
       erro: '',
@@ -165,6 +220,38 @@
 
       tique() {
         this.relogio = new Date().toLocaleTimeString('pt-BR');
+      },
+
+      /**
+       * Registra a ciência e libera a tela.
+       *
+       * Falha de rede não pode prender a pessoa no aviso: bater ponto é
+       * obrigação legal dela, e o servidor cobra a ciência de novo na
+       * próxima batida se não tiver gravado.
+       */
+      async confirmarCiencia() {
+        this.salvandoCiencia = true;
+        try {
+          await fetch(this.urlCiencia, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+          });
+        } catch (e) {
+          // Segue mesmo assim: o servidor volta a pedir se precisar.
+        }
+        this.salvandoCiencia = false;
+        this.precisaCiencia = false;
+
+        // Se o aviso abriu porque uma batida foi recusada, retoma a
+        // batida: a pessoa clicou em "registrar" e a intenção dela não
+        // se perdeu por causa de um aviso no meio do caminho.
+        if (this.retomarAposCiencia) {
+          this.retomarAposCiencia = false;
+          this.registrar();
+        }
       },
 
       // Geolocalização é opcional por padrão: só é obrigatória quando a
@@ -212,6 +299,21 @@
             body: JSON.stringify(posicao || {}),
           });
           const dados = await resposta.json();
+
+          if (!dados.ok && dados.codigo === 'sem_ciencia') {
+            // O servidor cobrou a ciência que esta aba não deu.
+            //
+            // Acontece com quem estava com a página aberta desde antes
+            // do aviso existir: o modal nunca apareceu para ela, e sem
+            // este tratamento a pessoa via só uma mensagem de erro e
+            // precisava adivinhar que era para recarregar.
+            //
+            // Abre o aviso, e a batida segue no clique seguinte.
+            this.precisaCiencia = true;
+            this.retomarAposCiencia = true;
+            this.enviando = false;
+            return;
+          }
 
           if (!dados.ok) {
             this.erro = dados.mensagem || 'Não foi possível registrar o ponto.';

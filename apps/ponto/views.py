@@ -88,8 +88,45 @@ def registrar(request):
         "exige_geolocalizacao": colaborador.empresa.geofencing_ativo,
         "geofencing_bloqueia": colaborador.empresa.geofencing_bloqueia,
         "pode_ver_historico": colaborador.empresa.permite_ver_ponto,
+        # Ciencia da coleta de localizacao, exigida uma vez.
+        "precisa_ciencia_local": colaborador.precisa_dar_ciencia_da_localizacao,
     }
     return render(request, "ponto/bater_ponto.html", contexto)
+
+
+@login_required
+@require_POST
+def dar_ciencia_localizacao(request):
+    """
+    Registra que a pessoa foi informada sobre a coleta de localizacao.
+
+    **Ciencia, e nao consentimento.** A base legal da coleta e o contrato
+    de trabalho e a Portaria 671, que ja obrigam o controle de jornada.
+    A distincao importa: a LGPD exige consentimento livre (Art. 8, §1), e
+    consentimento obtido sob condicao de nao poder trabalhar seria
+    coagido — logo invalido, e inutil como defesa numa fiscalizacao.
+
+    Exigir ciencia e legitimo, e o registro com data e IP torna "a
+    pessoa foi informada" demonstravel em vez de apenas afirmado.
+    """
+    from apps.core.utils import obter_ip
+
+    colaborador = _colaborador_da_sessao(request)
+    if colaborador is None:
+        return JsonResponse(
+            {"ok": False, "mensagem": "Usuário sem colaborador vinculado."},
+            status=400,
+        )
+
+    colaborador.registrar_ciencia_da_localizacao(ip=obter_ip(request))
+    registrar_log(
+        request=request,
+        acao=LogAcesso.Acao.CONFIG,
+        descricao="Ciência da coleta de localização no ponto web",
+        objeto=colaborador,
+        empresa=colaborador.empresa,
+    )
+    return JsonResponse({"ok": True})
 
 
 @login_required
@@ -115,6 +152,25 @@ def registrar_batida(request):
                 "ok": False,
                 "codigo": "web_bloqueado",
                 "mensagem": "Seu registro deve ser feito no totem da empresa.",
+            },
+            status=403,
+        )
+
+    # Sem ciencia, nao bate.
+    #
+    # E o unico ponto onde isso pode ser exigido: a tela pode ser
+    # recarregada, o modal pode ser fechado pelo navegador, e um
+    # bloqueio so no front seria contornavel por quem soubesse abrir o
+    # console.
+    if colaborador.precisa_dar_ciencia_da_localizacao:
+        return JsonResponse(
+            {
+                "ok": False,
+                "codigo": "sem_ciencia",
+                "mensagem": (
+                    "Antes de registrar, confirme que leu o aviso sobre a "
+                    "coleta de localização."
+                ),
             },
             status=403,
         )

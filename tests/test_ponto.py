@@ -532,6 +532,30 @@ class InterfaceColaboradorTests(BasePontoTestCase):
 
     def setUp(self):
         self.client.login(username="52998224725", password=SENHA)
+        # Ciencia da coleta de localizacao, exigida antes da primeira
+        # batida. Dada aqui porque estes testes exercitam o registro em
+        # si — o fluxo do aviso tem os seus proprios, em
+        # `tests/test_local_do_ponto.py`.
+        from django.utils import timezone
+
+        type(self).colaborador.ciencia_localizacao_em = timezone.now()
+        type(self).colaborador.save(update_fields=["ciencia_localizacao_em"])
+
+    def test_sem_ciencia_a_batida_e_recusada(self):
+        """
+        O aviso e cobrado no servidor, e nao so no modal: a tela pode
+        ser recarregada e o aviso fechado pelo navegador.
+        """
+        type(self).colaborador.ciencia_localizacao_em = None
+        type(self).colaborador.save(update_fields=["ciencia_localizacao_em"])
+
+        resposta = self.client.post(
+            reverse("ponto:registrar_batida"),
+            data="{}",
+            content_type="application/json",
+        )
+        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(resposta.json()["codigo"], "sem_ciencia")
 
     def test_tela_de_registro_responde(self):
         resposta = self.client.get(reverse("ponto:registrar"))

@@ -365,6 +365,48 @@ class Colaborador(TenantBaseModel):
 
         return usuario, senha
 
+    #: Quando a pessoa deu ciencia da coleta de localizacao.
+    #:
+    #: **Ciencia, e nao consentimento.** A base legal da coleta e o
+    #: contrato de trabalho e a Portaria 671, que ja obrigam o controle
+    #: de jornada — nao o consentimento. A distincao importa: a LGPD
+    #: exige que o consentimento seja livre (Art. 8, §1), e consentimento
+    #: obtido sob condicao de nao poder trabalhar e coagido, logo
+    #: invalido. Exigir ciencia, por outro lado, e legitimo e protege a
+    #: empresa numa fiscalizacao.
+    #:
+    #: Guardado com data e IP porque "a pessoa foi informada" precisa ser
+    #: demonstravel, e nao apenas afirmado.
+    ciencia_localizacao_em = models.DateTimeField(
+        "Ciência da coleta de localização", null=True, blank=True
+    )
+    ciencia_localizacao_ip = models.GenericIPAddressField(
+        "IP da ciência", null=True, blank=True
+    )
+
+    @property
+    def precisa_dar_ciencia_da_localizacao(self) -> bool:
+        """Ainda nao foi informado sobre a coleta."""
+        return self.ciencia_localizacao_em is None
+
+    def registrar_ciencia_da_localizacao(self, ip=None) -> None:
+        """
+        Marca que a pessoa foi informada, com data e IP.
+
+        Idempotente: dar ciencia duas vezes nao reescreve a primeira. A
+        data que vale e a de quando ela soube, e nao a da ultima vez que
+        abriu a tela.
+        """
+        from django.utils import timezone
+
+        if self.ciencia_localizacao_em is not None:
+            return
+        self.ciencia_localizacao_em = timezone.now()
+        self.ciencia_localizacao_ip = ip
+        self.save(update_fields=[
+            "ciencia_localizacao_em", "ciencia_localizacao_ip", "updated_at",
+        ])
+
     def sincronizar_email_do_login(self) -> bool:
         """
         Leva o e-mail da ficha para o login, quando ele mudar.

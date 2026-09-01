@@ -7,6 +7,9 @@ app_name = "ponto"
 urlpatterns = [
     path("registrar/", views.registrar, name="registrar"),
     path("registrar/batida/", views.registrar_batida, name="registrar_batida"),
+    # Ciencia da coleta de localizacao. Ver views.dar_ciencia_localizacao.
+    path("registrar/ciencia-local/", views.dar_ciencia_localizacao,
+         name="ciencia_localizacao"),
     path("meus-pontos/", views.meus_pontos, name="meus_pontos"),
     path("comprovante/<uuid:uuid>/", views.comprovante, name="comprovante"),
     path("espelho/<int:ano>/<int:mes>/", views.espelho, name="espelho"),
