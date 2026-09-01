@@ -952,46 +952,51 @@ html, body {
 }
 
 /* ── Selo de "toque para bater o ponto" ─────────────────────────
-   Sobrepõe os slides de propósito: o conteúdo da tela ociosa some
-   atrás do mural da empresa, e a instrução de como começar é
-   justamente o que não pode sumir.
+   Abaixo do slogan, no caminho do olho de quem acabou de ler a
+   marca — que é exatamente quem ainda está decidindo o que fazer.
+   No canto ele competia com o slide e passava por decoração.
 
-   Escuro e translúcido para não competir com a marca nem com o
-   slide — quem precisa dele lê, quem não precisa não repara. */
+   Escuro e translúcido para não roubar a cena da marca da empresa,
+   mas grande o bastante para ser lido de longe, em pé. */
 .totem-selo-toque {
-  position: absolute;
-  top: clamp(0.75rem, 2.5vh, 1.5rem);
-  right: clamp(0.75rem, 2.5vw, 1.5rem);
-  z-index: 5;                 /* acima dos slides */
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.85rem;
+  gap: 0.6rem;
+  margin: clamp(1rem, 3vh, 1.75rem) auto 0;
+  padding: 0.7rem 1.25rem;
   border-radius: 999px;
-  background: rgba(15, 18, 24, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.82);
-  font-size: clamp(0.72rem, 1.6vw, 0.9rem);
+  background: rgba(15, 18, 24, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: clamp(0.95rem, 2.6vw, 1.35rem);
+  font-weight: 500;
   line-height: 1.2;
   letter-spacing: 0.01em;
   backdrop-filter: blur(6px);
-  pointer-events: none;       /* o toque é da tela inteira, não do selo */
-  max-width: min(60vw, 22rem);
+  pointer-events: none;          /* o toque é da tela inteira */
+  /* Respira junto com a mão: o conjunto pulsa devagar, o que chama o
+     olho sem piscar. */
+  animation: totem-selo-respira 2.8s ease-in-out infinite;
 }
 
 .totem-selo-toque svg {
-  width: 1.15em;
-  height: 1.15em;
+  width: 1.5em;
+  height: 1.5em;
   flex: 0 0 auto;
-  opacity: 0.9;
-  /* A mão “toca”: o movimento chama o olho sem piscar nem gritar. */
-  animation: totem-toque-pulsa 2.4s ease-in-out infinite;
+  opacity: 0.95;
+  animation: totem-toque-pulsa 2.8s ease-in-out infinite;
 }
 
+/* A mão desce e volta, como quem encosta na tela. */
 @keyframes totem-toque-pulsa {
-  0%, 70%, 100% { transform: translateY(0); }
-  80%           { transform: translateY(2px); }
-  90%           { transform: translateY(0); }
+  0%, 62%, 100% { transform: translateY(0) scale(1); }
+  72%           { transform: translateY(4px) scale(0.94); }
+  82%           { transform: translateY(0) scale(1); }
+}
+
+@keyframes totem-selo-respira {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(255,255,255,0.10); }
+  62%      { transform: scale(1.03); box-shadow: 0 0 0 8px rgba(255,255,255,0); }
 }
 
 /* ── Aniversariantes do dia ─────────────────────────────────── */
@@ -1036,6 +1041,7 @@ html, body {
 
 /* Quem pediu menos movimento não recebe animação nenhuma. */
 @media (prefers-reduced-motion: reduce) {
+  .totem-selo-toque,
   .totem-selo-toque svg,
   .totem-aniversario,
   .totem-palmas span { animation: none; }

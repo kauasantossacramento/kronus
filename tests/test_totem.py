@@ -11,7 +11,7 @@ import json
 from datetime import date, timedelta
 
 import numpy as np
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
@@ -102,13 +102,23 @@ class BaseTotemTestCase(TestCase):
 
     def reconhecer(self, ruido, token=None):
         """
-        Envia o mesmo quadro duas vezes.
+        Envia um quadro e devolve a resposta.
 
-        O servidor so grava o ponto quando dois quadros seguidos apontam
-        a mesma pessoa: um acerto por acaso vem de um quadro especifico e
-        nao se repete, um reconhecimento verdadeiro se repete. O primeiro
-        envio devolve "confirmando"; o segundo e o que registra.
+        Enviava dois: o servidor exigia que dois quadros seguidos
+        apontassem a mesma pessoa antes de gravar. A exigencia continua
+        de pe na faixa de duvida, mas o reconhecimento folgado e sem
+        ninguem perto passou a gravar no primeiro quadro — o segundo
+        custava de 4,7 s a mais de 10 s numa batida real, e nao
+        confirmava nada que o primeiro nao tivesse dito.
+
+        Quem quer exercitar a dupla confirmacao força a faixa de duvida
+        com `FACE_ACEITE_DIRETO=0` — ver `DuplaConfirmacaoTests`.
         """
+        dados = {"image": como_base64(imagem_bytes(ruido))}
+        return self.post("api:totem:totem_recognize", dados, token=token)
+
+    def reconhecer_duas_vezes(self, ruido, token=None):
+        """Dois quadros iguais, para quem testa a confirmacao em si."""
         dados = {"image": como_base64(imagem_bytes(ruido))}
         self.post("api:totem:totem_recognize", dados, token=token)
         return self.post("api:totem:totem_recognize", dados, token=token)
@@ -588,6 +598,7 @@ class MonitoramentoOfflineTests(BaseTotemTestCase):
         )
 
 
+@override_settings(FACE_ACEITE_DIRETO=0.0)
 class DuplaConfirmacaoTests(BaseTotemTestCase):
     """
     Dois quadros seguidos precisam apontar a mesma pessoa.
@@ -852,17 +863,28 @@ class IniciarPorToqueTests(BaseTotemTestCase):
         self.totem.save(update_fields=["inicio_do_ponto"])
         self.assertIn("Aproxime-se para registrar", self._pagina())
 
-    def test_o_selo_de_toque_sobrepoe_os_slides(self):
+    def test_o_selo_de_toque_vem_depois_do_slogan(self):
         """
-        Fica fora do conteudo da tela ociosa de proposito.
+        No canto ele competia com o slide e passava por decoracao.
 
-        O conteudo some atras do mural da empresa, e a instrucao de como
-        comecar e justamente o que nao pode sumir: quem chega e ve slides
-        passando fica parado esperando a tela reagir sozinha.
+        Abaixo do slogan fica no caminho do olho de quem acabou de ler a
+        marca — que e exatamente quem ainda esta decidindo o que fazer.
         """
         pagina = self._pagina()
         self.assertIn("totem-selo-toque", pagina)
         self.assertIn("Toque para registrar o seu ponto", pagina)
+        self.assertLess(
+            pagina.index("totem-idle__tagline"),
+            pagina.index("totem-selo-toque"),
+            "o selo tem de vir depois do slogan",
+        )
+
+    def test_o_selo_some_quando_o_totem_nao_espera_toque(self):
+        from apps.totem.models import Totem
+
+        self.totem.inicio_do_ponto = Totem.Inicio.PRESENCA
+        self.totem.save(update_fields=["inicio_do_ponto"])
+        self.assertNotIn("totem-selo-toque", self._pagina())
 
     def test_o_laco_so_dispara_sozinho_quando_a_opcao_esta_desligada(self):
         import pathlib
@@ -1144,3 +1166,59 @@ class AbrangenciaDoTotemTests(BaseTotemTestCase):
         self.totem.atende_todo_o_cliente = True
         self.totem.save(update_fields=["atende_todo_o_cliente"])
         self.assertNotIn(alheia, self.totem.empresas_atendidas())
+
+
+class ConfirmacaoSoNaDuvidaTests(BaseTotemTestCase):
+    """
+    A dupla confirmacao custa caro, e nem sempre compra alguma coisa.
+
+    Medido numa batida real: 4,7 s entre o primeiro quadro e o segundo —
+    e mais de 10 s quando um quadro se perde no meio. Entre um envio e o
+    outro o totem reacumula estabilidade, espera o debounce e paga outra
+    ida ao servidor. Numa fila isso faz o totem parecer mais lento do que
+    anotar o ponto no papel.
+
+    O que ela compra e protecao contra o acerto por acaso, que so
+    acontece perto do limiar. A 0,13 — contra media de 0,2254 nesta base
+    — nao ha duvida a resolver.
+
+    Testado pelo comportamento, e nao pelo texto do codigo: o que
+    importa e que a batida saia no primeiro quadro, nao como isso esta
+    escrito.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.cadastrar_face(self.joao, ruido=10)
+
+    def test_o_reconhecimento_folgado_grava_no_primeiro_quadro(self):
+        dados = self.reconhecer(10).json()
+        self.assertTrue(dados["ok"])
+        self.assertTrue(dados.get("identificado"))
+        self.assertIn("registro", dados)
+
+    @override_settings(FACE_ACEITE_DIRETO=0.0)
+    def test_na_faixa_de_duvida_o_primeiro_quadro_so_confirma(self):
+        """
+        Com o aceite direto em zero nenhum reconhecimento e "folgado":
+        a exigencia de dois quadros volta inteira.
+        """
+        dados = self.reconhecer(10).json()
+        self.assertFalse(dados.get("identificado"))
+        self.assertEqual(dados.get("codigo"), "confirmando")
+
+    @override_settings(FACE_ACEITE_DIRETO=0.0)
+    def test_e_o_segundo_quadro_grava(self):
+        dados = self.reconhecer_duas_vezes(10).json()
+        self.assertTrue(dados.get("identificado"))
+
+    def test_a_faixa_de_duvida_continua_existindo(self):
+        from django.conf import settings
+
+        self.assertLess(
+            settings.FACE_ACEITE_DIRETO, settings.FACE_RECOGNITION_THRESHOLD
+        )
+        self.assertTrue(settings.FACE_DUPLA_CONFIRMACAO)
+        # Folgado nao basta: o segundo colocado tambem precisa estar
+        # longe, senao um sosia confiante passaria direto.
+        self.assertGreaterEqual(settings.FACE_FOLGA_SEM_CONFIRMAR, 0.15)

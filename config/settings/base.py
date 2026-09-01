@@ -383,7 +383,7 @@ KRONUS = {
     "APP_NAME": config("APP_NAME", default="Kronus"),
     "APP_URL": config("APP_URL", default="https://kronus.online"),
     "TAGLINE": "O tempo sob controle.",
-    "TAGLINE_TOTEM": "Seu tempo, registrado com precisao.",
+    "TAGLINE_TOTEM": "Sistema Inteligente de Controle de Ponto Eletrônico",
     "TAGLINE_RODAPE": "Kronus — Gestao inteligente de ponto eletronico",
     "META_DESCRIPTION": (
         "Ponto eletronico digital com reconhecimento facial. Conforme Portaria 671."
@@ -570,6 +570,26 @@ FACE_PISO_DE_RISCO = config("FACE_PISO_DE_RISCO", default=0.34, cast=float)
 
 #: Quanto a exigencia cresce por ponto de distancia acima do piso.
 FACE_FATOR_DE_RISCO = config("FACE_FATOR_DE_RISCO", default=2.0, cast=float)
+
+#: Folga ate o segundo colocado que dispensa o segundo quadro.
+#:
+#: A dupla confirmacao custa caro: medido numa batida real, 4,7 s entre
+#: um quadro e o outro — e 10 s ou mais quando um quadro se perde no
+#: meio. Entre os dois envios o totem reacumula estabilidade, espera o
+#: debounce e paga outra ida ao servidor. Numa fila, isso faz o totem
+#: parecer mais lento que anotar o ponto no papel.
+#:
+#: Ela e dispensada so quando nao ha o que confirmar: reconhecimento
+#: abaixo de FACE_ACEITE_DIRETO **e** segundo colocado a esta folga. So
+#: a confianca nao bastaria — um sosia pode dar leitura confiante, e o
+#: que separa os dois e a distancia ate ele, nao a confianca em si.
+#:
+#: 0,20 e a mesma folga que o autoaprendizado exige para gravar uma
+#: referencia permanente. Se ela basta para mudar o cadastro, basta para
+#: gravar uma batida.
+FACE_FOLGA_SEM_CONFIRMAR = config(
+    "FACE_FOLGA_SEM_CONFIRMAR", default=0.20, cast=float
+)
 
 #: Exigir que dois quadros seguidos apontem a MESMA pessoa.
 #:

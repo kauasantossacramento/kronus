@@ -433,10 +433,41 @@ def recognize(request):
     # Um acerto por acaso vem de um quadro especifico — angulo, sombra,
     # movimento — e nao se repete no seguinte. Um reconhecimento
     # verdadeiro se repete. Exigir que dois quadros apontem a mesma
-    # pessoa custa cerca de um segundo e derruba o falso positivo de um
-    # quadro isolado, que e o que confunde pessoas parecidas.
-    if settings.FACE_DUPLA_CONFIRMACAO and serializer.validated_data.get(
-        "registrar_ponto", True
+    # pessoa derruba o falso positivo de um quadro isolado, que e o que
+    # confunde pessoas parecidas.
+    #
+    # **Mas so na faixa em que ha duvida.** O custo real medido nao foi
+    # "cerca de um segundo": entre um quadro e o seguinte o totem precisa
+    # reacumular estabilidade, esperar o debounce e pagar outra ida ao
+    # servidor — 4,7 s numa batida real, e 10 s ou mais quando um quadro
+    # se perde no meio. Numa fila, isso e o que faz o totem parecer mais
+    # lento que anotar o ponto no papel.
+    #
+    # Abaixo de FACE_ACEITE_DIRETO nao ha duvida a resolver: a media de
+    # acerto medida nesta base e 0,2254, e um reconhecimento a 0,13 esta
+    # tao dentro do titular que um segundo quadro so confirmaria o que o
+    # primeiro ja disse. A margem escalonada continua valendo, e e ela
+    # que responde pelo caso dificil — a dupla confirmacao fica para a
+    # faixa onde ela realmente decide alguma coisa.
+    # Duas condicoes, e as duas precisam valer para dispensar o segundo
+    # quadro: o reconhecimento tem de ser folgado **e** sem ninguem
+    # perto. Só a primeira nao bastaria — um sosia pode dar uma leitura
+    # confiante, e ai o que separa os dois nao e a confianca, e a
+    # distancia ate o segundo colocado.
+    segunda = getattr(resultado, "segunda_distancia", None)
+    sem_ninguem_perto = (
+        segunda is None
+        or (segunda - (resultado.distancia or 0)) >= settings.FACE_FOLGA_SEM_CONFIRMAR
+    )
+    precisa_confirmar = not (
+        resultado.distancia is not None
+        and resultado.distancia < settings.FACE_ACEITE_DIRETO
+        and sem_ninguem_perto
+    )
+    if (
+        settings.FACE_DUPLA_CONFIRMACAO
+        and precisa_confirmar
+        and serializer.validated_data.get("registrar_ponto", True)
     ):
         confirmado, resposta = _conferir_segunda_opiniao(totem, colaborador)
         if not confirmado:
