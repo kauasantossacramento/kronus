@@ -282,3 +282,66 @@ class ChegaNaPaginaTests(TestCase):
         FraseAmbiente.objects.all().delete()
         esquecer()
         self.assertIn("ambiente:", self._pagina())
+
+
+class ClaridadeChegaNaPaginaTests(TestCase):
+    """
+    A marca so escurece se a pagina souber que a foto e clara.
+
+    Quarta vez do mesmo erro nesta sessao: o servico e a API foram
+    atualizados, e o template da pagina — que e de onde o JS le — ficou
+    para tras. O dado existia e nao chegava.
+    """
+
+    def setUp(self):
+        from decimal import Decimal
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from apps.clientes.ambiente import ImagemAmbiente, Periodo
+        from apps.clientes.ambiente_servico import esquecer
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+        from apps.totem.models import Totem
+
+        plano = Plano.objects.create(
+            nome="P", slug="p", max_empresas=3, max_colaboradores=50,
+            preco_mensal=Decimal("100"),
+        )
+        cliente = Cliente.objects.create(
+            razao_social="C LTDA", cnpj="11222333000181",
+            email_contato="c@t.com", plano=plano,
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="E LTDA", cnpj="60746948000112",
+        )
+        self.totem = Totem.objects.create(empresa=self.empresa, apelido="T")
+        for periodo in Periodo.values:
+            ImagemAmbiente.objects.create(
+                periodo=periodo,
+                imagem=SimpleUploadedFile(
+                    "f.png", b"\x89PNG\r\n\x1a\n" + b"0" * 40,
+                    content_type="image/png",
+                ),
+                fonte="https://x.test", licenca="Pexels License",
+                clara=True,
+            )
+        esquecer()
+
+    def test_a_pagina_informa_que_a_foto_e_clara(self):
+        pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+        self.assertIn('"clara": true', pagina)
+
+    def test_foto_escura_chega_como_falsa(self):
+        from apps.clientes.ambiente import ImagemAmbiente
+        from apps.clientes.ambiente_servico import esquecer
+
+        ImagemAmbiente.objects.update(clara=False)
+        esquecer()
+        pagina = self.client.get(
+            f"/totem/{self.totem.token_acesso}/"
+        ).content.decode()
+        self.assertIn('"clara": false', pagina)
+        self.assertNotIn('"clara": true', pagina)
