@@ -76,10 +76,25 @@ class ColaboradorForm(FormEscopadoPorEmpresa):
         initial=False,
         help_text=(
             "Gera o usuário e envia a senha provisória para o e-mail do "
-            "colaborador. Esta caixa é uma ação: ela volta desmarcada "
-            "depois de salvar — quem já tem acesso aparece na ficha."
+            "colaborador."
         ),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A caixa some depois de a acao ter sido feita.
+        #
+        # Ela e uma acao, e nao um campo — nao guarda estado, e marca-la
+        # para quem ja tem login nao produz nada. Mostrar mesmo assim
+        # convidava a marcar e esperar alguma coisa, e a caixa
+        # desmarcada na volta era lida como "esta pessoa nao tem
+        # acesso", que e o contrario do que acontecia.
+        #
+        # Quem ja tem acesso ve o bloco "Credenciais de acesso" na
+        # ficha, com o login e o botao de gerar senha nova — que e a
+        # unica acao que ainda faz sentido ali.
+        if self.instance and self.instance.pk and self.instance.user_id:
+            self.fields.pop("criar_acesso", None)
 
     class Meta:
         model = Colaborador

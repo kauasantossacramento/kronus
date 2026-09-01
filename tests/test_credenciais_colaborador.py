@@ -135,7 +135,7 @@ class EdicaoTests(BaseCredenciais):
         self.assertEqual(len(mail.outbox), 0)
 
 
-class CaixaEhAcaoTests(TestCase):
+class CaixaEhAcaoTests(BaseCredenciais):
     """
     A caixa nao guarda estado — e o texto de ajuda precisa dizer isso.
 
@@ -149,9 +149,65 @@ class CaixaEhAcaoTests(TestCase):
         campos = {f.name for f in Colaborador._meta.get_fields()}
         self.assertNotIn("criar_acesso", campos)
 
-    def test_a_ajuda_explica_que_volta_desmarcada(self):
+    def test_a_ajuda_diz_que_envia_por_email(self):
         from apps.rh.forms import ColaboradorForm
 
         ajuda = ColaboradorForm().fields["criar_acesso"].help_text
-        self.assertIn("desmarcada", ajuda)
         self.assertIn("e-mail", ajuda)
+
+
+class CaixaSomeDepoisDeUsadaTests(BaseCredenciais):
+    """
+    Acao ja feita nao continua oferecida.
+
+    Marcar a caixa para quem ja tem login nao produz nada. Mostrar mesmo
+    assim convidava a marcar e esperar alguma coisa — e a caixa
+    desmarcada na volta era lida como "esta pessoa nao tem acesso", que
+    e o contrario do que acontecia.
+    """
+
+    def test_quem_nao_tem_acesso_ve_a_caixa(self):
+        from apps.rh.forms import ColaboradorForm
+
+        self.assertIn("criar_acesso", ColaboradorForm(instance=self.pessoa).fields)
+
+    def test_quem_ja_tem_acesso_nao_ve(self):
+        from apps.rh.forms import ColaboradorForm
+
+        self.pessoa.garantir_usuario()
+        self.pessoa.refresh_from_db()
+        self.assertNotIn("criar_acesso", ColaboradorForm(instance=self.pessoa).fields)
+
+    def test_no_cadastro_novo_a_caixa_aparece(self):
+        """Sem instancia salva ninguem tem acesso ainda."""
+        from apps.rh.forms import ColaboradorForm
+
+        self.assertIn("criar_acesso", ColaboradorForm().fields)
+
+    def test_salvar_sem_o_campo_nao_quebra(self):
+        """
+        A view le com `.get`: campo ausente e o mesmo que nao marcado.
+        Sem isso, editar quem ja tem acesso levantaria KeyError.
+        """
+        self.pessoa.garantir_usuario()
+        resposta = self._editar_como_rh()
+        self.assertIn(resposta.status_code, (200, 302))
+
+    def _editar_como_rh(self):
+        from apps.core.middleware import CHAVE_SESSAO_EMPRESA
+
+        self.client.force_login(self.rh)
+        sessao = self.client.session
+        sessao[CHAVE_SESSAO_EMPRESA] = self.empresa.pk
+        sessao.save()
+        return self.client.post(
+            f"/rh/colaboradores/{self.pessoa.pk}/editar/",
+            {
+                "nome_completo": self.pessoa.nome_completo,
+                "cpf": self.pessoa.cpf,
+                "email": self.pessoa.email,
+                "data_nascimento": "1990-01-01",
+                "data_admissao": "2020-01-01",
+                "ativo": "on",
+            },
+        )

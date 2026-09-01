@@ -454,6 +454,8 @@ class ColaboradorUpdateView(BaseRHFormView, UpdateView):
         "Credenciais de acesso" na ficha, que mostra o login de verdade.
         """
         resposta = super().form_valid(form)
+        # `.get` porque o campo some do formulario quando a pessoa ja
+        # tem acesso: ausente e o mesmo que nao marcado.
         if form.cleaned_data.get("criar_acesso"):
             ColaboradorCreateView._criar_usuario(self, self.object)
         return resposta
