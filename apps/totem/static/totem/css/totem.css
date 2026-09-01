@@ -1079,49 +1079,37 @@ html, body {
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 
-/* ── Marca sobre fundo claro ────────────────────────────────────
-   A logo da empresa costuma ser branca, e sobre foto de céu, neve ou
-   névoa ela simplesmente desaparece.
+/* ── Véu sobre a imagem clara ───────────────────────────────────
+   Foto de amanhecer, névoa ou céu aberto apaga texto branco e logo
+   branca. A primeira tentativa foi trocar a cor dos dois para azul
+   escuro — funcionava, mas mudava a identidade da marca conforme a
+   foto, e uma logo que muda de cor sozinha lê como defeito.
 
-   A alternativa seria uma sombra permanente atrás da marca — mas isso
-   sujaria a logo nas fotos escuras, que são a maioria. Trocar a cor só
-   quando precisa mantém a marca limpa no caso comum.
+   O que resolve sem mexer na marca é escurecer o fundo: um gradiente
+   que nasce forte na base e some no topo. A base é onde ficam a marca,
+   o slogan, o selo e a frase; o topo continua limpo, mostrando a foto
+   como ela é.
 
-   O azul escuro, e não preto: preto sobre foto clara fica duro e
-   parece erro de renderização; o azul da identidade do Kronus lê como
-   escolha. */
-body.totem-fundo-claro .totem-logo-img {
-  filter: brightness(0) saturate(100%)
-          invert(13%) sepia(35%) saturate(2200%) hue-rotate(200deg);
-  transition: filter .6s ease;
+   Só entra nas imagens medidas como claras. Nas escuras — que são a
+   maioria — não há véu nenhum. */
+.totem-slides::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .8s ease;
+  background: linear-gradient(
+    to top,
+    rgba(6, 14, 26, .78) 0%,
+    rgba(6, 14, 26, .62) 30%,
+    rgba(6, 14, 26, .34) 58%,
+    rgba(6, 14, 26, .10) 82%,
+    transparent 100%
+  );
 }
 
-/* O texto acompanha: slogan e mensagem brancos somem junto com a logo. */
-body.totem-fundo-claro .totem-idle__mensagem,
-body.totem-fundo-claro .totem-idle__tagline,
-body.totem-fundo-claro .totem-aniversario {
-  color: #16233d;
-  text-shadow: 0 1px 6px rgba(255, 255, 255, .55);
-  transition: color .6s ease;
-}
-
-/* O selo de toque inverte: escuro sobre claro vira claro sobre escuro
-   suave, para continuar legível sem virar um bloco preto na tela. */
-body.totem-fundo-claro .totem-selo-toque {
-  background: rgba(255, 255, 255, .62);
-  border-color: rgba(22, 35, 61, .18);
-  color: #16233d;
-  transition: background .6s ease, color .6s ease;
-}
-
-/* A transição existe para a troca não piscar: o slide leva mais de um
-   segundo para trocar, e a marca mudando de cor num salto chamaria
-   mais atenção que a imagem. */
-.totem-logo-img,
-.totem-idle__mensagem,
-.totem-idle__tagline {
-  transition: filter .6s ease, color .6s ease;
-}
+body.totem-fundo-claro .totem-slides::after { opacity: 1; }
 
 /* ── Frase do período ───────────────────────────────────────────
    Fica no mesmo bloco da marca, do slogan e do aviso de toque — e o
@@ -1188,8 +1176,5 @@ body.totem-fundo-claro .totem-selo-toque {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Sobre foto clara a frase escurece junto com a marca. */
-body.totem-fundo-claro .totem-frase {
-  color: #16233d;
-  text-shadow: 0 1px 10px rgba(255, 255, 255, .6);
-}
+/* A frase continua branca em qualquer fundo: quem garante a leitura
+   é o véu escuro sobre a imagem, e não a troca de cor do texto. */

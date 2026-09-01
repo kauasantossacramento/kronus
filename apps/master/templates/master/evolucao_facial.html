@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block cabecalho %}
+<div class="mb-6">
+  <h1 class="font-display text-2xl font-semibold text-[var(--kronus-gray-900)] regua-ouro">Evolução do cadastro facial</h1>
+  <p class="mt-2 max-w-3xl text-sm text-[var(--kronus-gray-500)]">
+    O autoaprendizado promete que o cadastro acompanha a pessoa — cabelo que muda,
+    óculos novo, barba que cresceu. Esta tela existe para conferir a promessa:
+    a distância mediana desta semana contra a da anterior, por colaborador.
+  </p>
+</div>
+{% endblock %}
+
+{% block conteudo %}
+
+<form method="get" class="mb-6 flex flex-wrap items-end gap-3">
+  <label class="block">
+    <span class="block text-xs font-medium text-[var(--kronus-gray-700)]">Empresa</span>
+    <select name="empresa" class="mt-1 rounded-lg border-0 py-2 px-3 text-sm shadow-sm ring-1 ring-inset ring-[var(--kronus-gray-300)]">
+      {% for e in empresas %}
+        <option value="{{ e.pk }}" {% if empresa and e.pk == empresa.pk %}selected{% endif %}>
+          {{ e.cliente }} — {{ e.nome_exibicao }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit" class="btn btn-primary text-xs">Ver</button>
+</form>
+
+{% if relatorio %}
+  <div class="mb-6 grid gap-4 sm:grid-cols-4">
+    <div class="card p-4">
+      <p class="text-xs text-[var(--kronus-gray-500)]">Melhoraram</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-emerald-700">{{ relatorio.melhoraram }}</p>
+      <p class="text-xs text-[var(--kronus-gray-400)]">reconhecimento mais folgado</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-[var(--kronus-gray-500)]">Estáveis</p>
+      <p class="mt-1 font-display text-2xl font-semibold">{{ relatorio.estaveis }}</p>
+      <p class="text-xs text-[var(--kronus-gray-400)]">sem mudança relevante</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-[var(--kronus-gray-500)]">Pioraram</p>
+      <p class="mt-1 font-display text-2xl font-semibold {% if relatorio.pioraram %}text-amber-700{% endif %}">{{ relatorio.pioraram }}</p>
+      <p class="text-xs text-[var(--kronus-gray-400)]">candidatos a recadastro</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-[var(--kronus-gray-500)]">Já aprenderam</p>
+      <p class="mt-1 font-display text-2xl font-semibold">{{ relatorio.aprendendo }}</p>
+      <p class="text-xs text-[var(--kronus-gray-400)]">com amostra do dia a dia</p>
+    </div>
+  </div>
+
+  {% comment %}
+    Dito aqui porque a tela mostra números que parecem medição e nem
+    sempre são: com poucas batidas a mediana é a própria batida, e
+    apresentar isso como tendência seria inventar informação.
+  {% endcomment %}
+  <p class="mb-4 text-xs text-[var(--kronus-gray-500)]">
+    Compara os últimos {{ relatorio.janela }} dias com os {{ relatorio.janela }} anteriores.
+    Quem tem poucas batidas em algum dos lados aparece como
+    <em>ainda sem medida</em> — melhor do que um número que parece medição e não é.
+  </p>
+
+  <div class="card overflow-x-auto p-0">
+    <table class="w-full text-sm">
+      <thead class="bg-[var(--kronus-gray-50)] text-left text-xs uppercase tracking-wide text-[var(--kronus-gray-500)]">
+        <tr>
+          <th class="px-4 py-3">Colaborador</th>
+          <th class="px-4 py-3">Semana anterior</th>
+          <th class="px-4 py-3">Esta semana</th>
+          <th class="px-4 py-3">Variação</th>
+          <th class="px-4 py-3">Amostras</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--kronus-gray-100)]">
+        {% for linha in relatorio.linhas %}
+          <tr>
+            <td class="px-4 py-2.5" data-rotulo="Colaborador">
+              <span class="font-medium text-[var(--kronus-gray-900)]">{{ linha.colaborador.nome_exibicao }}</span>
+            </td>
+            <td class="px-4 py-2.5 font-mono text-xs" data-rotulo="Semana anterior">
+              {% if linha.mediana_antes %}{{ linha.mediana_antes }}
+                <span class="block font-sans text-[11px] text-[var(--kronus-gray-400)]">{{ linha.batidas_antes }} batida{{ linha.batidas_antes|pluralize }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2.5 font-mono text-xs" data-rotulo="Esta semana">
+              {% if linha.mediana_agora %}{{ linha.mediana_agora }}
+                <span class="block font-sans text-[11px] text-[var(--kronus-gray-400)]">{{ linha.batidas_agora }} batida{{ linha.batidas_agora|pluralize }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2.5" data-rotulo="Variação">
+              {% if linha.situacao == "melhorou" %}
+                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">melhorou {{ linha.variacao }}</span>
+              {% elif linha.situacao == "piorou" %}
+                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">piorou +{{ linha.variacao }}</span>
+              {% elif linha.situacao == "estavel" %}
+                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">estável</span>
+              {% else %}
+                <span class="text-xs text-[var(--kronus-gray-400)]">ainda sem medida</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-xs text-[var(--kronus-gray-600)]" data-rotulo="Amostras">
+              {{ linha.amostras_supervisionadas }} do cadastro
+              {% if linha.amostras_aprendidas %}
+                <span class="text-emerald-700">+ {{ linha.amostras_aprendidas }} aprendida{{ linha.amostras_aprendidas|pluralize }}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="px-4 py-10 text-center text-[var(--kronus-gray-400)]">Nenhum cadastro facial nesta empresa.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="card p-8 text-center">
+    <p class="text-sm text-[var(--kronus-gray-600)]">Selecione uma empresa.</p>
+  </div>
+{% endif %}
+
+{% endblock %}

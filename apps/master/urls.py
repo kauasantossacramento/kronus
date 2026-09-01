@@ -21,6 +21,8 @@ urlpatterns = [
     path("semelhancas/", views.semelhancas, name="semelhancas"),
     # Acervo da tela ociosa. Ver views.tela_ociosa.
     path("tela-ociosa/", views.tela_ociosa, name="tela_ociosa"),
+    # Evolucao do cadastro facial. Ver views.evolucao_facial.
+    path("evolucao-facial/", views.evolucao_facial, name="evolucao_facial"),
     path(
         "clientes/<int:pk>/editar/",
         views.ClienteUpdateView.as_view(),

@@ -39,8 +39,18 @@ class TermosTests(TestCase):
     def test_a_manha_pede_luz(self):
         termos = " ".join(pexels.TERMOS["manha"]).lower()
         self.assertTrue(
-            any(p in termos for p in ("sunrise", "morning", "light", "golden"))
+            any(p in termos for p in ("sunrise", "morning", "light", "sunny"))
         )
+
+    def test_a_manha_pede_verde_e_nao_so_ceu(self):
+        """
+        A primeira lista trouxe muita nevoa e campo aberto: bonito, mas
+        cinzento e sem vida. Verde e luz direta dizem "comeco"; neblina
+        diz "ainda nao acordei".
+        """
+        termos = " ".join(pexels.TERMOS["manha"]).lower()
+        for palavra in ("garden", "trees", "green"):
+            self.assertIn(palavra, termos)
 
 
 class BuscaTests(TestCase):

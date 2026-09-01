@@ -33,13 +33,20 @@ TIMEOUT = 20
 #: Em ingles porque o acervo do Pexels e indexado assim — busca em
 #: portugues devolve uma fracao do catalogo, e pior.
 TERMOS = {
+    # Sol, jardim, arvore, natureza.
+    #
+    # A primeira lista trouxe muita nevoa e campo aberto — bonito, mas
+    # cinzento e sem vida, o oposto do que uma tela de recepcao deve
+    # transmitir as 7h. Verde e luz direta dizem "comeco"; neblina diz
+    # "ainda nao acordei".
     "manha": [
-        "sunrise landscape",
-        "morning light nature",
-        "misty morning field",
-        "coffee morning calm",
-        "golden hour meadow",
-        "fresh morning sky",
+        "morning sunlight through trees",
+        "garden morning sunlight flowers",
+        "green trees sunny morning",
+        "sunlight forest path green",
+        "morning garden nature fresh",
+        "sunrise over green field",
+        "sunny park trees morning",
     ],
     "tarde": [
         "afternoon light nature",

@@ -779,3 +779,46 @@ def tela_ociosa(request):
             "total_frases": FraseAmbiente.objects.count(),
         },
     )
+
+
+@master_required
+def evolucao_facial(request):
+    """
+    O cadastro facial esta melhorando, por pessoa.
+
+    O autoaprendizado promete acompanhar a pessoa — cabelo que muda,
+    oculos novo. Promessa facil de fazer e dificil de verificar, e um
+    sistema que aprende sozinho sem ninguem conseguir olhar e um sistema
+    em que se acredita, nao um que se sabe.
+
+    Aqui da para olhar: a distancia mediana desta semana contra a da
+    anterior, por colaborador, junto de quantas amostras vieram do
+    aprendizado e quantas do cadastro supervisionado.
+    """
+    from apps.clientes.models import Empresa
+    from apps.facial.evolucao import panorama
+
+    empresas = Empresa.objects.select_related("cliente").filter(
+        ativo=True
+    ).order_by("cliente__razao_social", "razao_social")
+
+    escolhida = request.GET.get("empresa")
+    empresa = None
+    if escolhida:
+        empresa = empresas.filter(pk=escolhida).first()
+    if empresa is None:
+        empresa = empresas.first()
+
+    relatorio = panorama(empresa) if empresa is not None else None
+
+    return render(
+        request,
+        "master/evolucao_facial.html",
+        {
+            "menu_ativo": "evolucao_facial",
+            "titulo": "Evolução do cadastro facial",
+            "empresas": empresas,
+            "empresa": empresa,
+            "relatorio": relatorio,
+        },
+    )
