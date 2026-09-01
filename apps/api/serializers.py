@@ -140,7 +140,7 @@ class RegistroTotemSerializer(serializers.Serializer):
         return timezone.localtime(obj.data_hora).strftime("%d/%m/%Y")
 
 
-def _ambiente_do_totem(empresa) -> dict:
+def _ambiente_do_totem(empresa, totem=None) -> dict:
     """
     O conteudo ambiente da hora, no fuso da empresa.
 
@@ -153,7 +153,11 @@ def _ambiente_do_totem(empresa) -> dict:
 
     try:
         agora = timezone.localtime(timezone=None)
-        return conteudo_para(empresa, hora=agora.hour)
+        return conteudo_para(
+            empresa,
+            hora=agora.hour,
+            periodo_forcado=getattr(totem, "periodo_forcado", ""),
+        )
     except Exception:
         # Enfeite nunca derruba a configuracao do totem: sem ele o
         # equipamento funciona, sem a configuracao nao.
@@ -209,7 +213,7 @@ class ConfigTotemSerializer(serializers.Serializer):
             # empresa desligou, ou quando ela escolheu mostrar so os
             # proprios slides — e ai o totem simplesmente nao mostra
             # nada a mais.
-            "ambiente": _ambiente_do_totem(empresa),
+            "ambiente": _ambiente_do_totem(empresa, totem),
             "slides_transicao": empresa.slides_transicao,
             "slides_segundos": empresa.slides_segundos,
             "mensagem_boas_vindas": empresa.msg_boas_vindas,

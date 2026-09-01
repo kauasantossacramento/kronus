@@ -407,3 +407,177 @@ class AutoriaDasFrasesTests(TestCase):
         for bloco in (MANHA, TARDE, NOITE):
             for _, _, autor in bloco:
                 self.assertIn(autor, livres, f"autor não verificado: {autor}")
+
+
+class VariedadeAoLongoDaSemanaTests(TestCase):
+    """
+    Dias diferentes tem de trazer conjuntos diferentes.
+
+    Com `random` solto, dois dias seguidos podiam cair quase no mesmo
+    recorte — sorte nao garante variedade. Semeando pelo dia, cada dia
+    da semana recebe o seu, e dentro do mesmo dia o conjunto e estavel:
+    o totem nao troca o elenco a cada cinco minutos, o que faria a mesma
+    pessoa ver frases diferentes na entrada e na saida do almoco sem
+    entender por que.
+    """
+
+    def setUp(self):
+        from decimal import Decimal
+
+        from apps.clientes.ambiente import FraseAmbiente, Periodo
+        from apps.clientes.ambiente_servico import esquecer
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+
+        plano = Plano.objects.create(
+            nome="P", slug="p", max_empresas=3, max_colaboradores=50,
+            preco_mensal=Decimal("100"),
+        )
+        cliente = Cliente.objects.create(
+            razao_social="C LTDA", cnpj="11222333000181",
+            email_contato="c@t.com", plano=plano,
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="E LTDA", cnpj="60746948000112",
+        )
+        # Acervo grande o bastante para o sorteio ter o que variar.
+        for i in range(20):
+            FraseAmbiente.objects.create(
+                periodo=Periodo.MANHA, texto=f"Frase {i}",
+                tipo=FraseAmbiente.Tipo.MOTIVACAO,
+            )
+        for i in range(8):
+            FraseAmbiente.objects.create(
+                periodo=Periodo.MANHA, texto=f"Saúde {i}",
+                tipo=FraseAmbiente.Tipo.SAUDE,
+            )
+        esquecer()
+
+    def _do_dia(self, dia):
+        from apps.clientes.ambiente_servico import conteudo_para
+
+        return [
+            f["texto"]
+            for f in conteudo_para(self.empresa, hora=9, dia=dia)["frases"]
+        ]
+
+    def test_dias_diferentes_trazem_conjuntos_diferentes(self):
+        from datetime import date
+
+        semana = [self._do_dia(date(2026, 9, d)) for d in range(7, 14)]
+        # Nenhum par de dias da semana pode sair identico.
+        for i in range(len(semana)):
+            for j in range(i + 1, len(semana)):
+                self.assertNotEqual(
+                    semana[i], semana[j],
+                    f"dias {i} e {j} trouxeram o mesmo conjunto",
+                )
+
+    def test_o_mesmo_dia_sempre_traz_o_mesmo_conjunto(self):
+        """
+        Estavel dentro do dia: quem passa de manha e a tarde ve o mesmo
+        elenco, e nao se pergunta se a tela quebrou.
+        """
+        from datetime import date
+
+        from apps.clientes.ambiente_servico import esquecer
+
+        dia = date(2026, 9, 7)
+        primeiro = self._do_dia(dia)
+        esquecer()
+        self.assertEqual(primeiro, self._do_dia(dia))
+
+    def test_a_semana_seguinte_nao_repete_a_anterior(self):
+        from datetime import date
+
+        self.assertNotEqual(
+            self._do_dia(date(2026, 9, 7)), self._do_dia(date(2026, 9, 14))
+        )
+
+
+class PeriodoForcadoTests(TestCase):
+    """
+    Conferir a tela da noite as 10h, num totem so.
+
+    A alternativa era mexer no relogio do servidor — que afetaria os
+    registros de ponto. Preco errado para ver uma tela.
+    """
+
+    def setUp(self):
+        from decimal import Decimal
+
+        from apps.clientes.ambiente import FraseAmbiente, Periodo
+        from apps.clientes.ambiente_servico import esquecer
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+        from apps.totem.models import Totem
+
+        plano = Plano.objects.create(
+            nome="P", slug="p", max_empresas=3, max_colaboradores=50,
+            preco_mensal=Decimal("100"),
+        )
+        cliente = Cliente.objects.create(
+            razao_social="C LTDA", cnpj="11222333000181",
+            email_contato="c@t.com", plano=plano,
+        )
+        self.empresa = Empresa.objects.create(
+            cliente=cliente, razao_social="E LTDA", cnpj="60746948000112",
+        )
+        self.teste = Totem.objects.create(empresa=self.empresa, apelido="TESTE")
+        self.producao = Totem.objects.create(empresa=self.empresa, apelido="PROD")
+        for periodo in Periodo.values:
+            FraseAmbiente.objects.create(
+                periodo=periodo, texto=f"marcador{periodo}",
+                tipo=FraseAmbiente.Tipo.SAUDACAO,
+            )
+        esquecer()
+
+    def test_o_totem_marcado_recebe_o_periodo_forcado(self):
+        from apps.clientes.ambiente_servico import conteudo_para
+
+        c = conteudo_para(self.empresa, hora=9, periodo_forcado="noite")
+        self.assertEqual(c["periodo"], "noite")
+
+    def test_sem_forcar_segue_o_relogio(self):
+        from apps.clientes.ambiente_servico import conteudo_para
+
+        self.assertEqual(conteudo_para(self.empresa, hora=9)["periodo"], "manha")
+
+    def test_periodo_invalido_volta_para_o_relogio(self):
+        """Um valor digitado errado no painel nao pode apagar a tela."""
+        from apps.clientes.ambiente_servico import conteudo_para
+
+        c = conteudo_para(self.empresa, hora=9, periodo_forcado="madrugada")
+        self.assertEqual(c["periodo"], "manha")
+
+    def test_um_totem_forcado_nao_afeta_o_outro(self):
+        """
+        A conferencia acontece num equipamento; os outros continuam
+        seguindo a hora, com gente batendo ponto neles.
+
+        A hora e fixada em 9h: sem isso o teste passava de dia e
+        falhava de madrugada, quando o relogio ja aponta "noite" e os
+        dois totens mostram a mesma coisa por coincidencia.
+        """
+        from datetime import datetime
+        from unittest.mock import patch
+
+        from django.utils import timezone as tz
+
+        self.teste.periodo_forcado = "noite"
+        self.teste.save(update_fields=["periodo_forcado"])
+
+        manha = tz.make_aware(datetime(2026, 9, 7, 9, 0))
+        # `timezone` e importado dentro da funcao da view, entao o alvo
+        # do patch e o modulo de origem.
+        with patch("django.utils.timezone.localtime", return_value=manha):
+            pagina_teste = self.client.get(
+                f"/totem/{self.teste.token_acesso}/"
+            ).content.decode()
+            pagina_prod = self.client.get(
+                f"/totem/{self.producao.token_acesso}/"
+            ).content.decode()
+
+        self.assertIn("marcadornoite", pagina_teste)
+        self.assertIn("marcadormanha", pagina_prod)
+        self.assertNotIn("marcadornoite", pagina_prod)

@@ -234,6 +234,24 @@ class Totem(BaseModel):
     recarga_total_em = models.DateTimeField(
         "Recarga total pedida em", null=True, blank=True
     )
+    #: Forca um periodo da tela ociosa neste equipamento.
+    #:
+    #: Existe para conferir de dia como fica a tela da noite, sem
+    #: esperar anoitecer e sem mexer nos totens que estao em uso. A
+    #: alternativa era trocar o relogio do servidor, que afetaria os
+    #: registros de ponto — o preco errado para ver uma tela.
+    #:
+    #: Vazio segue a hora, que e o normal.
+    periodo_forcado = models.CharField(
+        "Forçar período da tela ociosa",
+        max_length=10,
+        blank=True,
+        help_text=(
+            "Só para conferência: fixa manhã, tarde ou noite neste "
+            "equipamento, independente da hora. Vazio segue o relógio."
+        ),
+    )
+
     #: Versao do codigo que o totem esta rodando agora.
     #:
     #: Diferente de `versao_firmware`, que e fixa e nunca muda: esta e o

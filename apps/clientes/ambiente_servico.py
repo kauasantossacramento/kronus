@@ -25,7 +25,8 @@ QUANTAS_FRASES = 8
 QUANTAS_IMAGENS = 6
 
 
-def conteudo_para(empresa, *, hora: int) -> dict:
+def conteudo_para(empresa, *, hora: int, periodo_forcado: str = "",
+                  dia=None) -> dict:
     """
     Frases e imagens do periodo, ja filtradas para esta empresa.
 
@@ -33,15 +34,31 @@ def conteudo_para(empresa, *, hora: int) -> dict:
     receber vazio, simplesmente nao mostra nada a mais. Nao ha estado
     intermediario para o cliente lidar.
     """
-    from apps.clientes.ambiente import FraseAmbiente, ImagemAmbiente, periodo_de
+    from django.utils import timezone
+
+    from apps.clientes.ambiente import (
+        FraseAmbiente,
+        ImagemAmbiente,
+        Periodo,
+        periodo_de,
+    )
 
     if not getattr(empresa, "telas_ambiente", False):
         return {}
     if empresa.modo_slides == empresa.ModoDosSlides.SOMENTE_MEUS:
         return {}
 
-    periodo = periodo_de(hora)
-    chave = f"kronus:ambiente:{empresa.pk}:{periodo}"
+    # O periodo forcado serve a conferencia: ver a tela da noite as 10h
+    # sem esperar anoitecer, e sem mexer no relogio do servidor, que
+    # afetaria os registros de ponto.
+    periodo = periodo_forcado or periodo_de(hora)
+    if periodo not in Periodo.values:
+        periodo = periodo_de(hora)
+
+    # A chave carrega o dia: sem ele, o sorteio do dia anterior valeria
+    # ate o cache vencer, e a virada do dia nao traria nada novo.
+    hoje = dia or timezone.localdate()
+    chave = f"kronus:ambiente:{empresa.pk}:{periodo}:{hoje.isoformat()}"
     guardado = cache.get(chave)
     if guardado is not None:
         return guardado
@@ -72,9 +89,23 @@ def conteudo_para(empresa, *, hora: int) -> dict:
         )
     ]
 
-    escolhidas = random.sample(frases, min(len(frases), QUANTAS_FRASES - 2))
-    escolhidas += random.sample(saude, min(len(saude), 2))
-    random.shuffle(escolhidas)
+    # Sorteio preso ao dia, e nao ao acaso puro.
+    #
+    # Com `random` solto, dois dias seguidos podiam trazer quase o mesmo
+    # conjunto — sorte nao garante variedade. Semeando pelo dia, cada
+    # dia da semana recebe um recorte proprio do acervo, e a segunda-
+    # feira seguinte nao repete a anterior porque a semente inclui o ano
+    # e o dia do ano.
+    #
+    # Dentro do mesmo dia o conjunto e estavel: o totem nao troca o
+    # elenco a cada cinco minutos, o que faria a mesma pessoa ver frases
+    # diferentes na entrada e na saida do almoco sem entender por que.
+    semente = f"{hoje.isoformat()}:{periodo}:{empresa.pk}"
+    sorteio = random.Random(semente)
+
+    escolhidas = sorteio.sample(frases, min(len(frases), QUANTAS_FRASES - 2))
+    escolhidas += sorteio.sample(saude, min(len(saude), 2))
+    sorteio.shuffle(escolhidas)
 
     ocultas = set(
         empresa.imagens_ambiente_ocultas.values_list("imagem_id", flat=True)
@@ -83,7 +114,7 @@ def conteudo_para(empresa, *, hora: int) -> dict:
         img for img in ImagemAmbiente.objects.filter(ativo=True, periodo=periodo)
         if img.pk not in ocultas and img.imagem
     ]
-    sorteadas = random.sample(
+    sorteadas = sorteio.sample(
         disponiveis, min(len(disponiveis), QUANTAS_IMAGENS)
     )
 
@@ -115,6 +146,15 @@ def esquecer(empresa_id=None) -> None:
         alvos = Empresa.objects.values_list("pk", flat=True)
     else:
         alvos = [empresa_id]
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    # Limpa hoje e os dias vizinhos: a chave carrega a data, e um
+    # totem que virou a meia-noite pode estar servindo a de ontem.
+    hoje = timezone.localdate()
+    dias = [hoje - timedelta(days=1), hoje, hoje + timedelta(days=1)]
     for pk in alvos:
         for periodo in Periodo.values:
-            cache.delete(f"kronus:ambiente:{pk}:{periodo}")
+            for dia in dias:
+                cache.delete(f"kronus:ambiente:{pk}:{periodo}:{dia.isoformat()}")

@@ -36,9 +36,13 @@ logger = logging.getLogger("kronus.totem")
 VERSAO_APP = settings.KRONUS["VERSAO"]
 
 
-def _ambiente_da_pagina(empresa) -> dict:
+def _ambiente_da_pagina(totem) -> dict:
     """
     O conteudo ambiente da hora, no fuso da empresa.
+
+    Recebe o totem, e nao a empresa: o periodo forcado e por
+    equipamento, para dar para conferir a tela da noite as 10h num totem
+    de teste sem mexer nos que estao em uso.
 
     Devolve `{}` quando desligado — e o template, recebendo vazio, nao
     monta nada. Falha aqui nao pode derrubar o quiosque: sem enfeite o
@@ -49,7 +53,11 @@ def _ambiente_da_pagina(empresa) -> dict:
     from apps.clientes.ambiente_servico import conteudo_para
 
     try:
-        return conteudo_para(empresa, hora=timezone.localtime().hour) or {}
+        return conteudo_para(
+            totem.empresa,
+            hora=timezone.localtime().hour,
+            periodo_forcado=totem.periodo_forcado,
+        ) or {}
     except Exception:
         logger.exception("Falha ao montar o conteúdo ambiente do quiosque.")
         return {}
@@ -100,7 +108,7 @@ def kiosk(request, token):
             # configuracao — e ate la a tela ociosa ficaria sem nada.
             # Foi o que aconteceu: o dado existia na API e nao aparecia
             # no totem, porque o JS le a configuracao renderizada aqui.
-            "ambiente": _ambiente_da_pagina(totem.empresa),
+            "ambiente": _ambiente_da_pagina(totem),
             "versao_app": VERSAO_APP,
             "versao_estaticos": versao_dos_estaticos(),
             # O gesto de manutencao so e ligado quando a porta existe:
