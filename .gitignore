@@ -43,3 +43,10 @@ Thumbs.db
 /afd_*.txt
 /aej_*.txt
 .telas/
+
+# Dumps de ponto gerados pela suite de testes e por scripts locais.
+#
+# Sao dados ficticios, mas nao pertencem ao repositorio: enchem o
+# historico com ruido e, no dia em que alguem rodar um dump contra o
+# banco de producao, o arquivo entraria sem ninguem notar.
+backups/
