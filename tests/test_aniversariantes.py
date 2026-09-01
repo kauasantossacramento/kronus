@@ -177,17 +177,24 @@ class CacheDosAniversariantesTests(TestCase):
         # volta ao banco em vez de repetir a falha ate a meia-noite.
         self.assertIsNone(cache.get(chave))
 
-    def test_lista_vazia_legitima_vale_pouco_tempo(self):
+    def test_a_lista_expira_rapido_mesmo_quando_encontra_alguem(self):
         """
-        Mesmo sem falha, o vazio expira rapido: um colaborador cadastrado
-        as 9h nao pode esperar ate amanha para ser parabenizado.
+        Caso real: a data de nascimento foi corrigida e o totem continuou
+        parabenizando o dia inteiro.
+
+        A versao anterior guardava a lista cheia ate a meia-noite, com o
+        argumento de que "a lista nao muda durante o dia". Ela muda —
+        quem corrige uma data, cadastra ou desativa alguem muda a lista.
+        E o pior nao era o erro: era a pessoa ver que corrigir nao
+        adiantou.
         """
         import inspect
 
         from apps.api import views_totem
 
         fonte = inspect.getsource(views_totem._aniversariantes_de_hoje)
-        self.assertIn("ate_meia_noite if nomes else", fonte)
+        self.assertIn("cache.set(chave, nomes, 300)", fonte)
+        self.assertNotIn("ate_meia_noite", fonte)
 
 
 class PaginaDoCalendarioTests(TestCase):

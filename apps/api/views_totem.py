@@ -154,21 +154,20 @@ def _aniversariantes_de_hoje(totem) -> list:
         logger.exception("Falha ao levantar aniversariantes do totem %s", totem.pk)
         return []
 
-    # Ate a virada do dia: a lista de amanha e outra, e um cache longo
-    # deixaria o parabens atrasado.
-    amanha = timezone.localtime().replace(
-        hour=0, minute=0, second=0, microsecond=0
-    ) + timedelta(days=1)
-    ate_meia_noite = max(60, int((amanha - timezone.localtime()).total_seconds()))
-
-    # Lista vazia vale por pouco tempo; lista com gente vale o dia.
+    # Cinco minutos, tenha achado alguem ou nao.
     #
-    # "Ninguem faz aniversario hoje" e indistinguivel de "nao consegui
-    # descobrir", e das duas a segunda se corrige sozinha se a pergunta
-    # for refeita. O custo de refazer e uma consulta barata a cada cinco
-    # minutos; o custo de nao refazer e o aniversario de alguem passar em
-    # branco.
-    cache.set(chave, nomes, ate_meia_noite if nomes else 300)
+    # A versao anterior guardava a lista cheia ate a meia-noite, com o
+    # argumento de que "a lista nao muda durante o dia". Ela muda: quem
+    # corrige uma data de nascimento errada, cadastra alguem ou desativa
+    # um colaborador muda a lista — e o totem continuava parabenizando
+    # quem nao fazia mais aniversario, sem jeito de corrigir a nao ser
+    # esperando o dia virar.
+    #
+    # O custo de perguntar de novo e uma consulta indexada por totem a
+    # cada cinco minutos. O custo de nao perguntar e o sistema insistindo
+    # num dado que a pessoa ja arrumou — que e pior, porque ela ve o erro
+    # e ve que corrigir nao adiantou.
+    cache.set(chave, nomes, 300)
     return nomes
 
 
