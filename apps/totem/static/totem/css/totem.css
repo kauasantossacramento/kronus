@@ -1196,3 +1196,23 @@ body.totem-fundo-claro .totem-slides::after {
 
 /* A frase continua branca em qualquer fundo: quem garante a leitura
    é o véu escuro sobre a imagem, e não a troca de cor do texto. */
+
+/* ── Sombra na marca ────────────────────────────────────────────
+   Logo branca sobre foto perde a borda: ela se dissolve no fundo em
+   vez de recortar. Uma sombra leve devolve o contorno sem mudar a
+   cor da marca — o que importa, porque logo que muda de cor sozinha
+   lê como defeito, e foi por isso que a primeira tentativa saiu.
+
+   `drop-shadow`, e não `box-shadow`: a logo é PNG ou SVG com
+   transparência, e box-shadow desenharia a sombra do retângulo da
+   imagem em vez da do desenho. */
+.totem-logo-img {
+  filter: drop-shadow(0 2px 6px rgba(6, 14, 26, .38));
+  transition: filter .6s ease;
+}
+
+/* Sobre foto clara a sombra fecha: é ali que a marca some. */
+body.totem-fundo-claro .totem-logo-img {
+  filter: drop-shadow(0 2px 10px rgba(6, 14, 26, .62))
+          drop-shadow(0 0 2px rgba(6, 14, 26, .45));
+}
