@@ -181,8 +181,7 @@
       var doAcervo = ambiente.map(function (img, i) {
         return {
           url: img.url,
-          legenda: frases.length ? frases[i % frases.length] : '',
-          credito: img.credito || ''
+          legenda: frases.length ? frases[i % frases.length] : ''
         };
       });
 
@@ -217,14 +216,7 @@
           legenda.textContent = slide.legenda;
           figura.appendChild(legenda);
         }
-        // Credito da imagem, quando a licenca pede. Pequeno e discreto:
-        // creditar e obrigacao, competir com o conteudo nao e.
-        if (slide.credito) {
-          var credito = document.createElement('span');
-          credito.className = 'totem-slide__credito';
-          credito.textContent = slide.credito;
-          figura.appendChild(credito);
-        }
+
         alvo.appendChild(figura);
       });
 

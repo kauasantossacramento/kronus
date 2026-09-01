@@ -86,10 +86,11 @@ def conteudo_para(empresa, *, hora: int) -> dict:
     conteudo = {
         "periodo": periodo,
         "frases": escolhidas,
-        "imagens": [
-            {"url": img.imagem.url, "credito": img.credito}
-            for img in sorteadas
-        ],
+        # Sem credito na tela: a licenca do Pexels dispensa atribuicao,
+        # e um rodape de credito numa tela vista de longe so tira espaco
+        # do que a pessoa precisa ler. A procedencia continua guardada no
+        # acervo, para quem precisar conferir.
+        "imagens": [{"url": img.imagem.url} for img in sorteadas],
         # O totem precisa saber se pode misturar com os slides da
         # empresa ou se o acervo e o unico conteudo.
         "exclusivo": empresa.modo_slides == empresa.ModoDosSlides.SOMENTE_ACERVO,

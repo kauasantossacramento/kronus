@@ -81,6 +81,15 @@ app.conf.beat_schedule = {
         "task": "apps.faturamento.tasks.lembrar_vencimentos",
         "schedule": crontab(hour=9, minute=0),
     },
+    # Imagens novas para a tela ociosa.
+    #
+    # Semanal, madrugada de terca: a mesma paisagem numa tela de recepcao
+    # passa despercebida por dias, e trocar todo dia gastaria banda dos
+    # totens sem que ninguem notasse.
+    "renovar-acervo-ambiente": {
+        "task": "apps.clientes.tasks.renovar_acervo_ambiente",
+        "schedule": crontab(hour=4, minute=20, day_of_week=2),
+    },
     # Secao 14, regra 5 — expurgo de dados biometricos apos desligamento
     "expurgar-dados-faciais": {
         "task": "apps.facial.tasks.expurgar_embeddings_desligados",

@@ -114,13 +114,28 @@ class ImagemAmbiente(BaseModel):
 
     # -- procedencia -------------------------------------------
     autor = models.CharField("Autor", max_length=120, blank=True)
+    #: Guardados mesmo quando a licenca dispensa credito na tela.
+    #:
+    #: O Pexels nao exige atribuicao, e por isso o totem nao mostra
+    #: nada. Mas o registro fica: um ano depois, "de onde veio esta
+    #: foto?" precisa ter resposta — e nao ter e o tipo de divida que so
+    #: aparece quando alguem cobra.
     fonte = models.URLField(
-        "Onde foi obtida", max_length=500,
+        "Onde foi obtida", max_length=500, blank=True,
         help_text="Endereço da página de origem, para conferência.",
     )
     licenca = models.CharField(
-        "Licença", max_length=80,
-        help_text="Ex.: CC0, Unsplash License, Pexels License.",
+        "Licença", max_length=80, blank=True,
+        help_text="Ex.: Pexels License, CC0, Unsplash License.",
+    )
+
+    #: Identificador na origem, quando veio de uma API.
+    #:
+    #: Existe para nao baixar a mesma foto duas vezes: sem ele, cada
+    #: atualizacao do acervo acrescentaria as mesmas imagens de novo, e
+    #: em um mes o totem estaria repetindo a mesma paisagem seis vezes.
+    id_externo = models.CharField(
+        "ID na origem", max_length=40, blank=True, db_index=True
     )
 
     ativo = models.BooleanField("Ativa", default=True, db_index=True)

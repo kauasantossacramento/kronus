@@ -556,6 +556,15 @@ FACE_MARGEM_CONFIRMACAO = config(
     "FACE_MARGEM_CONFIRMACAO", default=0.06, cast=float
 )
 
+#: Chave da API do Pexels, para o acervo da tela ociosa.
+#:
+#: Por variavel de ambiente, e nao no codigo: chave em repositorio vaza
+#: no primeiro clone, e quem clona nem precisa ter ma intencao para
+#: usa-la sem querer. Vazia desliga a busca automatica — o acervo
+#: continua funcionando com o que ja foi importado e com o que o master
+#: subir a mao.
+PEXELS_API_KEY = config("PEXELS_API_KEY", default="")
+
 #: Acima desta distancia, o reconhecimento e "fraco" e cobra folga extra.
 #:
 #: Abaixo do piso vale so a margem fixa. Acima, a exigencia cresce com a

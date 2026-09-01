@@ -135,19 +135,26 @@ class ConteudoTests(BaseAmbiente):
 
 
 class ImagensTests(BaseAmbiente):
-    def test_entrega_imagem_com_credito(self):
-        self._imagem(autor="Fulano", licenca="CC0")
+    def test_entrega_a_imagem(self):
+        self._imagem(autor="Fulano", licenca="Pexels License")
         esquecer()
         c = conteudo_para(self.empresa, hora=9)
         self.assertEqual(len(c["imagens"]), 1)
-        self.assertIn("Fulano", c["imagens"][0]["credito"])
-        self.assertIn("CC0", c["imagens"][0]["credito"])
+        self.assertIn("url", c["imagens"][0])
 
-    def test_sem_autor_o_credito_e_so_a_licenca(self):
-        self._imagem(licenca="Unsplash License")
+    def test_a_tela_nao_carrega_credito(self):
+        """
+        A licenca do Pexels dispensa atribuicao, e um rodape de credito
+        numa tela vista de longe so tira espaco do que a pessoa precisa
+        ler. A procedencia continua guardada no acervo.
+        """
+        img = self._imagem(autor="Fulano", licenca="Pexels License")
         esquecer()
         c = conteudo_para(self.empresa, hora=9)
-        self.assertEqual(c["imagens"][0]["credito"], "Unsplash License")
+        self.assertNotIn("credito", c["imagens"][0])
+        # Guardada, ainda que nao exibida.
+        self.assertEqual(img.autor, "Fulano")
+        self.assertEqual(img.licenca, "Pexels License")
 
     def test_a_empresa_pode_ocultar_uma_imagem(self):
         """
@@ -181,12 +188,25 @@ class ImagensTests(BaseAmbiente):
 
 class ProcedenciaTests(TestCase):
     """
-    Imagem de terceiro num totem comercial, sem licenca conferida, e
-    risco juridico do cliente que instalou o equipamento.
+    A procedencia e guardada mesmo quando a licenca dispensa credito.
+
+    Os campos deixaram de ser obrigatorios porque o importador preenche
+    sozinho, e exigir digitacao numa importacao automatica so criaria
+    caminho para preencher errado. Mas o registro continua: um ano
+    depois, "de onde veio esta foto?" precisa ter resposta.
     """
 
-    def test_licenca_e_fonte_sao_obrigatorias(self):
-        campo_licenca = ImagemAmbiente._meta.get_field("licenca")
-        campo_fonte = ImagemAmbiente._meta.get_field("fonte")
-        self.assertFalse(campo_licenca.blank)
-        self.assertFalse(campo_fonte.blank)
+    def test_o_acervo_guarda_de_onde_veio(self):
+        campos = {f.name for f in ImagemAmbiente._meta.get_fields()}
+        self.assertIn("fonte", campos)
+        self.assertIn("licenca", campos)
+        self.assertIn("autor", campos)
+
+    def test_guarda_o_id_da_origem_para_nao_repetir(self):
+        """
+        Sem ele, cada atualizacao semanal traria as mesmas fotos de
+        novo — e em um mes a tela repetiria a mesma paisagem seis vezes.
+        """
+        self.assertIn(
+            "id_externo", {f.name for f in ImagemAmbiente._meta.get_fields()}
+        )
