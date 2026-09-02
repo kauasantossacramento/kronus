@@ -233,8 +233,19 @@ class OperacaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
 class ConfiguracaoEmpresaForm(EstiloTailwindMixin, forms.ModelForm):
     class Meta:
         model = ConfiguracaoEmpresa
-        exclude = ("empresa", "uuid", "created_at", "updated_at", "deleted_at")
+        # Os avisos ficam na aba de notificacoes, que os grava campo a
+        # campo. Mante-los aqui os apagaria a cada save desta pagina:
+        # checkbox que a pagina nao desenha chega ao form como False.
+        exclude = (
+            "empresa", "uuid", "created_at", "updated_at", "deleted_at",
+            "notif_esq_ponto", "notif_banco_negativo",
+            "notif_comprovante_email", "notif_totem_offline",
+            "email_notificacoes",
+        )
         widgets = {
             "hora_ini_noturno": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
             "hora_fim_noturno": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+            "inicio_do_controle": forms.DateInput(
+                attrs={"type": "date"}, format="%Y-%m-%d"
+            ),
         }

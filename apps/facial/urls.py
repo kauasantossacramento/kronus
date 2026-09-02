@@ -6,6 +6,9 @@ app_name = "facial"
 
 urlpatterns = [
     path("cadastro/<int:colaborador_id>/", views.cadastro, name="cadastro"),
+    # Capturas adicionais para quem tem dificuldade. Ver views.reforcar_biometria.
+    path("cadastro/<int:colaborador_id>/reforcar/", views.reforcar_biometria,
+         name="reforcar_biometria"),
     path(
         "cadastro/<int:colaborador_id>/amostra/",
         views.receber_amostra,

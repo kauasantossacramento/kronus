@@ -457,6 +457,16 @@ class ConsolidacaoService:
         if existente is not None and existente.fechado:
             return existente
 
+        # Antes do controle existir nao ha falta a apurar.
+        #
+        # Medido em producao: a INVICTA acumulou 116 faltas anteriores a
+        # primeira batida da empresa — 928 horas de debito inventado,
+        # sendo 240 delas de uma pessoa que nunca faltou um dia. O
+        # espelho de ponto dela abria em -240h.
+        inicio = cls.inicio_da_apuracao(colaborador)
+        if inicio is not None and dia < inicio:
+            return existente
+
         registros = RegistroPontoService.registros_do_dia(colaborador, dia)
         config = colaborador.empresa.configuracao
         calculadora = CalculadoraJornada(escala=colaborador.escala, config=config)
@@ -485,6 +495,42 @@ class ConsolidacaoService:
         )
         cls._propagar_acumulado(colaborador, dia)
         return banco
+
+    @staticmethod
+    def inicio_da_apuracao(colaborador):
+        """
+        A partir de quando a jornada e apurada, ou None se ninguem disse.
+
+        **So uma declaracao explicita corta.** A primeira versao disto
+        deduzia a data pelo cadastro do colaborador, e a deducao era
+        pior que nao cortar: um dia importado depois, ou reprocessado
+        apos uma correcao retroativa, sumia sem aviso — o sistema
+        recusava apurar um dia que tinha marcacao de verdade.
+
+        Vale a data da pessoa quando houver; senao, a da empresa. A
+        admissao entra como piso porque quem ainda nao comecou nao pode
+        faltar.
+
+        Caso real: o grupo INVICTA declarou 01/09/2026, mas Adriana e
+        Marlene ja batiam ponto pela empresa da pessoa fisica desde
+        31/08. Sem a excecao por pessoa, o dia de trabalho delas seria
+        descartado junto com o periodo que nao vale.
+        """
+        marcos = []
+
+        proprio = getattr(colaborador, "inicio_do_controle", None)
+        if proprio:
+            marcos.append(proprio)
+        else:
+            config = getattr(colaborador.empresa, "configuracao", None)
+            declarado = getattr(config, "inicio_do_controle", None)
+            if declarado:
+                marcos.append(declarado)
+
+        if colaborador.data_admissao:
+            marcos.append(colaborador.data_admissao)
+
+        return max(marcos) if marcos else None
 
     @staticmethod
     def _saldo_acumulado_ate(colaborador, dia: date) -> int:

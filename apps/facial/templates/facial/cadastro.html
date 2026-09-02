@@ -229,8 +229,21 @@
         </div>
         <div class="flex justify-between">
           <dt class="text-[var(--kronus-gray-500)]">Amostras ativas</dt>
-          <dd class="font-mono font-semibold">{{ amostras|length }}</dd>
+          <dd class="font-mono font-semibold">
+            {{ amostras|length }}<span class="text-[var(--kronus-gray-400)]">/{{ maximo }}</span>
+          </dd>
         </div>
+        {% if dificuldade.situacao != "sem_dados" %}
+        <div class="flex justify-between">
+          <dt class="text-[var(--kronus-gray-500)]">Reconhecimento</dt>
+          <dd class="{% if dificuldade.situacao == "dificil" %}text-amber-600{% else %}text-emerald-600{% endif %} font-medium">
+            {% if dificuldade.situacao == "dificil" %}difícil{% else %}tranquilo{% endif %}
+            <span class="font-mono text-xs text-[var(--kronus-gray-400)]">
+              {{ dificuldade.media|floatformat:1 }} tent.
+            </span>
+          </dd>
+        </div>
+        {% endif %}
         <div class="flex justify-between">
           <dt class="text-[var(--kronus-gray-500)]">Face cadastrada</dt>
           <dd class="{% if colaborador.face_registrada %}text-emerald-600{% else %}text-[var(--kronus-gray-400)]{% endif %} font-medium">
@@ -242,6 +255,45 @@
           <dd class="font-mono text-xs">{{ motor_nome }}</dd>
         </div>
       </dl>
+
+      {# Reforço: mais amostras para quem o sistema custa a reconhecer. #}
+      {# Só aparece quando o teto atual já está cheio — antes disso a  #}
+      {# pessoa ainda pode capturar sem precisar de liberação nenhuma. #}
+      {% if amostras|length >= maximo %}
+      <div class="mt-5 pt-5 border-t border-[var(--kronus-gray-200)]">
+        {% if dificuldade.situacao == "dificil" %}
+          <p class="text-xs text-amber-700 leading-relaxed mb-3">
+            O sistema tem precisado de
+            <strong>{{ dificuldade.media|floatformat:1 }} tentativas</strong>
+            para reconhecer {{ colaborador.primeiro_nome }}. Capturas em
+            outras condições — luz diferente, outro ângulo — costumam
+            resolver.
+          </p>
+        {% else %}
+          <p class="text-xs text-[var(--kronus-gray-500)] leading-relaxed mb-3">
+            O limite de amostras foi atingido. Se ainda houver dificuldade
+            para reconhecer, libere capturas adicionais em vez de refazer
+            o cadastro: as fotos que já funcionam continuam valendo.
+          </p>
+        {% endif %}
+        <form method="post"
+              action="{% url 'facial:reforcar_biometria' colaborador.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="quantas" value="3">
+          <button type="submit"
+                  class="w-full px-4 py-2.5 rounded-lg text-sm font-medium
+                         bg-amber-50 text-amber-800 border border-amber-200
+                         hover:bg-amber-100 transition">
+            Liberar 3 capturas adicionais
+          </button>
+        </form>
+        {% if colaborador.reforco_biometrico %}
+        <p class="mt-2 text-[11px] text-[var(--kronus-gray-400)] text-center">
+          Já reforçado em +{{ colaborador.reforco_biometrico }}
+        </p>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
 
     <div class="card">

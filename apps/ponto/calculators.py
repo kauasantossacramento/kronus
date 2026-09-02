@@ -176,6 +176,14 @@ class CalculadoraJornada:
         if eh_feriado:
             return 0
         if self.escala is None:
+            # Sem escala cadastrada, o padrao da CLT: segunda a sexta.
+            #
+            # Antes daqui a jornada era cobrada nos sete dias, e o
+            # resultado apareceu em producao — nove pessoas sem escala
+            # levaram falta em sabado e domingo. Cobrar jornada de um
+            # domingo que ninguem combinou nao e rigor, e erro.
+            if dia.weekday() >= 5:
+                return 0
             return self.jornada_padrao_min
         return self.escala.minutos_esperados(dia)
 

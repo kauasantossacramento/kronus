@@ -327,7 +327,17 @@ class FaceRecognitionService:
         qual foto gerou qual embedding faz parte da trilha de auditoria
         do dado biometrico.
         """
-        limite = getattr(settings, "FACE_AMOSTRAS_MAXIMAS", 7)
+        # O teto e do colaborador, e nao da instalacao.
+        #
+        # Quem tem reforco biometrico comporta mais: sao pessoas cujo
+        # reconhecimento falha por falta de cobertura de condicao — o
+        # quadro nao produz correspondencia nenhuma, embora a distancia
+        # seja folgada quando o rosto e lido. Aposentar as extras
+        # desfaria justamente o que foi acrescentado para elas.
+        limite = getattr(
+            colaborador, "limite_de_amostras",
+            getattr(settings, "FACE_AMOSTRAS_MAXIMAS", 7),
+        )
         ativas = list(
             colaborador.registros_faciais.filter(ativo=True).order_by("-created_at")
         )

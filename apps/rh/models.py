@@ -365,6 +365,45 @@ class Colaborador(TenantBaseModel):
 
         return usuario, senha
 
+    #: Amostras faciais a mais, para quem o reconhecimento custa.
+    #:
+    #: O padrao de sete cobre a maioria. Mas ha quem precise de mais, e
+    #: os dados dizem quem: medido em producao, as falhas de
+    #: reconhecimento nao vinham de confusao entre pessoas — vinham de
+    #: quadros que nao produziam correspondencia nenhuma. Quando o rosto
+    #: era lido, a distancia ficava em 0,10. Faltava cobertura de
+    #: condicao, e nao precisao.
+    #:
+    #: Zero segue o padrao da instalacao. O reforco e por pessoa porque
+    #: subir o teto para todos gastaria memoria e tempo de comparacao
+    #: com quem ja e reconhecido de primeira.
+    inicio_do_controle = models.DateField(
+        "Início do controle para esta pessoa",
+        null=True,
+        blank=True,
+        help_text=(
+            "Exceção à data da empresa, para quem já batia ponto antes "
+            "de o controle passar a valer para o grupo. Em branco, "
+            "segue a empresa."
+        ),
+    )
+    reforco_biometrico = models.PositiveSmallIntegerField(
+        "Amostras faciais adicionais",
+        default=0,
+        help_text=(
+            "Capturas a mais para quem tem dificuldade de ser "
+            "reconhecido. Zero usa o padrão do sistema."
+        ),
+    )
+
+    @property
+    def limite_de_amostras(self) -> int:
+        """Quantas amostras faciais este colaborador comporta."""
+        from django.conf import settings
+
+        base = getattr(settings, "FACE_AMOSTRAS_MAXIMAS", 7)
+        return base + (self.reforco_biometrico or 0)
+
     #: Quando a pessoa deu ciencia da coleta de localizacao.
     #:
     #: **Ciencia, e nao consentimento.** A base legal da coleta e o

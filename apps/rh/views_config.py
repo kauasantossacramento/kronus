@@ -34,6 +34,7 @@ logger = logging.getLogger("kronus.rh")
 
 #: Campos cuja alteração muda o resultado do cálculo de jornada.
 CAMPOS_QUE_AFETAM_CALCULO = {
+    "inicio_do_controle",
     "tolerancia_atraso_min",
     "intervalo_minimo_min",
     "jornada_diaria_padrao_min",

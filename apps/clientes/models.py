@@ -1033,6 +1033,16 @@ class ConfiguracaoEmpresa(BaseModel):
     )
 
     # -- Jornada -----------------------------------------------
+    inicio_do_controle = models.DateField(
+        "Início do controle de ponto",
+        null=True,
+        blank=True,
+        help_text=(
+            "A partir de quando a jornada é apurada nesta empresa. Antes "
+            "desta data ninguém recebe falta: o controle não existia. "
+            "Em branco, vale a data de cadastro de cada colaborador."
+        ),
+    )
     tolerancia_atraso_min = models.PositiveSmallIntegerField(
         "Tolerância de atraso (min)",
         default=5,

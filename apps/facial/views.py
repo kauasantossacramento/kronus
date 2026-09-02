@@ -73,7 +73,10 @@ def cadastro(request, colaborador_id):
                 {"angulo": str(a), "titulo": t, "dica": d} for a, t, d in ROTEIRO_CAPTURA
             ],
             "minimo": settings.FACE_AMOSTRAS_MINIMAS,
-            "maximo": settings.FACE_AMOSTRAS_MAXIMAS,
+            # O teto e do colaborador: quem tem reforco comporta mais.
+            "maximo": colaborador.limite_de_amostras,
+            "reforco": colaborador.reforco_biometrico,
+            "dificuldade": _dificuldade_segura(colaborador),
             "motor_disponivel": servico.disponivel,
             "motor_nome": servico.provedor.nome,
         },
@@ -278,3 +281,68 @@ def excluir_biometria(request, colaborador_id):
         "O registro de ponto segue disponível pelo CPF.",
     )
     return redirect("rh:colaborador_detalhe", pk=colaborador.pk)
+
+
+def _dificuldade_segura(colaborador) -> dict:
+    """
+    Quanto custa reconhecer esta pessoa, sem derrubar a tela se falhar.
+
+    A medida percorre as tentativas dos ultimos dias; e barata, mas
+    depende do banco. Uma falha aqui nao pode impedir alguem de
+    cadastrar o rosto — que e o que a tela existe para fazer.
+    """
+    from apps.facial.aprendizado import dificuldade_de
+
+    try:
+        return dificuldade_de(colaborador)
+    except Exception:
+        logger.exception("Falha ao medir a dificuldade de %s", colaborador.pk)
+        return {"situacao": "sem_dados", "media": None, "batidas": 0}
+
+
+@rh_required
+@empresa_ativa_required
+@require_POST
+def reforcar_biometria(request, colaborador_id):
+    """
+    Libera capturas adicionais para quem tem dificuldade.
+
+    Medido em producao: as falhas de reconhecimento nao vinham de
+    confusao entre pessoas — vinham de quadros que nao produziam
+    correspondencia nenhuma. Quando o rosto era lido, a distancia ficava
+    em 0,10. Faltava cobertura de condicao, e nao precisao.
+
+    Por isso o reforco acrescenta capturas em vez de refazer o cadastro:
+    o que ja existe funciona quando o quadro colabora, e jogar fora
+    perderia as poses boas junto com o problema.
+    """
+    colaborador = _colaborador_no_escopo(request, colaborador_id)
+
+    try:
+        quantas = int(request.POST.get("quantas", 3))
+    except (TypeError, ValueError):
+        quantas = 3
+    # Teto de cinco por vez: quem precisa de mais faz de novo, e o
+    # limite evita que um clique acidental dobre a galeria.
+    quantas = max(1, min(5, quantas))
+
+    colaborador.reforco_biometrico = (colaborador.reforco_biometrico or 0) + quantas
+    colaborador.save(update_fields=["reforco_biometrico", "updated_at"])
+
+    registrar_log(
+        request=request,
+        acao=LogAcesso.Acao.CONFIG,
+        descricao=(
+            f"Reforço biométrico de {colaborador.nome_exibicao}: "
+            f"+{quantas} captura(s), teto agora {colaborador.limite_de_amostras}"
+        ),
+        objeto=colaborador,
+        empresa=request.empresa_ativa,
+    )
+    messages.success(
+        request,
+        f"{colaborador.nome_exibicao} pode receber mais {quantas} captura(s). "
+        f"Capture agora, em condições diferentes das que já existem — "
+        f"outra luz, outro enquadramento.",
+    )
+    return redirect("facial:cadastro", colaborador_id=colaborador.pk)
