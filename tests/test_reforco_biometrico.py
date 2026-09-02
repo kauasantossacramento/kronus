@@ -165,39 +165,49 @@ class DificuldadeTests(BaseReforco):
         self.assertEqual(quem_precisa_de_reforco(self.empresa), [])
 
 
-class AprendizadoDeQuemMaisPrecisaTests(BaseReforco):
+class PisoDoAprendizadoTests(BaseReforco):
     """
-    A regra anterior exigia 0,45 absolutos de distância de qualquer
-    outra pessoa para aprender. Simulada contra a galeria real de
-    produção, ela bloqueava 100% das capturas de Edilane, Elisangela e
-    Raphael — exatamente quem mais repetia na fila.
+    O piso do aprendizado automático fica em 0,45 — e isso é resultado
+    de medição, não de inércia.
 
-    A folga relativa resolve sem abrir a porta: Edjane continua
-    bloqueada, porque ela e a irmã ficam a 0,2630 uma da outra.
+    A tentativa era baixá-lo para 0,22 com folga relativa sobre o
+    vizinho, para que Elisangela e Edilane conseguissem aprender.
+    Simulado contra a galeria real de produção, com a galeria evoluindo
+    a cada amostra como acontece de verdade:
+
+      regra de hoje  — 30 amostras aprendidas, 0 pares perigosos novos
+      regra frouxa   — 22 amostras aprendidas, 5 pares perigosos novos
+
+    Pior nos dois eixos, e as irmãs continuavam sem aprender. O motivo:
+    as travas relativas dependem de o titular já ter amostras. Quem tem
+    poucas cai só no piso, e a 0,22 entra captura a 0,36 de outra
+    pessoa — foi assim que os cinco pares nasceram.
+
+    Quem precisa de mais foto recebe foto, pelo reforço biométrico, com
+    alguém olhando. Afrouxar a regra automática cobra da fila inteira.
     """
 
-    def test_a_folga_e_relativa_e_nao_absoluta(self):
+    def test_o_piso_nao_cede(self):
         from apps.facial import aprendizado
 
-        self.assertLess(aprendizado.DISTANCIA_MINIMA_DE_OUTROS, 0.45)
-        self.assertGreater(aprendizado.FOLGA_SOBRE_O_VIZINHO, 0.0)
+        self.assertEqual(aprendizado.DISTANCIA_MINIMA_DE_OUTROS, 0.45)
 
-    def test_o_piso_absoluto_continua_barrando_o_indistinguivel(self):
+    def test_a_medicao_nao_altera_regra_nenhuma(self):
         """
-        Perto de todo mundo continua sendo perto de todo mundo: a folga
-        relativa não pode virar porta de entrada para captura ruim.
+        `dificuldade_de` e `quem_precisa_de_reforco` são leitura pura:
+        se um dia passarem a decidir o que entra na galeria, esta
+        separação some sem ninguém perceber.
         """
-        from apps.facial import aprendizado
-
-        self.assertGreater(aprendizado.DISTANCIA_MINIMA_DE_OUTROS, 0.0)
-
-    def test_a_regra_compara_com_o_titular_e_nao_so_com_o_vizinho(self):
         import inspect
 
         from apps.facial import aprendizado
 
-        fonte = inspect.getsource(aprendizado._nao_aproxima_de_outro)
-        self.assertIn("FOLGA_SOBRE_O_VIZINHO", fonte)
+        for funcao in (aprendizado.dificuldade_de,
+                       aprendizado.quem_precisa_de_reforco):
+            fonte = inspect.getsource(funcao)
+            self.assertNotIn("save(", fonte)
+            self.assertNotIn("create(", fonte)
+            self.assertNotIn("DISTANCIA_MINIMA_DE_OUTROS", fonte)
 
 
 class ReforcoPelaWebTests(BaseReforco):
@@ -293,3 +303,79 @@ class ReforcoPelaWebTests(BaseReforco):
         ):
             r = self.client.get(f"/facial/cadastro/{self.pessoa.pk}/")
         self.assertEqual(r.status_code, 200)
+
+
+class OrientacaoNoTotemTests(TestCase):
+    """
+    Quem já tem cadastro e captura de novo precisa de outra **condição**,
+    e não de mais ângulos.
+
+    Elisangela falha no reconhecimento com cinco amostras de qualidade 74
+    a 80 — todas capturadas às 16h03 de um mesmo dia. Cinco poses, uma
+    luz só. Repetir a sessão de boa fé rende mais do mesmo, e a tela é o
+    único lugar onde dá para avisar o operador a tempo.
+    """
+
+    def _js(self):
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        return (
+            raiz / "apps" / "totem" / "static" / "totem" / "js"
+            / "manutencao.js"
+        ).read_text(encoding="utf-8")
+
+    def test_a_tela_pede_condicao_diferente(self):
+        js = self._js()
+        self.assertIn("orientacaoDeReforco", js)
+        self.assertIn("condição diferente", js)
+
+    def test_o_aviso_e_falado_e_nao_so_escrito(self):
+        """
+        Quem está capturando olha para a câmera, não para a tela — foi
+        por isso que as instruções de pose já saem em voz.
+        """
+        js = self._js()
+        # A partir da DEFINICAO, e nao da chamada: `_atualizarReforco`
+        # aparece antes no arquivo, dentro de `_abrirCaptura`.
+        trecho = js[js.index("_atualizarReforco: function"):]
+        self.assertIn("Voz.falar", trecho[:700])
+
+    def test_quem_nao_tem_cadastro_nao_ve_aviso_nenhum(self):
+        """
+        Primeiro cadastro não é reforço: o aviso ali seria ruído.
+        """
+        js = self._js()
+        trecho = js[js.index("function orientacaoDeReforco"):]
+        self.assertIn("if (!amostras) return '';", trecho[:400])
+
+    def test_a_tela_diz_quando_a_captura_vai_substituir(self):
+        """
+        Com o cadastro cheio a amostra nova aposenta a pior. O operador
+        precisa saber disso antes de capturar, e não depois.
+        """
+        js = self._js()
+        self.assertIn("substitui", js)
+
+    def test_o_teto_vem_por_pessoa_e_nao_do_sistema(self):
+        """
+        O reforço é individual: usar o padrão global mostraria o número
+        errado justamente para quem recebeu capturas a mais.
+        """
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        api = (
+            raiz / "apps" / "api" / "views_manutencao.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"limite": p.limite_de_amostras', api)
+        self.assertIn("this.pessoa.limite", self._js())
+
+    def test_o_aviso_existe_na_pagina(self):
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parent.parent
+        pagina = (
+            raiz / "apps" / "totem" / "templates" / "totem" / "index.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('id="manut-reforco"', pagina)

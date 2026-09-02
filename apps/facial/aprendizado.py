@@ -205,29 +205,13 @@ def _traz_algo_novo(servico, colaborador, imagem_bytes) -> bool:
         return True
 
 
-#: Piso absoluto: abaixo disto a captura esta perto de todo mundo.
+#: Quanto a amostra aprendida pode encostar em outra pessoa.
 #:
-#: Uma foto que fica a menos disto de outro cadastro descreve mal quem
-#: quer que seja — e provavelmente descreve um recorte ruim, nao um
-#: rosto.
-DISTANCIA_MINIMA_DE_OUTROS = 0.22
-
-#: Quanto o titular precisa estar mais perto que o vizinho.
-#:
-#: A versao anterior exigia 0,45 absolutos de qualquer outra pessoa, e
-#: isso bloqueava o aprendizado **justamente de quem mais precisa**: as
-#: irmas Alves dos Santos ficam a 0,2630 uma da outra, entao nenhuma
-#: delas jamais aprenderia — e sao elas que repetem mais na fila.
-#:
-#: O que garante seguranca nao e a distancia absoluta ao vizinho, e sim
-#: a captura pertencer **inequivocamente** ao titular. Uma foto a 0,10
-#: dele e 0,26 da irma e dele sem duvida: a folga de 0,16 nao deixa
-#: espaco para erro. Uma foto a 0,20 dele e 0,26 dela e ambigua, e essa
-#: continua barrada.
-#:
-#: Medido na base real: os acertos de ontem ficaram entre 0,10 e 0,22, e
-#: o par mais proximo entre pessoas diferentes esta em 0,2630.
-FOLGA_SOBRE_O_VIZINHO = 0.15
+#: Uma amostra que fica a menos disto de outro cadastro nao entra, mesmo
+#: sendo do titular. Nao e o mesmo que o limiar do reconhecimento: ali
+#: se decide uma batida, que erra e se corrige na proxima; aqui se
+#: decide uma referencia permanente, que erra e passa a errar sempre.
+DISTANCIA_MINIMA_DE_OUTROS = 0.45
 
 
 def _nao_aproxima_de_outro(servico, colaborador, imagem_bytes) -> bool:
@@ -269,31 +253,10 @@ def _nao_aproxima_de_outro(servico, colaborador, imagem_bytes) -> bool:
         if perto_de_outro < DISTANCIA_MINIMA_DE_OUTROS:
             logger.info(
                 "Nao aprendeu: a captura fica a %.3f de outro cadastro "
-                "(piso %.2f). colaborador=%s",
+                "(minimo %.2f). colaborador=%s",
                 perto_de_outro, DISTANCIA_MINIMA_DE_OUTROS, colaborador.pk,
             )
             return False
-
-        # A captura precisa ser inequivocamente do titular.
-        #
-        # Comparada com ele, e nao com um numero fixo: quem tem um
-        # parecido na empresa nunca alcancaria um piso absoluto alto, e
-        # ficaria sem aprender para sempre — sendo justamente quem mais
-        # precisa. O que protege e a folga: se a foto esta muito mais
-        # perto dele que de qualquer outro, ela e dele.
-        atuais_do_titular = galeria.get(colaborador.pk) or []
-        if atuais_do_titular:
-            perto_do_titular = min(
-                servico._distancia(vetor, v) for v in atuais_do_titular
-            )
-            folga = perto_de_outro - perto_do_titular
-            if folga < FOLGA_SOBRE_O_VIZINHO:
-                logger.info(
-                    "Nao aprendeu: folga de %.3f sobre o vizinho (minimo "
-                    "%.2f). colaborador=%s",
-                    folga, FOLGA_SOBRE_O_VIZINHO, colaborador.pk,
-                )
-                return False
 
         # Ja existe alguem perto do titular? Entao a amostra nova nao
         # pode estreitar essa distancia — seria empurrar os dois
@@ -364,11 +327,21 @@ def _piores_aprendidas(servico, colaborador, aprendidas, quantas: int) -> list:
         return list(aprendidas.order_by("created_at")[:quantas])
 
 
-#: A partir de quantas tentativas por batida a pessoa "tem dificuldade".
-#:
-#: Medido em producao: a mediana e 1 tentativa, e 84% das batidas saem
-#: em ate duas. Quem passa disso esta fora do padrao, e nao tendo um dia
-#: ruim.
+# ══════════════════════════════════════════════════════════════
+# Quanto custa reconhecer cada pessoa
+# ══════════════════════════════════════════════════════════════
+#
+# Medicao pura: nada aqui altera o que e aprendido. Serve para apontar
+# quem precisa de reforco biometrico — capturas a mais, feitas com
+# alguem olhando, e nao afrouxamento da regra automatica.
+#
+# A tentacao era baixar o piso do aprendizado para as irmas Alves dos
+# Santos conseguirem aprender. Medido contra a galeria real, com a
+# galeria evoluindo a cada amostra como acontece em producao: a regra
+# frouxa aprendia 22 amostras no lugar de 30 e criava 5 pares novos na
+# faixa de duvida — e as irmas continuavam sem aprender. O piso fica
+# onde esta; quem precisa de mais foto recebe foto.
+
 TENTATIVAS_QUE_INCOMODAM = 2.5
 
 #: Quantas batidas a pessoa precisa ter para a medida valer.

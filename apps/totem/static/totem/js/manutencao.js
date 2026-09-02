@@ -170,6 +170,30 @@
     { angulo: 'baixo', instrucao: 'Abaixe um pouco o queixo' }
   ];
 
+  /**
+   * O que dizer a quem ja tem cadastro e esta capturando de novo.
+   *
+   * Repetir as cinco poses no mesmo lugar e na mesma hora rende cinco
+   * fotos da mesma condicao — que e o que a pessoa ja tem. Elisangela
+   * falha no reconhecimento com cinco amostras de qualidade 74 a 80,
+   * todas capturadas as 16h03 de um mesmo dia: cinco angulos, uma luz
+   * so. Quando a luz muda, a galeria inteira envelhece junto.
+   *
+   * O reforco existe para cobrir condicao, e nao angulo. A tela precisa
+   * dizer isso, senao o operador repete a sessao anterior de boa fe.
+   */
+  function orientacaoDeReforco(amostras, teto) {
+    if (!amostras) return '';
+    if (teto && amostras >= teto) {
+      return 'Cadastro cheio (' + amostras + ' de ' + teto + '). '
+        + 'A captura nova substitui a que mais encosta em outra pessoa.';
+    }
+    return 'Já tem ' + amostras + ' amostra'
+      + (amostras > 1 ? 's' : '')
+      + '. Capture em condição diferente das que existem: '
+      + 'outra luz, outro horário, ou no lugar onde o reconhecimento falha.';
+  }
+
   var Manutencao = {
     config: null,
     chave: '',
@@ -465,6 +489,7 @@
       this._erro('erro-manut-captura', '');
       var nome = document.getElementById('manut-captura-nome');
       if (nome) nome.textContent = this.pessoa.nome;
+      this._atualizarReforco();
       this._atualizarPose();
       this._mostrar('tela-manut-captura');
 
@@ -492,6 +517,21 @@
           self._erro('erro-manut-captura',
             'Câmera indisponível' + (erro && erro.name ? ' (' + erro.name + ')' : '') + '.');
         });
+    },
+
+    _atualizarReforco: function () {
+      var aviso = document.getElementById('manut-reforco');
+      if (!aviso) return;
+      var texto = orientacaoDeReforco(
+        (this.pessoa && this.pessoa.amostras) || 0,
+        (this.pessoa && this.pessoa.limite) || 0
+      );
+      aviso.textContent = texto;
+      aviso.hidden = !texto;
+      // Falado tambem: quem esta capturando olha para a camera, e nao
+      // para a tela — foi por isso que as instrucoes de pose ja saem em
+      // voz. Uma orientacao que so aparece escrita nao chega.
+      if (texto) Voz.falar(texto);
     },
 
     _atualizarPose: function () {

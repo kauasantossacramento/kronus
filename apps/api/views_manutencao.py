@@ -261,6 +261,10 @@ def colaboradores(request):
                     "matricula": p.matricula or "",
                     "consentimento": p.consentimento_biometrico,
                     "amostras": p.registros_faciais.filter(ativo=True).count(),
+                    # O teto e de cada pessoa: quem tem reforco comporta
+                    # mais. A tela usa isto para dizer se a captura nova
+                    # acrescenta ou substitui.
+                    "limite": p.limite_de_amostras,
                 }
                 for p in pessoas
             ],
