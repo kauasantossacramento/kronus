@@ -33,6 +33,11 @@ urlpatterns = [
         name="colaborador_gerar_acesso",
     ),
     path(
+        "colaboradores/<int:pk>/reenviar-credenciais/",
+        views.colaborador_reenviar_credenciais,
+        name="colaborador_reenviar_credenciais",
+    ),
+    path(
         "colaboradores/<int:pk>/transferir/",
         views.colaborador_transferir,
         name="colaborador_transferir",

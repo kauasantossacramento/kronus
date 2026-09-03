@@ -636,6 +636,55 @@ def colaborador_gerar_acesso(request, pk):
 @rh_required
 @empresa_ativa_required
 @require_POST
+def colaborador_reenviar_credenciais(request, pk):
+    """
+    Gera uma senha nova e reenvia — para quem já tem acesso.
+
+    `colaborador_gerar_acesso` não serve aqui: ele só cria senha para
+    quem ainda não tem uma utilizável, e "já tinha acesso" era o fim de
+    linha para quem clicava de novo depois que o primeiro e-mail não
+    chegou. Não havia caminho nenhum de volta a não ser recadastrar a
+    pessoa.
+
+    A senha anterior para de funcionar no mesmo instante — quem clica
+    aqui está confirmando que a antiga não chegou ou se perdeu.
+    """
+    colaborador = get_object_or_404(
+        Colaborador, pk=pk, empresa=request.empresa_ativa
+    )
+    enviado, senha = colaborador.reenviar_credenciais()
+
+    if enviado:
+        messages.success(
+            request,
+            f"Nova senha gerada para {colaborador.nome_exibicao} e enviada "
+            f"para {colaborador.email}. A senha anterior parou de funcionar.",
+        )
+    else:
+        messages.warning(
+            request,
+            f"Nova senha gerada para {colaborador.nome_exibicao}, mas o "
+            f"e-mail não foi enviado. Senha provisória: {senha} — anote "
+            "agora, ela não será exibida de novo. A senha anterior parou "
+            "de funcionar.",
+        )
+
+    registrar_log(
+        request=request,
+        acao=LogAcesso.Acao.SEGURANCA,
+        descricao=(
+            f"Credenciais reenviadas para {colaborador.nome_exibicao} "
+            f"({'e-mail enviado' if enviado else 'e-mail não enviado'})"
+        ),
+        objeto=colaborador,
+        empresa=request.empresa_ativa,
+    )
+    return redirect("rh:colaborador_detalhe", pk=colaborador.pk)
+
+
+@rh_required
+@empresa_ativa_required
+@require_POST
 def colaborador_transferir(request, pk):
     """
     Move o colaborador para outra empresa do mesmo cliente.

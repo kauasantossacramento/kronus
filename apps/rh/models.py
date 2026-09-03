@@ -365,6 +365,31 @@ class Colaborador(TenantBaseModel):
 
         return usuario, senha
 
+    def reenviar_credenciais(self):
+        """
+        Força uma senha nova e a reenvia.
+
+        `garantir_usuario` só gera senha para quem ainda não tem uma
+        utilizável — proteção certa contra apagar o acesso de quem já
+        entra normalmente. Mas isso deixa sem saída exatamente quem
+        precisa: a pessoa cujo primeiro e-mail nunca chegou, ou cujo
+        e-mail só foi cadastrado depois de o acesso já existir. Aqui a
+        troca foi pedida por quem administra, então acontece sempre.
+
+        Devolve `(enviado, senha)`. A senha só existe neste retorno — a
+        anterior para de funcionar no mesmo instante.
+        """
+        from apps.core.utils import gerar_token
+        from apps.rh.credenciais import enviar_credenciais
+
+        usuario, _ = self.garantir_usuario(criar_senha=False)
+        senha = gerar_token(9)
+        usuario.set_password(senha)
+        usuario.trocar_senha_no_proximo_login = True
+        usuario.save(update_fields=["password", "trocar_senha_no_proximo_login"])
+
+        return enviar_credenciais(self, senha), senha
+
     #: Amostras faciais a mais, para quem o reconhecimento custa.
     #:
     #: O padrao de sete cobre a maioria. Mas ha quem precise de mais, e

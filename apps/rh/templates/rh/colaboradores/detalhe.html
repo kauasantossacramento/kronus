@@ -183,6 +183,25 @@
       </button>
     </form>
 
+    {% if colaborador.user_id %}
+      {# Só aparece para quem já tem login: "Gerar acesso" não gera    #}
+      {# senha nova quando uma já existe, e não havia caminho para     #}
+      {# quem teve o primeiro e-mail perdido a não ser recadastrar.    #}
+      <form method="post"
+            action="{% url 'rh:colaborador_reenviar_credenciais' colaborador.pk %}"
+            onsubmit="return confirm('A senha atual de {{ colaborador.nome_exibicao }} deixará de funcionar. Uma nova será gerada e enviada por e-mail. Continuar?')">
+        {% csrf_token %}
+        <p class="text-sm font-medium text-[var(--kronus-gray-700)]">Reenviar credenciais</p>
+        <p class="mt-1 text-xs text-[var(--kronus-gray-500)]">
+          Gera uma senha nova e invalida a atual. Use quando o primeiro
+          e-mail não chegou ou a pessoa perdeu o acesso.
+        </p>
+        <button type="submit" class="btn btn-outline mt-3 text-xs">
+          {% icone "chave" classe="h-3.5 w-3.5" %} Reenviar credenciais
+        </button>
+      </form>
+    {% endif %}
+
     {% if empresas_do_cliente %}
       <form method="post" action="{% url 'rh:colaborador_transferir' colaborador.pk %}">
         {% csrf_token %}

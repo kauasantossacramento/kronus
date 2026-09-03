@@ -277,3 +277,181 @@ class SincroniaDoEmailTests(BaseCredenciais):
         f = PasswordResetForm({"email": self.pessoa.email})
         self.assertTrue(f.is_valid())
         self.assertEqual(list(f.get_users(self.pessoa.email)), [])
+
+
+class ReenvioTests(BaseCredenciais):
+    """
+    Bug relatado: o e-mail de credenciais nao chegou, e clicar em
+    "Gerar acesso" de novo nao fazia nada — a tela dizia "já tinha
+    acesso" e ficava por isso. `garantir_usuario` so gera senha nova
+    para quem ainda nao tem uma utilizavel, e essa protecao (certa
+    contra apagar o acesso de quem ja entra normalmente) deixava sem
+    saida exatamente quem precisava: recadastrar era o unico caminho.
+    """
+
+    def _logar_como_rh(self):
+        from apps.core.middleware import CHAVE_SESSAO_EMPRESA
+
+        self.client.force_login(self.rh)
+        sessao = self.client.session
+        sessao[CHAVE_SESSAO_EMPRESA] = self.empresa.pk
+        sessao.save()
+
+    def test_gera_senha_nova_mesmo_ja_tendo_acesso(self):
+        usuario, primeira_senha = self.pessoa.garantir_usuario()
+        self.assertTrue(usuario.has_usable_password())
+
+        enviado, segunda_senha = self.pessoa.reenviar_credenciais()
+
+        self.assertTrue(enviado)
+        self.assertIsNotNone(segunda_senha)
+        self.assertNotEqual(primeira_senha, segunda_senha)
+
+    def test_a_senha_antiga_para_de_funcionar(self):
+        usuario, primeira_senha = self.pessoa.garantir_usuario()
+        self.pessoa.reenviar_credenciais()
+
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.check_password(primeira_senha))
+
+    def test_a_senha_nova_e_enviada_por_email(self):
+        self.pessoa.garantir_usuario()
+        mail.outbox.clear()
+
+        _, senha = self.pessoa.reenviar_credenciais()
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.pessoa.email, mail.outbox[0].to)
+        self.assertIn(senha, mail.outbox[0].body)
+
+    def test_pede_troca_no_proximo_login(self):
+        usuario, _ = self.pessoa.garantir_usuario()
+        usuario.trocar_senha_no_proximo_login = False
+        usuario.save(update_fields=["trocar_senha_no_proximo_login"])
+
+        self.pessoa.reenviar_credenciais()
+
+        usuario.refresh_from_db()
+        self.assertTrue(usuario.trocar_senha_no_proximo_login)
+
+    def test_sem_email_avisa_mas_gera_a_senha(self):
+        """
+        A entrega falhou, e não a criação: a pessoa que clicou precisa
+        da senha na tela para entregar de outro jeito.
+        """
+        self.pessoa.garantir_usuario()
+        self.pessoa.email = ""
+        self.pessoa.save()
+
+        enviado, senha = self.pessoa.reenviar_credenciais()
+
+        self.assertFalse(enviado)
+        self.assertIsNotNone(senha)
+
+    def test_quem_nunca_teve_acesso_tambem_recebe(self):
+        """
+        O botão só aparece na tela para quem já tem login, mas a função
+        não pode quebrar se for chamada para quem ainda não tem —
+        garantir_usuario cria o vínculo primeiro.
+        """
+        self.assertIsNone(self.pessoa.user)
+
+        enviado, senha = self.pessoa.reenviar_credenciais()
+
+        self.assertTrue(enviado)
+        self.assertIsNotNone(senha)
+        self.pessoa.refresh_from_db()
+        self.assertIsNotNone(self.pessoa.user)
+
+
+class ReenvioPelaTelaTests(BaseCredenciais):
+    def setUp(self):
+        super().setUp()
+        from apps.core.middleware import CHAVE_SESSAO_EMPRESA
+
+        self.client.force_login(self.rh)
+        sessao = self.client.session
+        sessao[CHAVE_SESSAO_EMPRESA] = self.empresa.pk
+        sessao.save()
+
+    def test_o_botao_reenvia_e_redireciona_para_a_ficha(self):
+        usuario, primeira_senha = self.pessoa.garantir_usuario()
+
+        resposta = self.client.post(
+            f"/rh/colaboradores/{self.pessoa.pk}/reenviar-credenciais/"
+        )
+
+        self.assertRedirects(
+            resposta, f"/rh/colaboradores/{self.pessoa.pk}/"
+        )
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.check_password(primeira_senha))
+
+    def test_so_aparece_na_tela_para_quem_ja_tem_login(self):
+        resposta = self.client.get(f"/rh/colaboradores/{self.pessoa.pk}/")
+        self.assertNotContains(resposta, "Reenviar credenciais")
+
+        self.pessoa.garantir_usuario()
+        resposta = self.client.get(f"/rh/colaboradores/{self.pessoa.pk}/")
+        self.assertContains(resposta, "Reenviar credenciais")
+
+    def test_fica_registrado_no_log_de_acesso(self):
+        from apps.core.models import LogAcesso
+
+        self.pessoa.garantir_usuario()
+        self.client.post(
+            f"/rh/colaboradores/{self.pessoa.pk}/reenviar-credenciais/"
+        )
+
+        registro = LogAcesso.objects.filter(
+            acao=LogAcesso.Acao.SEGURANCA,
+        ).order_by("-created_at").first()
+        self.assertIsNotNone(registro)
+        self.assertIn(self.pessoa.nome_completo, registro.descricao)
+
+    def test_rh_de_outra_empresa_nao_alcanca(self):
+        from apps.accounts.models import CustomUser
+        from apps.clientes.models import Cliente, Empresa
+        from apps.master.models import Plano
+
+        plano = Plano.objects.create(
+            nome="Q", slug="q", max_empresas=1, max_colaboradores=10,
+            preco_mensal=Decimal("50"),
+        )
+        outro_cliente = Cliente.objects.create(
+            razao_social="X LTDA", cnpj="19131243000197",
+            email_contato="x@t.com", plano=plano,
+        )
+        outra_empresa = Empresa.objects.create(
+            cliente=outro_cliente, razao_social="X LTDA",
+            cnpj="34028316000103",
+        )
+        outro_rh = CustomUser.objects.create_user(
+            email="outro@t.com", password="x", nome_completo="Outro RH",
+            tipo="rh", cliente=outro_cliente,
+        )
+        outro_rh.empresas.add(outra_empresa)
+
+        from apps.core.middleware import CHAVE_SESSAO_EMPRESA
+
+        self.client.force_login(outro_rh)
+        sessao = self.client.session
+        sessao[CHAVE_SESSAO_EMPRESA] = outra_empresa.pk
+        sessao.save()
+
+        usuario, primeira_senha = self.pessoa.garantir_usuario()
+        resposta = self.client.post(
+            f"/rh/colaboradores/{self.pessoa.pk}/reenviar-credenciais/"
+        )
+
+        self.assertEqual(resposta.status_code, 404)
+        usuario.refresh_from_db()
+        self.assertTrue(usuario.check_password(primeira_senha))
+
+    def test_get_nao_e_permitido(self):
+        """A acao invalida uma senha — nao pode disparar por link."""
+        self.pessoa.garantir_usuario()
+        resposta = self.client.get(
+            f"/rh/colaboradores/{self.pessoa.pk}/reenviar-credenciais/"
+        )
+        self.assertEqual(resposta.status_code, 405)
